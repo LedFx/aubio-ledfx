@@ -17,8 +17,36 @@ concurrency:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
+  build-sdist:
+    name: Build aubio-Ledfx distribution 📦
+    runs-on: ubuntu-latest
+    env:
+      DEFAULT_PYTHON: 3.12
+    steps:
+      - name: Checkout code from GitHub
+        uses: actions/checkout@v5 # Checkout your repository
+        with:
+          submodules: 'recursive'
+    
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7 # Action to set up uv
+        with:
+          enable-cache: true      
+    
+      - name: Set up 🐍 Python ${{ env.DEFAULT_PYTHON }}
+        run: uv python install ${{ env.DEFAULT_PYTHON }} # Action to set up Python
+
+      - name: Build a source tarball
+        run: uv build --sdist --force-pep517 # Command to build the package
+    
+      - name: Store the distribution packages with 🐍 Python ${{ env.DEFAULT_PYTHON }}
+        uses: actions/upload-artifact@v4
+        with:
+            name: aubio-ledfx-sdist
+            path: dist/
+
   build:
-    name: Build aubio-Ledfx distribution 📦 on ${{ matrix.os }} with 🐍 Python ${{ matrix.python-version }} 
+    name: Build aubio-Ledfx binary wheel 📦 on ${{ matrix.os }} with 🐍 Python ${{ matrix.python-version }} 
     runs-on: ${{ matrix.os }} # Use the 'os' variable from the matrix
     strategy:
       matrix:
@@ -31,35 +59,6 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Install system dependencies (Ubuntu)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential pkg-config libsndfile1-dev libsamplerate0-dev
-
-      - name: Install system dependencies (macOS)
-        if: runner.os == 'macOS'
-        run: |
-          brew install pkg-config libsndfile libsamplerate
-
-      - name: Install system dependencies (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          choco install -y pkgconfiglite msys2
-          C:/msys64/usr/bin/bash -lc "pacman --noconfirm -Syu"
-          C:/msys64/usr/bin/bash -lc "pacman --noconfirm -S \
-            mingw-w64-x86_64-gcc \
-            mingw-w64-x86_64-libsndfile \
-            mingw-w64-x86_64-libsamplerate \
-            mingw-w64-x86_64-rubberband \
-            mingw-w64-x86_64-ffmpeg \
-            mingw-w64-x86_64-vorbis-tools \
-            mingw-w64-x86_64-flac \
-            mingw-w64-x86_64-doxygen \
-            mingw-w64-x86_64-python-sphinx \
-            mingw-w64-x86_64-pkg-config"
-          echo "C:/msys64/mingw64/bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
       - name: Install uv
         uses: astral-sh/setup-uv@v7 # Action to set up uv
         with:
@@ -67,71 +66,18 @@ jobs:
     
       - name: Set up 🐍 Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }} # Action to set up Python
-        
-      - name: Install doxygen
-        if: runner.os != 'Windows'  # Windows gets doxygen from MSYS2
-        run: |
-          if [ "$RUNNER_OS" == "Linux" ]; then
-            sudo apt-get install -y doxygen
-          elif [ "$RUNNER_OS" == "macOS" ]; then
-            brew install doxygen
-          fi
-        shell: bash
 
-      - name: Build aubio library
-        shell: bash
-        run: |
-          ./scripts/get_waf.sh
-          if [ "$RUNNER_OS" == "Windows" ]; then
-            # Ensure Windows paths use forward slashes and create build directory
-            mkdir -p build/api
-            # Configure with explicit paths for Windows
-            ./waf configure --prefix=$PWD/build --bindir=$PWD/build/bin
-          else
-            ./waf configure
-          fi
-          ./waf build
-      - name: Build a binary wheel and a source tarball
+      - name: Build a binary wheel 📦 for ${{ matrix.os }}-py${{ matrix.python-version }}
         run: uv build --wheel --force-pep517 # Command to build the package
 
-      - name: Store the distribution packages on ${{ matrix.os }} with 🐍 Python ${{ matrix.python-version }}
+      - name: Store the binary wheel 📦 for ${{ matrix.os }} with 🐍 Python ${{ matrix.python-version }}
         uses: actions/upload-artifact@v4
         with:
             name: aubio-ledfx-${{ matrix.os }}-py${{ matrix.python-version }}
             path: dist/
-  build-sdist:
-    name: >-
-      Build aubio-Ledfx distribution 📦 
-    runs-on: ubuntu-latest
-    env:
-      DEFAULT_PYTHON: 3.12
-    steps:
-      - name: Checkout code from GitHub
-        uses: actions/checkout@v5 # Checkout your repository
-        with:
-          repository: LedFx/aubio-ledfx
-          ref: master
-    
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7 # Action to set up uv
-        with:
-          enable-cache: true      
-    
-      - name: Set up 🐍 Python ${{ env.DEFAULT_PYTHON }}
-        run: uv python install ${{ env.DEFAULT_PYTHON }} # Action to set up Python
-        
-      - name: Build a binary wheel and a source tarball
-        run: uv build --sdist --force-pep517 # Command to build the package
-    
-      - name: Store the distribution packages with 🐍 Python ${{ env.DEFAULT_PYTHON }}
-        uses: actions/upload-artifact@v4
-        with:
-            name: aubio-ledfx-sdist
-            path: dist/
 
   publish-to-pypi:
-    name: >-
-      Publish Python 🐍 distribution 📦 to PyPI
+    name: Publish Python 🐍 distribution 📦 to PyPI
 #    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' # only publish to PyPI on tag pushes
     needs: [build, build-sdist]
     runs-on: ubuntu-latest
