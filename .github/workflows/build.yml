@@ -76,7 +76,7 @@ jobs:
             name: aubio-ledfx-${{ matrix.os }}-py${{ matrix.python-version }}
             path: dist/
       - name: Setup a uv venv for testing
-        run: uv venv create test-env
+        run: uv venv
       - name: Use uv pip to install the built wheel
         run: uv pip install dist/aubio_ledfx-*.whl
       - name: Run python tests with pytest
