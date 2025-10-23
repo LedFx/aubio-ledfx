@@ -51,6 +51,8 @@ jobs:
     defaults:
       run:
         shell: bash -x {0}  # Enable bash debugging for better logs
+    env:
+      CFLAGS: "-O3"  # Optimize for performance
     strategy:
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest, macos-15-intel] # macos-latest is arm64, macos-15-intel is x86_64
@@ -70,8 +72,65 @@ jobs:
       - name: Set up 🐍 Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }} # Action to set up Python
 
+      - name: Install Dependencies (Ubuntu)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            pkg-config \
+            libavcodec-dev \
+            libavformat-dev \
+            libswresample-dev \
+            libavutil-dev \
+            libsndfile1-dev \
+            libsamplerate-dev \
+            libvorbis-dev \
+            libflac-dev \
+            libjack-dev \
+            jackd2 \
+            libasound2-dev \
+            libfftw3-dev \
+            librubberband-dev
+
+      - name: Install Dependencies (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          brew install \
+            pkg-config \
+            jack \
+            ffmpeg \
+            libsndfile \
+            libvorbis \
+            flac \
+            libsamplerate \
+            rubberband \
+            fftw
+
+      - name: Install Dependencies (Windows)
+        if: startsWith(matrix.os, 'windows')
+        run: |
+          # Install MSYS2 packages for building with all optional dependencies
+          choco install -y --no-progress msys2
+          msys2 -c "pacman --noconfirm -S \
+            mingw-w64-x86_64-toolchain \
+            mingw-w64-x86_64-ffmpeg \
+            mingw-w64-x86_64-libsndfile \
+            mingw-w64-x86_64-libsamplerate \
+            mingw-w64-x86_64-fftw \
+            mingw-w64-x86_64-rubberband \
+            mingw-w64-x86_64-gcc \
+            mingw-w64-x86_64-pkg-config \
+            mingw-w64-x86_64-jack"
+          echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
+      - name: Download waf
+        run: curl -o waf https://waf.io/waf-2.0.27
       - name: Build a binary wheel 📦 for ${{ matrix.os }}-py${{ matrix.python-version }}
-        run: uv build --wheel --force-pep517 # Command to build the package
+        env:
+          # Enable all optional features
+          WAFOPTS: "--enable-fftw3 --enable-avcodec --enable-sndfile --enable-rubberband"
+        run: |
+          python waf configure ${WAFOPTS}
+          uv build --wheel --force-pep517 # Command to build the package
 
       - name: Store the binary wheel 📦 for ${{ matrix.os }} with 🐍 Python ${{ matrix.python-version }}
         uses: actions/upload-artifact@v4
