@@ -15,7 +15,7 @@ if command -v apt-get >/dev/null 2>&1; then
   echo "[cibw_before_build] apt-get found, attempting to install packages (best-effort)"
   sudo apt-get update || true
   sudo apt-get install -y --no-install-recommends \
-    pkg-config libsndfile1-dev libsamplerate0-dev libfftw3-dev libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libvorbis-dev libflac-dev libjack-dev jackd2 librubberband-dev || true
+    pkg-config libsndfile1-dev libsamplerate0-dev libfftw3-dev libavcodec-dev libavformat-dev libavutil-dev libswresample-dev libvorbis-dev libflac-dev libjack-dev librubberband-dev || true
 elif command -v yum >/dev/null 2>&1; then
   echo "[cibw_before_build] yum found, attempting to install packages (best-effort)"
   sudo yum -y install epel-release || true
