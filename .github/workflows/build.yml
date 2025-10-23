@@ -92,11 +92,19 @@ jobs:
 
       - name: Install Windows build deps (MSYS2)
         if: runner.os == 'Windows'
-        run: |
-          choco install -y --no-progress msys2
-          $env:Path += ";C:\tools\msys64\usr\bin"
-          msys2 -c "pacman --noconfirm -S mingw-w64-x86_64-toolchain mingw-w64-x86_64-ffmpeg mingw-w64-x86_64-libsndfile mingw-w64-x86_64-libsamplerate mingw-w64-x86_64-fftw mingw-w64-x86_64-rubberband mingw-w64-x86_64-pkg-config mingw-w64-x86_64-jack"
-          echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-ffmpeg
+            mingw-w64-x86_64-libsndfile
+            mingw-w64-x86_64-libsamplerate
+            mingw-w64-x86_64-fftw
+            mingw-w64-x86_64-rubberband
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-jack
 
       - name: Build wheels with cibuildwheel
         

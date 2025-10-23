@@ -63,15 +63,15 @@ fi
 
 # Configure, build, and install libaubio into DESTDIR using waf.
 # These options are for building the C library, not the Python extension.
-WAFOPTS="--enable-fftw3 --enable-avcodec --enable-sndfile --enable-rubberband --destdir=$DESTDIR --jobs=2"
-echo "[cibw_before_build] WAFOPTS=$WAFOPTS"
+WAF_CONFIGURE_OPTS="--prefix=$DESTDIR/usr/local --enable-fftw3 --enable-avcodec --enable-sndfile --enable-rubberband --jobs=2"
+echo "[cibw_before_build] WAF_CONFIGURE_OPTS=$WAF_CONFIGURE_OPTS"
 
 # The Python executable in the cibuildwheel environment is the one for the current build.
 echo "[cibw_before_build] install numpy"
 python -m pip install numpy
 
 echo "[cibw_before_build] running: python waf configure"
-python waf configure $WAFOPTS
+python waf configure $WAF_CONFIGURE_OPTS
 
 echo "[cibw_before_build] running: python waf build"
 python waf build
