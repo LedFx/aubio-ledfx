@@ -31,6 +31,7 @@ if command -v apt-get >/dev/null 2>&1; then
 elif command -v yum >/dev/null 2>&1; then
   echo "[cibw_before_build] yum found, installing packages"
   $SUDO yum -y install epel-release
+  $SUDO yum -y install --nogpgcheck https://download1.rpmfusion.org/free/el/rpmfusion-free-release-7.noarch.rpm
   $SUDO yum -y install pkgconfig libsndfile-devel libsamplerate-devel fftw-devel \
     ffmpeg-devel libvorbis-devel flac-devel
 elif command -v pacman >/dev/null 2>&1; then
