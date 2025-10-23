@@ -116,7 +116,8 @@ jobs:
             mingw-w64-x86_64-rubberband \
             mingw-w64-x86_64-gcc"
           echo "C:/msys64/mingw64/bin" >> $GITHUB_PATH
-
+      - name: Download waf
+        run: curl -o waf https://waf.io/waf-2.0.27
       - name: Build a binary wheel 📦 for ${{ matrix.os }}-py${{ matrix.python-version }}
         env:
           # Enable all optional features
