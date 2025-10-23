@@ -46,7 +46,7 @@ jobs:
             path: dist/
 
   build:
-    name: Build aubio-Ledfx binary wheel 📦 on ${{ matrix.os }} with 🐍 Python ${{ matrix.python-version }} 
+    name: Build aubio-ledfx binary wheel 📦 on ${{ matrix.os }} with 🐍 Python ${{ matrix.python-version }} 
     runs-on: ${{ matrix.os }} # Use the 'os' variable from the matrix
     strategy:
       matrix:
