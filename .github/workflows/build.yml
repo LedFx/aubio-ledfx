@@ -48,6 +48,9 @@ jobs:
   build:
     name: Build aubio-ledfx binary wheel 📦 on ${{ matrix.os }} with 🐍 Python ${{ matrix.python-version }} 
     runs-on: ${{ matrix.os }} # Use the 'os' variable from the matrix
+    defaults:
+      run:
+        shell: bash -x {0}  # Enable bash debugging for better logs
     strategy:
       matrix:
         os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest, macos-15-intel] # macos-latest is arm64, macos-15-intel is x86_64
