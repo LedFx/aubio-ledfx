@@ -1,15 +1,25 @@
-aubio
-=====
-
-[![CircleCI build status](https://circleci.com/gh/aubio/aubio.svg?style=shield)](https://circleci.com/gh/aubio/aubio "CircleCI build status")
-[![Azure Pipelines](https://dev.azure.com/aubio/aubio/_apis/build/status/aubio.aubio)](https://dev.azure.com/aubio/aubio "Azure build status")
-[![Appveyor build status](https://img.shields.io/appveyor/ci/piem/aubio/master.svg)](https://ci.appveyor.com/project/piem/aubio "Appveyor build status")
-[![Pypi Downloads](https://img.shields.io/pypi/dm/aubio.svg?label=Pypi%20downloads)](https://pypi.org/project/aubio/)
-[![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/aubio.svg?label=Conda%20downloads)](https://anaconda.org/conda-forge/aubio)
+aubio-ledfx
+===========
 
 [![Documentation](https://readthedocs.org/projects/aubio/badge/?version=latest)](http://aubio.readthedocs.io/en/latest/?badge=latest "Latest documentation")
 [![DOI](https://zenodo.org/badge/396389.svg)](https://zenodo.org/badge/latestdoi/396389)
-[![Commits since last release](https://img.shields.io/github/commits-since/aubio/aubio/latest.svg)](https://github.com/aubio/aubio "Commits since last release")
+
+> **Note:** This is a fork of the original [aubio project](https://github.com/aubio/aubio) maintained by the [LedFx](https://github.com/LedFx) team.
+>
+> **Why this fork exists:**
+> - The original aubio project is no longer actively maintained and released
+> - We need Python 3.13 support with pre-built wheels on PyPI
+> - We require the latest fixes and improvements from the main branch of aubio
+> - LedFx depends on aubio and needs a reliable, up-to-date release
+>
+> All credit for aubio goes to the original authors. This fork exists solely to provide maintained releases for projects that depend on aubio.
+>
+> **Original project:** https://github.com/aubio/aubio  
+> **This fork:** https://github.com/LedFx/aubio-ledfx
+
+---
+
+## About aubio
 
 aubio is a library to label music and sounds. It listens to audio signals and
 attempts to detect events. For instance, when a drum is hit, at which frequency
@@ -98,7 +108,8 @@ manual](https://aubio.org/manual/latest/).
 Homepage
 --------
 
-The home page of this project can be found at: https://aubio.org/
+**Original aubio project:** https://aubio.org/  
+**This fork (aubio-ledfx):** https://github.com/LedFx/aubio-ledfx
 
 License
 -------
@@ -107,6 +118,8 @@ aubio is free software: you can redistribute it and/or modify it under the
 terms of the GNU General Public License as published by the Free Software
 Foundation, either version 3 of the License, or (at your option) any later
 version.
+
+This fork maintains the same license as the original aubio project.
 
 Contributing
 ------------
