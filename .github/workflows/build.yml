@@ -76,12 +76,12 @@ jobs:
             name: aubio-ledfx-${{ matrix.os }}-py${{ matrix.python-version }}
             path: dist/
       - name: Store the wheel name to use in testing
-        id: wheel-name-output
+        id: wheel-location-name-output
         run: echo "WHEEL_NAME=$(ls dist/*.whl)" >> $GITHUB_OUTPUT
       - name: Run python tests with pytest
         # We need to fix the tests later, so for now we allow failures
         continue-on-error: true
-        run: uv run --isolated --no-project --with dist/${{ steps.wheel-name-output.outputs.wheel_name }} --with "pytest,numpy" pytest -vv
+        run: uv run --isolated --no-project --with ${{ steps.wheel-location-name-output.outputs.wheel_name }} --with "pytest,numpy" pytest -vv
 
   publish-to-pypi:
     name: Publish Python 🐍 distribution 📦 to PyPI
