@@ -104,16 +104,16 @@ jobs:
             mingw-w64-x86_64-fftw
             mingw-w64-x86_64-rubberband
             mingw-w64-x86_64-pkg-config
-            mingw-w64-x86_64-jack
+            mingw-w64-x86_64-jack2
 
       - name: Build wheels with cibuildwheel
-        
         env:
           CIBW_PRINT_BUILD_OUTPUT: 1
           # Ensure cibuildwheel runs our pre-build script to build aubio
           CIBW_BEFORE_BUILD: "./.github/scripts/cibw_before_build.sh"
           # Export environment for builds so the python extension can find the staged libaubio
           CIBW_ENVIRONMENT: 'PKG_CONFIG_PATH="$PWD/build/dist/usr/local/lib/pkgconfig:$PWD/build/dist/usr/local/lib64/pkgconfig:$PKG_CONFIG_PATH" CFLAGS="-I$PWD/build/dist/usr/local/include:$CFLAGS" LDFLAGS="-L$PWD/build/dist/usr/local/lib -Wl,-rpath,$PWD/build/dist/usr/local/lib:$LDFLAGS" LD_LIBRARY_PATH="$PWD/build/dist/usr/local/lib:$LD_LIBRARY_PATH"'
+          CIBW_ENVIRONMENT_MACOS: 'MACOSX_DEPLOYMENT_TARGET="15.0"'
         run: |
           python -m cibuildwheel --output-dir dist
 

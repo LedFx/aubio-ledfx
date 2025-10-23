@@ -27,12 +27,13 @@ if command -v apt-get >/dev/null 2>&1; then
   $SUDO apt-get install -y --no-install-recommends \
     pkg-config libsndfile1-dev libsamplerate0-dev libfftw3-dev libavcodec-dev \
     libavformat-dev libavutil-dev libswresample-dev libvorbis-dev libflac-dev \
-    libjack-dev librubberband-dev
+    libjack-dev librubberband-dev ffmpeg
 elif command -v yum >/dev/null 2>&1; then
   if [ "$(uname -m)" = "aarch64" ]; then
     echo "[cibw_before_build] aarch64 yum environment detected, building ffmpeg from source"
     $SUDO yum -y groupinstall "Development Tools"
-    $SUDO yum -y install yasm
+    $SUDO yum -y install nasm cmake pkgconfig libsndfile-devel libsamplerate-devel fftw-devel \
+      libvorbis-devel flac-devel rubberband-devel
     curl -fsSL https://ffmpeg.org/releases/ffmpeg-8.0.tar.xz -o ffmpeg.tar.bz2
     tar xjf ffmpeg.tar.bz2
     cd ffmpeg-8.0
@@ -45,7 +46,7 @@ elif command -v yum >/dev/null 2>&1; then
     $SUDO yum -y install epel-release
     $SUDO yum -y install --nogpgcheck https://download1.rpmfusion.org/free/el/rpmfusion-free-release-7.noarch.rpm
     $SUDO yum -y install pkgconfig libsndfile-devel libsamplerate-devel fftw-devel \
-      ffmpeg-devel libvorbis-devel flac-devel
+      ffmpeg-devel libvorbis-devel flac-devel rubberband-devel
   fi
 elif command -v pacman >/dev/null 2>&1; then
   echo "[cibw_before_build] pacman found, installing packages"
