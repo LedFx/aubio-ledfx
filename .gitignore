@@ -47,8 +47,7 @@ aubio-*.zip
 dist/*.tar.gz
 dist/*.whl
 
-# test sounds
-python/tests/sounds
+
 aubio.egg-info
 .eggs
 .cache
