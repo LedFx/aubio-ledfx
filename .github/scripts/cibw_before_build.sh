@@ -14,21 +14,28 @@ echo "[cibw_before_build] destdir: $DESTDIR"
 
 # Install platform-specific package dependencies where possible (best-effort).
 # These are dependencies for building libaubio, not for the Python wheel itself.
+
+# Set SUDO command, if available
+SUDO=""
+if command -v sudo >/dev/null 2>&1; then
+  SUDO="sudo"
+fi
+
 if command -v apt-get >/dev/null 2>&1; then
   echo "[cibw_before_build] apt-get found, installing packages"
-  sudo apt-get update
-  sudo apt-get install -y --no-install-recommends \
+  $SUDO apt-get update
+  $SUDO apt-get install -y --no-install-recommends \
     pkg-config libsndfile1-dev libsamplerate0-dev libfftw3-dev libavcodec-dev \
     libavformat-dev libavutil-dev libswresample-dev libvorbis-dev libflac-dev \
     libjack-dev librubberband-dev
 elif command -v yum >/dev/null 2>&1; then
   echo "[cibw_before_build] yum found, installing packages"
-  sudo yum -y install epel-release
-  sudo yum -y install pkgconfig libsndfile-devel libsamplerate-devel fftw-devel \
+  $SUDO yum -y install epel-release
+  $SUDO yum -y install pkgconfig libsndfile-devel libsamplerate-devel fftw-devel \
     ffmpeg-devel libvorbis-devel flac-devel
 elif command -v pacman >/dev/null 2>&1; then
   echo "[cibw_before_build] pacman found, installing packages"
-  pacman -Sy --noconfirm pkgconf libsndfile libsamplerate fftw ffmpeg libvorbis flac rubberband
+  $SUDO pacman -Sy --noconfirm pkgconf libsndfile libsamplerate fftw ffmpeg libvorbis flac rubberband
 else
   echo "[cibw_before_build] no known package manager found, continuing without system package installation"
 fi
