@@ -29,11 +29,24 @@ if command -v apt-get >/dev/null 2>&1; then
     libavformat-dev libavutil-dev libswresample-dev libvorbis-dev libflac-dev \
     libjack-dev librubberband-dev
 elif command -v yum >/dev/null 2>&1; then
-  echo "[cibw_before_build] yum found, installing packages"
-  $SUDO yum -y install epel-release
-  $SUDO yum -y install --nogpgcheck https://download1.rpmfusion.org/free/el/rpmfusion-free-release-7.noarch.rpm
-  $SUDO yum -y install pkgconfig libsndfile-devel libsamplerate-devel fftw-devel \
-    ffmpeg-devel libvorbis-devel flac-devel
+  if [ "$(uname -m)" = "aarch64" ]; then
+    echo "[cibw_before_build] aarch64 yum environment detected, building ffmpeg from source"
+    $SUDO yum -y groupinstall "Development Tools"
+    $SUDO yum -y install yasm
+    curl -fsSL https://ffmpeg.org/releases/ffmpeg-8.0.tar.xz -o ffmpeg.tar.bz2
+    tar xjf ffmpeg.tar.bz2
+    cd ffmpeg-8.0
+    ./configure --prefix=$DESTDIR/usr/local --arch=aarch64 --enable-shared
+    make -j4
+    make install
+    cd ..
+  else
+    echo "[cibw_before_build] yum found, installing packages"
+    $SUDO yum -y install epel-release
+    $SUDO yum -y install --nogpgcheck https://download1.rpmfusion.org/free/el/rpmfusion-free-release-7.noarch.rpm
+    $SUDO yum -y install pkgconfig libsndfile-devel libsamplerate-devel fftw-devel \
+      ffmpeg-devel libvorbis-devel flac-devel
+  fi
 elif command -v pacman >/dev/null 2>&1; then
   echo "[cibw_before_build] pacman found, installing packages"
   $SUDO pacman -Sy --noconfirm pkgconf libsndfile libsamplerate fftw ffmpeg libvorbis flac rubberband
