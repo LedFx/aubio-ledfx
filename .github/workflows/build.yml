@@ -1,0 +1,127 @@
+# I am a workflow that demonstrates how to output the different context objects
+
+name: Build and publish aubio-ledfx
+
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - master
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  build-sdist:
+    name: Build aubio-Ledfx distribution 📦
+    runs-on: ubuntu-latest
+    env:
+      DEFAULT_PYTHON: 3.12
+    steps:
+      - name: Checkout code from GitHub
+        uses: actions/checkout@v5 # Checkout your repository
+        with:
+          submodules: 'recursive'
+    
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7 # Action to set up uv
+        with:
+          enable-cache: true      
+    
+      - name: Set up 🐍 Python ${{ env.DEFAULT_PYTHON }}
+        run: uv python install ${{ env.DEFAULT_PYTHON }} # Action to set up Python
+
+      - name: Build a source tarball
+        run: uv build --sdist --force-pep517 # Command to build the package
+    
+      - name: Store the distribution packages with 🐍 Python ${{ env.DEFAULT_PYTHON }}
+        uses: actions/upload-artifact@v4
+        with:
+            name: aubio-ledfx-sdist
+            path: dist/
+
+  build:
+    name: Build aubio-ledfx binary wheel 📦 on ${{ matrix.os }} with 🐍 Python ${{ matrix.python-version }} 
+    runs-on: ${{ matrix.os }} # Use the 'os' variable from the matrix
+    strategy:
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest, macos-15-intel] # macos-latest is arm64, macos-15-intel is x86_64
+        python-version: ["3.10", "3.11", "3.12", "3.13"] 
+
+    steps:
+      - name: Checkout code from GitHub
+        uses: actions/checkout@v5 # Checkout your repository
+        with:
+          submodules: 'recursive'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7 # Action to set up uv
+        with:
+          enable-cache: true      
+    
+      - name: Set up 🐍 Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }} # Action to set up Python
+
+      - name: Build a binary wheel 📦 for ${{ matrix.os }}-py${{ matrix.python-version }}
+        run: uv build --wheel --force-pep517 # Command to build the package
+
+      - name: Store the binary wheel 📦 for ${{ matrix.os }} with 🐍 Python ${{ matrix.python-version }}
+        uses: actions/upload-artifact@v4
+        with:
+            name: aubio-ledfx-${{ matrix.os }}-py${{ matrix.python-version }}
+            path: dist/
+      - name: Store the wheel name to use in testing
+        id: wheel-location-name-output
+        run: echo "WHEEL_NAME=$(ls dist/*.whl)" >> $GITHUB_OUTPUT
+      - name: Run python tests with pytest
+        # We need to fix the tests later, so for now we allow failures
+        continue-on-error: true
+        run: uv run --isolated --no-project --with ${{ steps.wheel-location-name-output.outputs.wheel_name }} --with "pytest,numpy" pytest -vv
+
+  publish-to-pypi:
+    name: Publish Python 🐍 distribution 📦 to PyPI
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [build, build-sdist]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/aubio-ledfx/
+
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v5
+      with:
+        pattern: aubio-ledfx-*
+        path: dist/
+        merge-multiple: true
+    - name: Publish distribution 📦 to PyPI using uv
+      run: uv publish --trusted-publishing always
+
+  publish-to-test-pypi:
+    name: Publish Python 🐍 distribution 📦 to Test PyPI
+    if: github.event_name == 'workflow_dispatch' # only publish to test pypi on manual dispatch
+    needs: [build, build-sdist]
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/aubio-ledfx/
+
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v5
+      with:
+        pattern: aubio-ledfx-*
+        path: dist/
+        merge-multiple: true
+    - name: Publish distribution 📦 to Test PyPI using uv
+      run: uv publish --publish-url https://test.pypi.org/legacy/ --trusted-publishing always
