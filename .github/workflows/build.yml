@@ -78,12 +78,34 @@ jobs:
 
   publish-to-pypi:
     name: Publish Python 🐍 distribution 📦 to PyPI
-#    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch' # only publish to PyPI on tag pushes
+#    if: startsWith(github.ref, 'refs/tags/')
     needs: [build, build-sdist]
     runs-on: ubuntu-latest
     environment:
       name: pypi
       url: https://pypi.org/p/aubio-ledfx/
+      # Replace <package-name> with your PyPI project name
+    permissions:
+      id-token: write  # IMPORTANT: mandatory for trusted publishing
+    steps:
+    - name: Download all the dists
+      uses: actions/download-artifact@v5
+      with:
+        pattern: aubio-ledfx-*
+        path: dist/
+        merge-multiple: true
+    - name: Publish distribution 📦 to PyPI using uv
+      if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes or manual dispatch
+      run: uv publish --trusted-publishing always
+
+  publish-to-test-pypi:
+    name: Publish Python 🐍 distribution 📦 to Test PyPI
+    if: github.event_name == 'workflow_dispatch' # only publish to test pypi on manual dispatch
+    needs: [build, build-sdist]
+    runs-on: ubuntu-latest
+    environment:
+      name: testpypi
+      url: https://test.pypi.org/p/aubio-ledfx/
       # Replace <package-name> with your PyPI project name
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
@@ -95,6 +117,5 @@ jobs:
         pattern: aubio-ledfx-*
         path: dist/
         merge-multiple: true
-    - name: Publish distribution 📦 to PyPI using uv
-      if: startsWith(github.ref, 'refs/tags/')  # only publish to PyPI on tag pushes or manual dispatch
-      run: uv publish
+    - name: Publish distribution 📦 to Test PyPI using uv
+      run: uv publish --publish-url https://test.pypi.org/legacy/ --trusted-publishing always
