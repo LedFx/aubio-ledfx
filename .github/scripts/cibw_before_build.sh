@@ -15,9 +15,9 @@ echo "[cibw_before_build] destdir: $DESTDIR"
 # Install platform-specific package dependencies where possible (best-effort).
 # These are dependencies for building libaubio, not for the Python wheel itself.
 
-# Set SUDO command, if available
+# Set SUDO command, if not running as root
 SUDO=""
-if command -v sudo >/dev/null 2>&1; then
+if [ "$(id -u)" != "0" ]; then
   SUDO="sudo"
 fi
 
