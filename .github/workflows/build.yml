@@ -77,7 +77,7 @@ jobs:
             path: dist/
       - name: Store the wheel name to use in testing
         id: wheel-name-output
-        run: echo "WHEEL_NAME=$(ls dist/aubio_ledfx-*.whl)" >> $GITHUB_OUTPUT
+        run: echo "WHEEL_NAME=$(ls dist/*.whl)" >> $GITHUB_OUTPUT
       - name: Run python tests with pytest
         # We need to fix the tests later, so for now we allow failures
         continue-on-error: true
