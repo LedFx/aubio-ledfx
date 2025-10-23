@@ -75,8 +75,7 @@ jobs:
 
       - name: Make cibuildwheel before-build script executable
         run: |
-          ls -la .github/scripts || true
-          chmod +x .github/scripts/cibw_before_build.sh || true
+          chmod +x .github/scripts/cibw_before_build.sh
 
       - name: Install Linux build deps (manylinux / auditwheel)
         if: runner.os == 'Linux'
