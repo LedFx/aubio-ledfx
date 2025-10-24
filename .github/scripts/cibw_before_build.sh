@@ -3,6 +3,14 @@ set -euo pipefail
 
 echo "[cibw_before_build] starting"
 
+# On Windows, the MSYS2 path needs to be explicitly added for bash to find gcc.
+case "$(uname -s)" in
+  MSYS*|MINGW*)
+    export PATH="/c/msys64/mingw64/bin:$PATH"
+    echo "[cibw_before_build] Windows detected, updated PATH: $PATH"
+    ;;
+esac
+
 # The project root in the cibuildwheel environment is usually /project,
 # but can be the current working directory.
 PROJECT_DIR="$PWD"
@@ -75,6 +83,8 @@ echo "[cibw_before_build] install numpy"
 python -m pip install numpy==1.26.4
 
 echo "[cibw_before_build] running: python waf configure"
+# On Windows, waf needs to be explicitly told to use gcc.
+# We detect the MSYS/MINGW environment set up by the GitHub Actions runner.
 case "$(uname -s)" in
   MSYS*|MINGW*)
     echo "[cibw_before_build] Windows detected, using gcc"
