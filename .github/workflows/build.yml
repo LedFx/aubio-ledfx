@@ -42,7 +42,8 @@ jobs:
       - name: Store the distribution packages with 🐍 Python ${{ env.DEFAULT_PYTHON }}
         uses: actions/upload-artifact@v4
         with:
-            path: dist/*.tar.gz
+          name: dist-sdist
+          path: dist/*.tar.gz
 
   build:
     name: Build aubio-ledfx wheels with cibuildwheel 📦
@@ -55,7 +56,23 @@ jobs:
       CFLAGS: "-O3"
       DEFAULT_PYTHON: 3.12
       # target Python versions (cibuildwheel will expand these per-platform)
+
       CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
+      # don't build for 32-bit architectures or uncommon platforms
+      CIBW_SKIP: |
+        *-win32
+        *_i686
+        *_ppc64le
+        *_s390x
+        *_armv7l
+        *_riscv64
+        *_aarch64
+        *_ppc64le
+        *_s390x
+        *_armv7l
+        *_riscv64
+        # musl builds aren't working on aarch64 right now
+        *musllinux_aarch64
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
@@ -116,7 +133,8 @@ jobs:
       - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-          path: dist/
+          name: dist-wheels-${{ matrix.os }}
+          path: dist/*.whl
 
   publish-to-pypi:
     name: Publish Python 🐍 distribution 📦 to PyPI
@@ -134,6 +152,7 @@ jobs:
       uses: actions/download-artifact@v5
       with:
         path: dist
+        merge-multiple: true
     - name: Publish distribution 📦 to PyPI using uv
       run: uv publish --trusted-publishing always
 
@@ -154,5 +173,6 @@ jobs:
       uses: actions/download-artifact@v5
       with:
         path: dist
+        merge-multiple: true
     - name: Publish distribution 📦 to Test PyPI using uv
       run: uv publish --publish-url https://test.pypi.org/legacy/ --trusted-publishing always

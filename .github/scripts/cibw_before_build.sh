@@ -72,7 +72,7 @@ echo "[cibw_before_build] WAF_CONFIGURE_OPTS=$WAF_CONFIGURE_OPTS"
 
 # The Python executable in the cibuildwheel environment is the one for the current build.
 echo "[cibw_before_build] install numpy"
-python -m pip install numpy
+python -m pip install numpy==1.26.4
 
 echo "[cibw_before_build] running: python waf configure"
 case "$(uname -s)" in
