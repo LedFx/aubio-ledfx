@@ -5,8 +5,8 @@ echo "[cibw_before_build] starting"
 
 # On Windows, the MSYS2 path needs to be explicitly added for bash to find gcc.
 case "$(uname -s)" in
-  MSYS*|MINGW*)
-    export PATH="/c/msys64/mingw64/bin:$PATH"
+  MSYS*|MINGW*|CYGWIN*)
+    export PATH="$MSYSTEM_PREFIX/bin:$PATH"
     echo "[cibw_before_build] Windows detected, updated PATH: $PATH"
     ;;
 esac
