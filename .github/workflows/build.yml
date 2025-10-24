@@ -51,7 +51,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, windows-11-arm, macos-15-intel, macos-latest]
+        # We ignore windows arm for now because the build deps aren't available
+        # windows-11-arm
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest , macos-15-intel, macos-latest]
     env:
       CFLAGS: "-O3"
       DEFAULT_PYTHON: 3.12
@@ -59,7 +61,7 @@ jobs:
 
       CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
       # don't build for 32-bit architectures or uncommon platforms
-      # musl builds aren't working on aarch64 right now
+      # musl builds aren't working right now and we don't need them
       CIBW_SKIP: |
         *-win32
         *_i686
@@ -67,12 +69,13 @@ jobs:
         *_s390x
         *_armv7l
         *_riscv64
-        *_aarch64
         *_ppc64le
         *_s390x
         *_armv7l
         *_riscv64
         *musllinux_aarch64
+        *musllinux_x86_64
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v5
