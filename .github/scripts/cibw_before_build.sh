@@ -8,7 +8,7 @@ case "$(uname -s)" in
   MSYS*|MINGW*|CYGWIN*)
     # Set default MSYSTEM_PREFIX if not already set
     if [ -z "${MSYSTEM_PREFIX:-}" ]; then
-      MSYSTEM_PREFIX="C:/msys64/mingw64"
+      MSYSTEM_PREFIX="C:/mingw64"
       echo "[cibw_before_build] MSYSTEM_PREFIX not set, using default: $MSYSTEM_PREFIX"
     fi
     export PATH="$MSYSTEM_PREFIX/bin:$PATH"
