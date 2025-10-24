@@ -95,22 +95,29 @@ case "$(uname -s)" in
     echo "[cibw_before_build] Windows detected, using gcc"
     # Verify gcc is accessible
     echo "[cibw_before_build] Checking for gcc..."
-    which gcc && gcc --version || echo "[cibw_before_build] WARNING: gcc not found in shell PATH"
-    
-    # Set CC and CXX with explicit paths
-    # waf's Python subprocess needs Windows-style paths
-    export CC="C:/msys64/mingw64/bin/gcc.exe"
-    export CXX="C:/msys64/mingw64/bin/g++.exe"
-    export AR="C:/msys64/mingw64/bin/ar.exe"
-    export RANLIB="C:/msys64/mingw64/bin/ranlib.exe"
-    
-    echo "[cibw_before_build] Set CC=$CC"
-    echo "[cibw_before_build] Set CXX=$CXX"
-    
-    # Verify the files exist
-    if [ ! -f "$CC" ]; then
-      echo "[cibw_before_build] ERROR: gcc not found at $CC"
-      ls -la C:/msys64/mingw64/bin/ 2>/dev/null | head -20 || echo "Cannot list C:/msys64/mingw64/bin/"
+    GCC_PATH=$(which gcc)
+    if [ -n "$GCC_PATH" ]; then
+      gcc --version
+      echo "[cibw_before_build] Found gcc at: $GCC_PATH"
+      
+      # Convert MSYS path to Windows path for waf
+      # MSYS paths like /c/mingw64/bin/gcc become C:/mingw64/bin/gcc.exe
+      GCC_DIR=$(dirname "$GCC_PATH")
+      case "$GCC_DIR" in
+        /c/*) WIN_GCC_DIR="C:${GCC_DIR#/c}" ;;
+        /d/*) WIN_GCC_DIR="D:${GCC_DIR#/d}" ;;
+        *) WIN_GCC_DIR="$GCC_DIR" ;;
+      esac
+      
+      export CC="${WIN_GCC_DIR}/gcc.exe"
+      export CXX="${WIN_GCC_DIR}/g++.exe"
+      export AR="${WIN_GCC_DIR}/ar.exe"
+      export RANLIB="${WIN_GCC_DIR}/ranlib.exe"
+      
+      echo "[cibw_before_build] Set CC=$CC"
+      echo "[cibw_before_build] Set CXX=$CXX"
+    else
+      echo "[cibw_before_build] ERROR: gcc not found in PATH"
       exit 1
     fi
     
