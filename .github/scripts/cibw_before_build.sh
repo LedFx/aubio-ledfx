@@ -30,7 +30,8 @@ if command -v apt-get >/dev/null 2>&1; then
     libjack-dev librubberband-dev ffmpeg
 elif command -v yum >/dev/null 2>&1; then
   if [ "$(uname -m)" = "aarch64" ]; then
-    echo "[cibw_before_build] aarch64 yum environment detected, building ffmpeg from source"
+    echo "[cibw_before_build] aarch64 yum environment detected, installing epel and building ffmpeg from source"
+    $SUDO yum -y install epel-release
     $SUDO yum -y groupinstall "Development Tools"
     $SUDO yum -y install nasm cmake pkgconfig libsndfile-devel libsamplerate-devel fftw-devel \
       libvorbis-devel flac-devel rubberband-devel
@@ -43,8 +44,7 @@ elif command -v yum >/dev/null 2>&1; then
     cd ..
   else
     echo "[cibw_before_build] yum found, installing packages"
-    $SUDO yum -y install epel-release
-    $SUDO yum -y install --nogpgcheck https://download1.rpmfusion.org/free/el/rpmfusion-free-release-7.noarch.rpm
+    $SUDO yum -y install epel-release rpmfusion-free-release
     $SUDO yum -y install pkgconfig libsndfile-devel libsamplerate-devel fftw-devel \
       ffmpeg-devel libvorbis-devel flac-devel rubberband-devel
   fi
@@ -72,7 +72,15 @@ echo "[cibw_before_build] install numpy"
 python -m pip install numpy
 
 echo "[cibw_before_build] running: python waf configure"
-python waf configure $WAF_CONFIGURE_OPTS
+case "$(uname -s)" in
+  MSYS*|MINGW*)
+    echo "[cibw_before_build] Windows detected, using gcc"
+    CC=gcc CXX=g++ python waf configure $WAF_CONFIGURE_OPTS
+    ;;
+  *)
+    python waf configure $WAF_CONFIGURE_OPTS
+    ;;
+esac
 
 echo "[cibw_before_build] running: python waf build"
 python waf build
