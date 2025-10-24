@@ -6,6 +6,11 @@ echo "[cibw_before_build] starting"
 # On Windows, the MSYS2 path needs to be explicitly added for bash to find gcc.
 case "$(uname -s)" in
   MSYS*|MINGW*|CYGWIN*)
+    # Set default MSYSTEM_PREFIX if not already set
+    if [ -z "${MSYSTEM_PREFIX:-}" ]; then
+      MSYSTEM_PREFIX="C:/msys64/mingw64"
+      echo "[cibw_before_build] MSYSTEM_PREFIX not set, using default: $MSYSTEM_PREFIX"
+    fi
     export PATH="$MSYSTEM_PREFIX/bin:$PATH"
     echo "[cibw_before_build] Windows detected, updated PATH: $PATH"
     ;;
@@ -88,7 +93,28 @@ echo "[cibw_before_build] running: python waf configure"
 case "$(uname -s)" in
   MSYS*|MINGW*)
     echo "[cibw_before_build] Windows detected, using gcc"
-    CC=gcc CXX=g++ python waf configure $WAF_CONFIGURE_OPTS
+    # Verify gcc is accessible
+    echo "[cibw_before_build] Checking for gcc..."
+    which gcc && gcc --version || echo "[cibw_before_build] WARNING: gcc not found in shell PATH"
+    
+    # Set CC and CXX with explicit paths
+    # waf's Python subprocess needs Windows-style paths
+    export CC="C:/msys64/mingw64/bin/gcc.exe"
+    export CXX="C:/msys64/mingw64/bin/g++.exe"
+    export AR="C:/msys64/mingw64/bin/ar.exe"
+    export RANLIB="C:/msys64/mingw64/bin/ranlib.exe"
+    
+    echo "[cibw_before_build] Set CC=$CC"
+    echo "[cibw_before_build] Set CXX=$CXX"
+    
+    # Verify the files exist
+    if [ ! -f "$CC" ]; then
+      echo "[cibw_before_build] ERROR: gcc not found at $CC"
+      ls -la C:/msys64/mingw64/bin/ 2>/dev/null | head -20 || echo "Cannot list C:/msys64/mingw64/bin/"
+      exit 1
+    fi
+    
+    python waf configure $WAF_CONFIGURE_OPTS
     ;;
   *)
     python waf configure $WAF_CONFIGURE_OPTS
