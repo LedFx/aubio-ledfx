@@ -113,10 +113,7 @@ case "$(uname -s)" in
       export CXX="${WIN_GCC_DIR}/g++.exe"
       export AR="${WIN_GCC_DIR}/ar.exe"
       export RANLIB="${WIN_GCC_DIR}/ranlib.exe"
-      export CXX="${WIN_GCC_DIR}/g++.exe"      
-      # Pass include and library paths to the compiler via environment variables for waf
-      export CFLAGS="-I${MSYSTEM_PREFIX}/include ${CFLAGS:-}"
-      export LDFLAGS="-L${MSYSTEM_PREFIX}/lib ${LDFLAGS:-}"
+      export PKG_CONFIG="${WIN_GCC_DIR}/pkg-config.exe"
       
       echo "[cibw_before_build] Set CC=$CC"
       echo "[cibw_before_build] Set CXX=$CXX"
