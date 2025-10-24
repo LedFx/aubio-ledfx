@@ -42,49 +42,104 @@ jobs:
       - name: Store the distribution packages with 🐍 Python ${{ env.DEFAULT_PYTHON }}
         uses: actions/upload-artifact@v4
         with:
-            name: aubio-ledfx-sdist
-            path: dist/
+          name: dist-sdist
+          path: dist/*.tar.gz
 
   build:
-    name: Build aubio-ledfx binary wheel 📦 on ${{ matrix.os }} with 🐍 Python ${{ matrix.python-version }} 
-    runs-on: ${{ matrix.os }} # Use the 'os' variable from the matrix
-    defaults:
-      run:
-        shell: bash -x {0}  # Enable bash debugging for better logs
+    name: Build aubio-ledfx wheels with cibuildwheel 📦
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-latest, macos-15-intel] # macos-latest is arm64, macos-15-intel is x86_64
-        python-version: ["3.10", "3.11", "3.12", "3.13"] 
+        # We ignore windows arm for now because the build deps aren't available
+        # windows-11-arm
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest , macos-15-intel, macos-latest]
+    env:
+      CFLAGS: "-O3"
+      DEFAULT_PYTHON: 3.12
+      # target Python versions (cibuildwheel will expand these per-platform)
+
+      CIBW_BUILD: "cp310-* cp311-* cp312-* cp313-*"
+      # don't build for 32-bit architectures or uncommon platforms
+      # musl builds aren't working right now and we don't need them
+      CIBW_SKIP: |
+        *-win_arm64
+        *-win32
+        *_i686
+        *_ppc64le
+        *_s390x
+        *_armv7l
+        *_riscv64
+        *_ppc64le
+        *_s390x
+        *_armv7l
+        *_riscv64
+        *musllinux_aarch64
+        *musllinux_x86_64
 
     steps:
-      - name: Checkout code from GitHub
-        uses: actions/checkout@v5 # Checkout your repository
+      - name: Checkout code
+        uses: actions/checkout@v5
         with:
           submodules: 'recursive'
-
       - name: Install uv
         uses: astral-sh/setup-uv@v7 # Action to set up uv
         with:
-          enable-cache: true      
-    
-      - name: Set up 🐍 Python ${{ matrix.python-version }}
-        run: uv python install ${{ matrix.python-version }} # Action to set up Python
+          enable-cache: true   
+      - name: Set up Python (for build tooling)
+        run: |
+          uv python install ${{ env.DEFAULT_PYTHON }}
 
-      - name: Build a binary wheel 📦 for ${{ matrix.os }}-py${{ matrix.python-version }}
-        run: uv build --wheel --force-pep517 # Command to build the package
+      - name: Install build tooling
+        run: |
+          python -m pip install --upgrade pip build setuptools wheel cibuildwheel==2.* auditwheel delocate
 
-      - name: Store the binary wheel 📦 for ${{ matrix.os }} with 🐍 Python ${{ matrix.python-version }}
+      - name: Make cibuildwheel before-build script executable
+        run: |
+          chmod +x .github/scripts/cibw_before_build.sh
+
+
+      - name: Install macOS build deps
+        if: runner.os == 'macOS'
+        run: |
+          brew update || true
+          brew install pkg-config jack ffmpeg libsndfile libvorbis flac libsamplerate rubberband fftw
+
+      - name: Install Windows build deps (MSYS2)
+        if: runner.os == 'Windows'
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-ffmpeg
+            mingw-w64-x86_64-libsndfile
+            mingw-w64-x86_64-libsamplerate
+            mingw-w64-x86_64-fftw
+            mingw-w64-x86_64-rubberband
+            mingw-w64-x86_64-pkg-config
+            mingw-w64-x86_64-jack2
+
+      - name: Build wheels with cibuildwheel
+        env:
+          CIBW_PRINT_BUILD_OUTPUT: 1
+          # Ensure cibuildwheel runs our pre-build script to build aubio
+          CIBW_BEFORE_BUILD: "./.github/scripts/cibw_before_build.sh"
+          CIBW_BEFORE_BUILD_WINDOWS: "bash ./.github/scripts/cibw_before_build.sh"
+          # Export environment for builds so the python extension can find the staged libaubio
+          CIBW_ENVIRONMENT: 'PKG_CONFIG_PATH="$PWD/build/dist/usr/local/lib/pkgconfig:$PWD/build/dist/usr/local/lib64/pkgconfig:$PKG_CONFIG_PATH" CFLAGS="-I$PWD/build/dist/usr/local/include:$CFLAGS" LDFLAGS="-L$PWD/build/dist/usr/local/lib -L$PWD/build/dist/usr/local/lib64 -Wl,-rpath,$PWD/build/dist/usr/local/lib -Wl,-rpath,$PWD/build/dist/usr/local/lib64:$LDFLAGS" LD_LIBRARY_PATH="$PWD/build/dist/usr/local/lib:$PWD/build/dist/usr/local/lib64:$LD_LIBRARY_PATH"'
+          CIBW_ENVIRONMENT_WINDOWS: 'MSYSTEM_PREFIX="C:/mingw64" PATH="C:/mingw64/bin;$PATH" PKG_CONFIG_PATH="$PWD/build/dist/usr/local/lib/pkgconfig;$PKG_CONFIG_PATH" CFLAGS="-I$PWD/build/dist/usr/local/include" LDFLAGS="-L$PWD/build/dist/usr/local/lib"'
+          CIBW_ENVIRONMENT_MACOS: 'MACOSX_DEPLOYMENT_TARGET="15.0"'
+
+        run: |
+          python -m cibuildwheel --output-dir dist
+
+      - name: Upload wheels
         uses: actions/upload-artifact@v4
         with:
-            name: aubio-ledfx-${{ matrix.os }}-py${{ matrix.python-version }}
-            path: dist/
-      - name: Store the wheel name to use in testing
-        id: wheel-location-name-output
-        run: echo "WHEEL_NAME=$(ls dist/*.whl)" >> $GITHUB_OUTPUT
-      - name: Run python tests with pytest
-        # We need to fix the tests later, so for now we allow failures
-        continue-on-error: true
-        run: uv run --isolated --no-project --with ${{ steps.wheel-location-name-output.outputs.wheel_name }} --with "pytest,numpy" pytest -vv
+          name: dist-wheels-${{ matrix.os }}
+          path: dist/*.whl
 
   publish-to-pypi:
     name: Publish Python 🐍 distribution 📦 to PyPI
@@ -98,11 +153,10 @@ jobs:
     permissions:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
     steps:
-    - name: Download all the dists
+    - name: Download all artifacts
       uses: actions/download-artifact@v5
       with:
-        pattern: aubio-ledfx-*
-        path: dist/
+        path: dist
         merge-multiple: true
     - name: Publish distribution 📦 to PyPI using uv
       run: uv publish --trusted-publishing always
@@ -120,11 +174,10 @@ jobs:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
 
     steps:
-    - name: Download all the dists
+    - name: Download all artifacts
       uses: actions/download-artifact@v5
       with:
-        pattern: aubio-ledfx-*
-        path: dist/
+        path: dist
         merge-multiple: true
     - name: Publish distribution 📦 to Test PyPI using uv
       run: uv publish --publish-url https://test.pypi.org/legacy/ --trusted-publishing always

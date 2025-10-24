@@ -81,6 +81,8 @@ class Test_aubio_sink(object):
             g(vec, read)
             total_frames += read
             if read < f.hop_size: break
+        g.close()  # Ensure sink is closed before deletion
+        f.close()  # Close source as well
         del_tmp_sink_path(sink_path)
 
     @parametrize('hop_size, samplerate, path', all_params)
@@ -105,6 +107,8 @@ class Test_aubio_sink(object):
             g.do_multi(vec, read)
             total_frames += read
             if read < f.hop_size: break
+        g.close()  # Ensure sink is closed before deletion
+        f.close()  # Close source as well
         del_tmp_sink_path(sink_path)
 
     def test_close_file(self):
