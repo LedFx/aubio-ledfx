@@ -121,7 +121,7 @@ case "$(uname -s)" in
       exit 1
     fi
     
-    WAF_CONFIGURE_OPTS="--check-c-compiler=gcc --check-cxx-compiler=g++ $WAF_CONFIGURE_OPTS"
+    WAF_CONFIGURE_OPTS="--check-c-compiler=gcc $WAF_CONFIGURE_OPTS"
     python waf configure $WAF_CONFIGURE_OPTS
     ;;
   *)
