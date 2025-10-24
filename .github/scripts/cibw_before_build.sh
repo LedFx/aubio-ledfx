@@ -35,8 +35,8 @@ elif command -v yum >/dev/null 2>&1; then
     $SUDO yum -y groupinstall "Development Tools"
     $SUDO yum -y install nasm cmake pkgconfig libsndfile-devel libsamplerate-devel fftw-devel \
       libvorbis-devel flac-devel rubberband-devel
-    curl -fsSL https://ffmpeg.org/releases/ffmpeg-8.0.tar.xz -o ffmpeg.tar.bz2
-    tar xjf ffmpeg.tar.bz2
+    curl -fsSL https://ffmpeg.org/releases/ffmpeg-8.0.tar.xz -o ffmpeg.tar.xz
+    tar xJf ffmpeg.tar.xz
     cd ffmpeg-8.0
     ./configure --prefix=$DESTDIR/usr/local --arch=aarch64 --enable-shared
     make -j4
@@ -44,7 +44,10 @@ elif command -v yum >/dev/null 2>&1; then
     cd ..
   else
     echo "[cibw_before_build] yum found, installing packages"
-    $SUDO yum -y install epel-release rpmfusion-free-release
+    $SUDO yum -y install epel-release
+    if ! rpm -q rpmfusion-free-release >/dev/null 2>&1; then
+      $SUDO yum -y install --nogpgcheck https://download1.rpmfusion.org/free/el/rpmfusion-free-release-7.noarch.rpm
+    fi
     $SUDO yum -y install pkgconfig libsndfile-devel libsamplerate-devel fftw-devel \
       ffmpeg-devel libvorbis-devel flac-devel rubberband-devel
   fi

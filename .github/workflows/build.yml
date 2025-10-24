@@ -42,8 +42,7 @@ jobs:
       - name: Store the distribution packages with 🐍 Python ${{ env.DEFAULT_PYTHON }}
         uses: actions/upload-artifact@v4
         with:
-            name: aubio-ledfx-sdist
-            path: dist/
+            path: dist/*.tar.gz
 
   build:
     name: Build aubio-ledfx wheels with cibuildwheel 📦
@@ -156,16 +155,9 @@ jobs:
       id-token: write  # IMPORTANT: mandatory for trusted publishing
 
     steps:
-    - name: Download all the dists
+    - name: Download all artifacts
       uses: actions/download-artifact@v5
       with:
-        pattern: aubio-ledfx-*
-        path: dist/
-        merge-multiple: true
-    - name: Download built wheels
-      uses: actions/download-artifact@v5
-      with:
-        path: dist/
-        merge-multiple: true
+        path: dist
     - name: Publish distribution 📦 to Test PyPI using uv
       run: uv publish --publish-url https://test.pypi.org/legacy/ --trusted-publishing always
