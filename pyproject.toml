@@ -77,7 +77,7 @@ build-frontend = { name = "pip", args = ["--no-build-isolation"] }
 #          These are transitive dependencies of libsndfile[external-libs] that must be installed
 #          to avoid undefined symbol errors during static linking
 before-all = """
-    yum install -y git zip unzip tar curl make nasm && \
+    yum install -y git zip unzip tar curl make nasm pkgconfig && \
     if [ ! -d /tmp/vcpkg ]; then
         git clone https://github.com/microsoft/vcpkg.git /tmp/vcpkg && \
         cd /tmp/vcpkg && ./bootstrap-vcpkg.sh -disableMetrics
@@ -100,7 +100,15 @@ before-all = """
     echo "Installed packages in vcpkg_installed/$VCPKG_TRIPLET/:" && \
     ls -la {project}/vcpkg_installed/$VCPKG_TRIPLET/lib/pkgconfig/ 2>/dev/null || echo "No pkgconfig directory found" && \
     echo "Static libraries:" && \
-    ls -la {project}/vcpkg_installed/$VCPKG_TRIPLET/lib/*.a 2>/dev/null | head -20 || echo "No static libraries found"
+    ls -la {project}/vcpkg_installed/$VCPKG_TRIPLET/lib/*.a 2>/dev/null | head -20 || echo "No static libraries found" && \
+    echo "=== Verifying libsamplerate installation ===" && \
+    ls -la {project}/vcpkg_installed/$VCPKG_TRIPLET/lib/libsamplerate.a 2>/dev/null || echo "WARNING: libsamplerate.a not found!" && \
+    ls -la {project}/vcpkg_installed/$VCPKG_TRIPLET/lib/pkgconfig/samplerate.pc 2>/dev/null || echo "WARNING: samplerate.pc not found!" && \
+    echo "=== Testing pkg-config ===" && \
+    which pkg-config && pkg-config --version && \
+    export PKG_CONFIG_PATH={project}/vcpkg_installed/$VCPKG_TRIPLET/lib/pkgconfig:{project}/vcpkg_installed/$VCPKG_TRIPLET/share/pkgconfig && \
+    echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" && \
+    pkg-config --exists samplerate && echo "SUCCESS: pkg-config found samplerate" || echo "WARNING: pkg-config cannot find samplerate"
 """
 
 [tool.cibuildwheel.linux.environment]
@@ -122,6 +130,9 @@ CXX = "/opt/rh/gcc-toolset-14/root/usr/bin/g++"
 before-all = [
     "cd {project} && if not exist vcpkg_installed %VCPKG_INSTALLATION_ROOT%\\vcpkg.exe install --triplet=x64-windows-release",
     "dir {project}\\vcpkg_installed\\x64-windows-release\\lib\\pkgconfig",
+    "echo === Verifying libsamplerate installation (Windows) ===",
+    "dir {project}\\vcpkg_installed\\x64-windows-release\\lib\\samplerate.lib 2>nul || echo WARNING: samplerate.lib not found!",
+    "dir {project}\\vcpkg_installed\\x64-windows-release\\lib\\pkgconfig\\samplerate.pc 2>nul || echo WARNING: samplerate.pc not found!",
 ]
 
 # Install delvewheel for bundling DLLs into wheels
