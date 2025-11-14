@@ -126,6 +126,12 @@ option('python',
   description: 'Build Python bindings'
 )
 
+option('nanobind',
+  type: 'feature',
+  value: 'auto',
+  description: 'Build modern nanobind Python bindings (experimental)'
+)
+
 option('security_hardening',
   type: 'boolean',
   value: true,

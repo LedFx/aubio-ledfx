@@ -132,3 +132,7 @@ py.install_sources(
   subdir: 'aubio',
   pure: false,
 )
+
+# Add nanobind bindings (modern C++ bindings, experimental)
+subdir('nanobind_bindings')
+
