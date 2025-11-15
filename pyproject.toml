@@ -54,10 +54,13 @@ skip = ["*-win32", "*-manylinux_i686", "*-musllinux*"]
 test-requires = ["pytest", "numpy>=1.26.4"]
 # First test: Verify aubio can be imported (ensures DLLs are bundled on Windows)
 # Second test: Run pytest suite
-test-command = "python -c \"import aubio; print('aubio version:', aubio.version); print('Portable wheel test: PASS')\" && pytest {project}/python/tests || true"
+test-command = "python -c \"import aubio; print('aubio version:', aubio.version); print('Portable wheel test: PASS')\" && pytest {project}/python/tests"
 
 # Disable build isolation so environment variables (like PKG_CONFIG_PATH) are passed through
 build-frontend = { name = "pip", args = ["--no-build-isolation"] }
+
+# Pass configuration to meson-python to explicitly enable samplerate and increase verbosity
+config-settings = { "setup-args" = "-Dsamplerate=enabled --verbose" }
 
 [tool.cibuildwheel.linux]
 # Linux: vcpkg dependencies are installed inside the manylinux Docker container via before-all
