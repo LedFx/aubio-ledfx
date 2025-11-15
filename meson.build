@@ -493,12 +493,25 @@ endforeach
 if not enable_double
   samplerate_opt = get_option('samplerate')
   if not samplerate_opt.disabled()
-    # Try pkg-config first (explicitly specify method to ensure it uses pkg-config)
-    samplerate_dep = dependency('samplerate', version: '>=0.0.15', method: 'pkg-config', required: false, disabler: true)
-    if not samplerate_dep.found() and vcpkg_found
-      # Fallback to searching for library directly in vcpkg directories
-      samplerate_dep = cc.find_library('samplerate', dirs: vcpkg_library_dirs, required: samplerate_opt.enabled())
+    samplerate_dep = disabler()
+    
+    # When vcpkg is detected, search for library directly in vcpkg directories first
+    # This avoids issues with PKG_CONFIG_PATH not being set in some build environments
+    if vcpkg_found
+      samplerate_dep = cc.find_library('samplerate', dirs: vcpkg_library_dirs, required: false)
+      if samplerate_dep.found()
+        message('Found libsamplerate in vcpkg directories')
+      endif
     endif
+    
+    # Fallback to pkg-config if not found via vcpkg
+    if not samplerate_dep.found()
+      samplerate_dep = dependency('samplerate', version: '>=0.0.15', method: 'pkg-config', required: false, disabler: true)
+      if samplerate_dep.found()
+        message('Found libsamplerate via pkg-config')
+      endif
+    endif
+    
     if samplerate_dep.found()
       conf_data.set('HAVE_SAMPLERATE', 1)
       dependencies += samplerate_dep
