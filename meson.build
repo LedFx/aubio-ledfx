@@ -501,11 +501,9 @@ if not enable_double
       # Search for library directly in vcpkg directories
       samplerate_lib = cc.find_library('samplerate', dirs: vcpkg_library_dirs, required: false)
       if samplerate_lib.found()
-        # Create a proper dependency with both library and include path
-        samplerate_dep = declare_dependency(
-          dependencies: samplerate_lib,
-          include_directories: include_directories(vcpkg_include_dir)
-        )
+        # Use the library dependency directly - headers are already available
+        # via global -I flag added on line 218, so no need to add include_directories
+        samplerate_dep = samplerate_lib
         message('Found libsamplerate in vcpkg directories')
       endif
     else
