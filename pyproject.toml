@@ -60,7 +60,7 @@ test-command = "python -c \"import aubio; print('aubio version:', aubio.version)
 build-frontend = { name = "pip", args = ["--no-build-isolation"] }
 
 # Pass configuration to meson-python to explicitly enable samplerate and increase verbosity
-config-settings = { "setup-args" = "-Dsamplerate=enabled --verbose" }
+config-settings = { "setup-args" = "-Dsamplerate=enabled" }
 
 [tool.cibuildwheel.linux]
 # Linux: vcpkg dependencies are installed inside the manylinux Docker container via before-all
