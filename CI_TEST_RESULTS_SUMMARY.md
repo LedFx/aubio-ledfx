@@ -1,9 +1,24 @@
 # CI Test Results Summary - All Runners
 
-## Executive Summary
+## UPDATE (Commit a0dc600)
+
+**Root Cause Identified and Fixed**: The initial analysis was incomplete. Detailed examination of ubuntu-latest logs revealed **13 test failures** (not 1), all related to libsamplerate:
+
+- 12 failures: `test_source.py::test_samplerate_hopsize` - RuntimeError: "can not resample ... from X to Y Hz"  
+- 1 failure: `test_specdesc.py::test_rolloff` - Precision issue (expected 324, got 325)
+
+**Problem**: libsamplerate was installed by vcpkg and pkg-config could find it (diagnostic confirmed "SUCCESS: pkg-config found samplerate"), BUT meson's `dependency()` function doesn't read the PKG_CONFIG_PATH environment variable.
+
+**Solution**: Changed meson.build to manually construct the libsamplerate dependency using `declare_dependency()` with both the library (from `cc.find_library()`) and include directory when vcpkg is detected.
+
+**Expected After Fix**: 12 libsamplerate tests pass, leaving only 1 rolloff test failure (Phase 2).
+
+---
+
+## Executive Summary (Original Analysis - Incomplete)
 
 **Status**: ✅ All wheels build successfully across all platforms  
-**Test Results**: 1 failure out of 1040 tests (99.9% pass rate) - consistent across all Python versions and platforms  
+**Test Results**: 1 failure out of 1040 tests (99.9% pass rate) - **NOTE: This was based on macOS logs only, ubuntu-latest had 13 failures**  
 **Verification Status**: Phase 1 diagnostic changes are working correctly  
 
 ## Platform-by-Platform Analysis
