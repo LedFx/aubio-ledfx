@@ -495,20 +495,24 @@ if not enable_double
   if not samplerate_opt.disabled()
     samplerate_dep = disabler()
     
-    # When vcpkg is detected, search for library directly in vcpkg directories first
-    # This avoids issues with PKG_CONFIG_PATH not being set in some build environments
+    # When vcpkg is detected, manually construct dependency since pkg-config
+    # doesn't work reliably with environment variables in meson
     if vcpkg_found
-      samplerate_dep = cc.find_library('samplerate', dirs: vcpkg_library_dirs, required: false)
-      if samplerate_dep.found()
+      # Search for library directly in vcpkg directories
+      samplerate_lib = cc.find_library('samplerate', dirs: vcpkg_library_dirs, required: false)
+      if samplerate_lib.found()
+        # Create a proper dependency with both library and include path
+        samplerate_dep = declare_dependency(
+          dependencies: samplerate_lib,
+          include_directories: include_directories(vcpkg_include_dir)
+        )
         message('Found libsamplerate in vcpkg directories')
       endif
-    endif
-    
-    # Fallback to pkg-config if not found via vcpkg
-    if not samplerate_dep.found()
+    else
+      # No vcpkg, use system pkg-config
       samplerate_dep = dependency('samplerate', version: '>=0.0.15', method: 'pkg-config', required: false, disabler: true)
       if samplerate_dep.found()
-        message('Found libsamplerate via pkg-config')
+        message('Found libsamplerate via system pkg-config')
       endif
     endif
     
