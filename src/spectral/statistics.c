@@ -203,6 +203,6 @@ aubio_specdesc_rolloff (aubio_specdesc_t *o UNUSED, const cvec_t * spec,
       rollsum += SQR (spec->norm[j]);
       j++;
     }
-    desc->data[0] = j;
+    desc->data[0] = MAX (1, j) - 1.0f;
   }
 }
