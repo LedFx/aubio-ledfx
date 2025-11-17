@@ -478,17 +478,233 @@ void aubio_tempo_set_adaptive_winlen(aubio_tempo_t *tempo, uint_t enabled);
 4. ✅ Fix integration call frequency bug
 5. ✅ All tempogram tests passing
 
-### Short Term (Future PRs)
-1. ~~Debug tempogram real audio integration~~ ✅ COMPLETED
-2. Improve detection rate on challenging sections (160 BPM, fast transitions)
-3. Implement PLP method for gradual tempo changes
-4. Optimize response time further (currently 5-6s)
+### Phase 3: Advanced Tempogram for Real-World Audio (NEXT)
 
-### Medium Term
-1. Implement FFT-based autocorrelation (Phase 3)
-2. Add multi-scale temporal analysis (2s, 4s, 6s windows)
-3. Consider librosa PLP or Ellis dynamic programming tracker
-4. Clean up debug logging from production code
+**Status**: Planned - Research completed 2025-11-17  
+**Goal**: Enable tempogram to handle complex polyphonic music patterns
+
+#### 3.1 Problem Analysis
+
+**Current Limitation:**
+- Tempogram works perfectly for simple periodic signals (121.12 BPM vs 120 BPM expected)
+- Fails on complex drum patterns (16.7% detection rate in both C and Python)
+- Root cause: Polyphonic onsets (kick+snare+hihat) create noisy onset time series
+- FFT cannot resolve clear periodicity from overlapping drum sounds
+
+**Evidence:**
+- Synthetic amplitude-modulated tone: 1.12 BPM error ✓
+- Real drum patterns (test_bpm_changes.wav): 122+ BPM error ✗
+- Limitation affects both C and Python implementations equally
+
+#### 3.2 Research Findings: Modern Tempo Tracking Approaches
+
+**1. Librosa Tempogram (Python Audio Analysis Framework)**
+- Uses multi-resolution analysis with multiple window sizes
+- Applies onset envelope preprocessing (smoothing, normalization)
+- Implements PLP (Predominant Local Pulse) for smooth tempo trajectories
+- Peak picking with local maxima suppression in tempo-lag space
+
+**2. Ellis Beat Tracking (Dynamic Programming)**
+- Uses dynamic programming for optimal beat path selection
+- Models tempo continuity with transition costs
+- Handles gradual tempo changes (accelerando/ritardando)
+- Reference: "Beat Tracking by Dynamic Programming" (Ellis, 2007)
+
+**3. Multi-Scale Tempogram Analysis**
+- Compute tempograms at multiple temporal scales (2s, 4s, 6s windows)
+- Combine evidence across scales for robust detection
+- Short windows: Fast response to changes
+- Long windows: Stable tempo estimation
+
+**4. Onset Enhancement for Tempogram**
+- Apply onset strength smoothing before FFT (median filter)
+- Enhance periodicity with adaptive thresholding
+- Separate transient vs sustain components
+- Weight beats by salience (louder = more important)
+
+#### 3.3 Implementation Strategy: Hybrid Approach
+
+**Recommendation**: Build on current tempogram foundation with enhancements
+
+**Why not replace entirely:**
+- Current tempogram FFT implementation is mathematically sound
+- Integration with tempo API is working correctly
+- Core algorithm validates with synthetic signals
+- Issue is onset preprocessing, not tempogram algorithm itself
+
+**Enhancement Path:**
+
+**Phase 3A: Onset Enhancement (Priority 1)**
+```
+Goal: Improve onset signal quality before FFT
+Effort: 1-2 sessions
+Impact: Should improve detection rate from 16.7% to 50%+
+
+Changes:
+1. Add onset preprocessing in aubio_beattracking_feed_tempogram()
+   - Median filter for smoothing (window=3-5 samples)
+   - Adaptive thresholding to enhance peaks
+   - Optional: Half-wave rectification
+
+2. Add onset_strength tracking
+   - Weight recent onsets by magnitude
+   - Normalize to prevent DC bias in FFT
+   
+3. Test with real audio and iterate
+```
+
+**Phase 3B: Multi-Scale Analysis (Priority 2)**
+```
+Goal: Combine evidence from multiple time scales
+Effort: 2-3 sessions
+Impact: Handle both stable and changing tempos
+
+Changes:
+1. Support multiple tempogram window sizes
+   - Short: 256 samples (~1.5s) for fast response
+   - Medium: 512 samples (~3s) current default
+   - Long: 1024 samples (~6s) for stability
+   
+2. Weighted combination strategy
+   - High confidence from any scale wins
+   - Prefer longer scales when tempo is stable
+   - Switch to shorter scales during transitions
+   
+3. Add multi-scale API
+   - aubio_tempo_set_tempogram_scales(short, medium, long)
+```
+
+**Phase 3C: PLP Implementation (Priority 3)**
+```
+Goal: Smooth tempo trajectories for gradual changes
+Effort: 2-3 sessions
+Impact: Handle accelerando/ritardando in classical music
+
+Changes:
+1. Implement PLP method (already declared in tempogram.h)
+   - Extract predominant local pulse at each time frame
+   - Apply temporal smoothing (median/mean filter)
+   - Return continuous tempo curve
+   
+2. Integrate with beat tracking
+   - Use PLP for gradual tempo tracking
+   - Use standard tempogram for sudden changes
+   - Auto-select based on tempo variance
+   
+3. Add Python API
+   - tempo.get_tempo_curve() returns smooth trajectory
+```
+
+**Phase 3D: Dynamic Programming Path (Priority 4 - Optional)**
+```
+Goal: Optimal beat sequence selection
+Effort: 4-5 sessions
+Impact: State-of-the-art accuracy on complex music
+
+Changes:
+1. Implement Ellis dynamic programming tracker
+   - Build cost matrix for all possible beat paths
+   - Include tempo continuity constraints
+   - Find globally optimal solution via Viterbi
+   
+2. Use tempogram as observation model
+   - Tempogram provides tempo likelihoods
+   - DP finds most likely tempo sequence
+   
+3. Make optional feature
+   - Enable with aubio_tempo_set_use_dp(1)
+   - Higher CPU cost but better accuracy
+```
+
+#### 3.4 Detailed Plan for Next Session (Phase 3A)
+
+**Session Goal**: Implement onset enhancement to improve real audio detection
+
+**Step 1: Add Onset Preprocessing (30-45 min)**
+```c
+// In beattracking.c, modify aubio_beattracking_feed_tempogram()
+
+// Add median filter for onset smoothing
+typedef struct {
+  fvec_t *onset_history;  // Circular buffer of last 5 onset values
+  uint_t history_pos;
+} onset_smoother_t;
+
+// Smooth onset value before feeding to tempogram
+smpl_t smooth_onset(onset_smoother_t *smoother, smpl_t raw_onset) {
+  // Add to history
+  smoother->onset_history->data[smoother->history_pos] = raw_onset;
+  smoother->history_pos = (smoother->history_pos + 1) % 5;
+  
+  // Return median
+  return fvec_median(smoother->onset_history);
+}
+```
+
+**Step 2: Test with Real Audio (20-30 min)**
+```bash
+# Run benchmark with enhanced onset
+meson test tempogram-benchmark -v
+
+# Expect improvement from 16.7% to 40-60% detection rate
+```
+
+**Step 3: Iterate on Parameters (30-45 min)**
+- Try different median window sizes (3, 5, 7 samples)
+- Test adaptive thresholding
+- Measure impact on detection rate
+
+**Step 4: Add Tests (20-30 min)**
+- Update test-tempogram-benchmark.c expectations
+- Add test for onset enhancement feature
+- Validate no regression on synthetic signals
+
+**Step 5: Documentation (15-20 min)**
+- Document onset enhancement in TEMPO_WORK_SUMMARY.md
+- Update Python demo with recommendations
+- Add comments explaining preprocessing
+
+**Total Estimated Time**: 2-3 hours for Phase 3A
+
+#### 3.5 Success Criteria
+
+**Phase 3A Completion:**
+- [ ] Real audio detection rate improves from 16.7% to 50%+
+- [ ] Synthetic signal accuracy maintained (< 2 BPM error)
+- [ ] All existing tests pass
+- [ ] New test validates enhancement
+
+**Overall Phase 3 Completion:**
+- [ ] Real audio detection rate > 80%
+- [ ] Handles gradual tempo changes (accelerando/ritardando)
+- [ ] Multi-scale analysis working
+- [ ] PLP method implemented
+- [ ] Python bindings updated
+
+#### 3.6 Alternative: Disable Tempogram for Production
+
+**If Phase 3A-3C don't achieve 80% detection:**
+
+Tempogram may be best suited for:
+- Validation and testing with synthetic signals
+- Research and development
+- Simple periodic music (electronic, metronome)
+
+**Recommendation**: Keep tempogram as optional feature, default to standard Davies algorithm for production use of complex music.
+
+---
+
+### Short Term (Deprecated - See Phase 3 Above)
+~~1. Debug tempogram real audio integration~~ ✅ COMPLETED  
+~~2. Improve detection rate on challenging sections~~ → See Phase 3A  
+~~3. Implement PLP method~~ → See Phase 3C  
+~~4. Optimize response time~~ → See Phase 3B multi-scale
+
+### Medium Term (Deprecated - See Phase 3 Above)
+~~1. FFT-based autocorrelation~~ → Integrated in current tempogram  
+~~2. Multi-scale temporal analysis~~ → See Phase 3B  
+~~3. librosa PLP or Ellis DP tracker~~ → See Phase 3C and 3D  
+~~4. Clean up debug logging~~ ✅ Already done
 
 ---
 
@@ -529,8 +745,51 @@ void aubio_tempo_set_adaptive_winlen(aubio_tempo_t *tempo, uint_t enabled);
 
 ---
 
-**Document Version**: 1.0  
+## References and Research
+
+### Modern Tempo Tracking Approaches
+
+**1. Librosa (Python Audio Analysis)**
+- McFee, B., et al. (2015). "librosa: Audio and Music Signal Analysis in Python"
+- Tempogram implementation with multi-resolution analysis
+- PLP (Predominant Local Pulse) for smooth tempo curves
+- URL: https://librosa.org/doc/main/generated/librosa.feature.tempogram.html
+
+**2. Ellis Beat Tracking**
+- Ellis, D. P. W. (2007). "Beat Tracking by Dynamic Programming"
+- Journal of New Music Research, 36(1), 51-60
+- Dynamic programming for optimal beat sequence
+- Tempo continuity modeling with transition costs
+
+**3. Multi-Scale Temporal Analysis**
+- Grosche, P., & Müller, M. (2011). "Extracting predominant local pulse information from music recordings"
+- IEEE Transactions on Audio, Speech, and Language Processing
+- Multi-resolution tempogram analysis
+- Combines evidence across temporal scales
+
+**4. Onset Detection Enhancement**
+- Böck, S., & Widmer, G. (2013). "Maximum filter vibrato suppression for onset detection"
+- Adaptive preprocessing for cleaner onset signals
+- Median filtering and peak enhancement
+
+### Implementation References
+
+**Current Aubio Tempogram:**
+- Based on Fourier tempogram via Wiener-Khinchin theorem
+- FFT-based autocorrelation for efficiency
+- Single-scale analysis (512-sample window)
+
+**Recommended Evolution:**
+- Phase 3A: Onset enhancement (librosa-inspired preprocessing)
+- Phase 3B: Multi-scale analysis (Grosche & Müller approach)
+- Phase 3C: PLP implementation (librosa method)
+- Phase 3D: Optional DP tracking (Ellis method)
+
+---
+
+**Document Version**: 1.1  
 **Created**: 2025-11-17  
+**Updated**: 2025-11-17 (Added Phase 3 improvement plan)  
 **Scope**: Tempo-related files only  
 **Files Covered**: 41 files  
 **Supersedes**: 4 doc/ tempo files  
