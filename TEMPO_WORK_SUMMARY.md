@@ -484,24 +484,57 @@ void aubio_tempo_set_adaptive_winlen(aubio_tempo_t *tempo, uint_t enabled);
    - ✅ Achieved 50% detection rate (target met)
    - ✅ Improved BPM accuracy by 35%
    - ✅ No regressions on synthetic tests
+7. ⚙️ **Phase 3B: Multi-Scale Analysis** (2025-11-17 - IN PROGRESS)
+   - ✅ Implemented multi-scale tempogram infrastructure
+   - ✅ Added weighted combination strategy
+   - ✅ Created API functions for control
+   - ✅ Initial testing shows 57% accuracy improvement
+   - ⏳ Refining combination strategy for better detection rate
 
-### Next Session: Phase 3B - Multi-Scale Analysis (RECOMMENDED)
+### Current Session: Phase 3B - Multi-Scale Analysis (IN PROGRESS)
 
 **Goal**: Improve detection rate from 50% to 80%+ by combining evidence from multiple temporal scales
+
+**Implementation Completed** (2025-11-17):
+- ✅ Added multi-scale tempogram infrastructure (short: 256, medium: 512, long: 1024 samples)
+- ✅ Implemented weighted combination strategy
+- ✅ Created test-tempogram-benchmark-multiscale.c
+- ✅ API: `aubio_tempo_set_multiscale_tempogram(tempo, enabled)`
+
+**Initial Results** (Multi-Scale vs Single-Scale):
+- Detection rate: 50% (3/6) - Same overall, different sections detected
+- BPM accuracy: 1.52 BPM vs 3.55 BPM - **57% better** ✅
+- Section 5 (80 BPM): Now detected (was missed)
+- Section 6 (120 BPM): 0.4 error vs 4.4 error - **91% better** ✅
+- Section 3 (100 BPM): Now missed (was detected)
+
+**Key Findings**:
+1. Multi-scale significantly improves accuracy when detection occurs
+2. Longer scales (1024) provide better stability for slow tempos (80 BPM)
+3. Combination strategy needs refinement for early sections
+4. First 3 sections consistently missed - likely due to initialization time
+
+**Next Steps**:
+1. Refine combination strategy to improve early detection
+2. Consider scale-specific confidence thresholds
+3. Test on gradual tempo changes
+4. Validate no regression on synthetic tests
+
+### Next Session: Refine Phase 3B
 
 **Rationale**: Current 50% detection rate indicates onset enhancement is working, but a single FFT window size (512 samples) can't capture all tempo patterns. Missing sections likely need different analysis windows:
 - 120 BPM start: Needs longer window for stability
 - 140 BPM transition: Needs shorter window for fast response
 - 80 BPM slow tempo: Needs longer window for low-frequency beats
 
-**Effort**: 2-3 hours  
-**Impact**: Should reach 80%+ detection rate
+**Effort**: 1-2 hours remaining  
+**Impact**: Should reach 70-80%+ detection rate
 
 See Phase 3B implementation plan below for details.
 
 ### Phase 3: Advanced Tempogram for Real-World Audio
 
-**Status**: Phase 3A COMPLETED 2025-11-17 ✅  
+**Status**: Phase 3A COMPLETED ✅, Phase 3B IN PROGRESS ⚙️  
 **Goal**: Enable tempogram to handle complex polyphonic music patterns
 
 ---

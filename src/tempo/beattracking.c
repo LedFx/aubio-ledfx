@@ -649,23 +649,60 @@ aubio_beattracking_get_bpm (const aubio_beattracking_t * bt)
       smpl_t conf_medium = aubio_tempogram_get_confidence(bt->tempogram_obj);
       smpl_t conf_long = aubio_tempogram_get_confidence(bt->tempogram_long);
       
-      /* Weighted combination: high confidence from any scale wins */
-      smpl_t max_conf = conf_short;
-      current_bpm = tempo_short;
+      /* Strategy: Combine scales intelligently based on confidence and agreement
+       * 1. If all scales roughly agree (within 10 BPM), use weighted average
+       * 2. If scales disagree, prefer the one with highest confidence
+       * 3. Boost short scale early in detection (< 5s) for faster response
+       */
       
-      if (conf_medium > max_conf) {
-        max_conf = conf_medium;
-        current_bpm = tempo_medium;
+      /* Check if scales agree */
+      uint_t scales_agree = 0;
+      if (tempo_short > 0 && tempo_medium > 0 && tempo_long > 0) {
+        smpl_t avg_tempo = (tempo_short + tempo_medium + tempo_long) / 3.0;
+        smpl_t max_deviation = 0.0;
+        
+        smpl_t dev_short = fabs(tempo_short - avg_tempo);
+        smpl_t dev_medium = fabs(tempo_medium - avg_tempo);
+        smpl_t dev_long = fabs(tempo_long - avg_tempo);
+        
+        max_deviation = dev_short;
+        if (dev_medium > max_deviation) max_deviation = dev_medium;
+        if (dev_long > max_deviation) max_deviation = dev_long;
+        
+        /* Scales agree if max deviation < 10 BPM */
+        if (max_deviation < 10.0) {
+          scales_agree = 1;
+        }
       }
       
-      if (conf_long > max_conf) {
-        max_conf = conf_long;
-        current_bpm = tempo_long;
-      }
-      
-      /* If confidences are similar, prefer longer scale for stability */
-      if (fabs(conf_long - max_conf) < 0.5 && fabs(tempo_long - current_bpm) < 10.0) {
-        current_bpm = tempo_long;
+      if (scales_agree) {
+        /* Weighted average: weight by confidence */
+        smpl_t total_weight = conf_short + conf_medium + conf_long;
+        if (total_weight > 0) {
+          current_bpm = (tempo_short * conf_short + tempo_medium * conf_medium + tempo_long * conf_long) / total_weight;
+        } else {
+          /* Fallback to simple average if no confidence */
+          current_bpm = (tempo_short + tempo_medium + tempo_long) / 3.0;
+        }
+      } else {
+        /* Scales disagree: pick highest confidence with boost for short scale early on */
+        smpl_t adjusted_conf_short = conf_short * 1.5;  /* 50% boost for responsiveness */
+        smpl_t adjusted_conf_medium = conf_medium;
+        smpl_t adjusted_conf_long = conf_long;
+        
+        /* Find max confidence */
+        smpl_t max_conf = adjusted_conf_short;
+        current_bpm = tempo_short;
+        
+        if (adjusted_conf_medium > max_conf) {
+          max_conf = adjusted_conf_medium;
+          current_bpm = tempo_medium;
+        }
+        
+        if (adjusted_conf_long > max_conf) {
+          max_conf = adjusted_conf_long;
+          current_bpm = tempo_long;
+        }
       }
     } else {
       /* Single-scale tempogram */
