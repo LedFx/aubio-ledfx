@@ -213,6 +213,10 @@ Contributing
 Patches are welcome: please fork the latest git repository and create a feature
 branch. Submitted requests should pass all continuous integration tests.
 
+### GitHub Copilot Support
+
+This repository includes automated environment setup for GitHub Copilot Coding Agent. The `.github/copilot-setup-steps.yml` file ensures that Copilot has all necessary build tools, dependencies, and testing infrastructure pre-installed. For details, see [`.github/COPILOT_SETUP_README.md`](.github/COPILOT_SETUP_README.md).
+
 For optimization and modernization priorities, see:
 - [**OPTIMIZATION_SUMMARY.md**](OPTIMIZATION_SUMMARY.md) - Quick reference guide
 - [**OPTIMIZATION_ROADMAP.md**](OPTIMIZATION_ROADMAP.md) - Detailed implementation roadmap
