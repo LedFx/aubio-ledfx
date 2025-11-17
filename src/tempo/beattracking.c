@@ -20,8 +20,10 @@
 
 #include "aubio_priv.h"
 #include "fvec.h"
+#include "fmat.h"
 #include "mathutils.h"
 #include "tempo/beattracking.h"
+#include "tempo/tempogram.h"
 
 /** define to 1 to print out tracking difficulties */
 #define AUBIO_BEAT_WARNINGS 0
@@ -72,8 +74,9 @@ struct _aubio_beattracking_t
   
   /* Phase 3: Advanced autocorrelation and tempogram */
   uint_t use_fft_autocorr; /** use FFT-based autocorrelation (faster for large windows) */
-  fvec_t *tempogram;  /** Fourier tempogram for tempo analysis */
-  uint_t tempogram_length; /** number of tempogram bins */
+  aubio_tempogram_t *tempogram_obj;  /** Fourier tempogram analyzer */
+  uint_t use_tempogram;   /** enable tempogram-based tempo detection */
+  fmat_t *tempogram_out;  /** Tempogram output matrix */
 };
 
 aubio_beattracking_t *
@@ -138,8 +141,11 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
   
   /* Phase 3: FFT-based autocorrelation */
   p->use_fft_autocorr = (winlen >= 512) ? 1 : 0;  /* Use FFT for windows >= 512 samples */
-  p->tempogram = NULL;  /* Lazy initialization when needed */
-  p->tempogram_length = 0;
+  
+  /* Phase 3: Tempogram-based tempo detection */
+  p->use_tempogram = 0;  /* Disabled by default, opt-in feature */
+  p->tempogram_obj = NULL;  /* Lazy initialization when enabled */
+  p->tempogram_out = NULL;
 
   /* exponential weighting, dfwv = 0.5 when i =  43 */
   for (i = 0; i < winlen; i++) {
@@ -170,8 +176,11 @@ del_aubio_beattracking (aubio_beattracking_t * p)
   if (p->tempo_history) {
     del_fvec (p->tempo_history);
   }
-  if (p->tempogram) {
-    del_fvec (p->tempogram);
+  if (p->tempogram_obj) {
+    del_aubio_tempogram (p->tempogram_obj);
+  }
+  if (p->tempogram_out) {
+    del_fmat (p->tempogram_out);
   }
   AUBIO_FREE (p);
 }
@@ -227,6 +236,21 @@ aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
 
   /* Normalize onset detection function by standard deviation for robustness */
   aubio_beattracking_normalize_dfframe(dfframe, normalized_df);
+
+  /* Phase 3: Feed onset to tempogram if enabled */
+  if (bt->use_tempogram && bt->tempogram_obj && bt->tempogram_out) {
+    /* Create single-value onset vector for tempogram */
+    fvec_t *onset_val = new_fvec(1);
+    if (onset_val) {
+      /* Use mean of normalized onset as current strength */
+      onset_val->data[0] = fvec_mean(normalized_df);
+      
+      /* Process through tempogram */
+      aubio_tempogram_do(bt->tempogram_obj, onset_val, bt->tempogram_out);
+      
+      del_fvec(onset_val);
+    }
+  }
 
   /* copy normalized dfframe, apply detection function weighting, and revert */
   fvec_copy (normalized_df, bt->dfrev);
@@ -585,8 +609,18 @@ aubio_beattracking_get_period_s (const aubio_beattracking_t * bt)
 smpl_t
 aubio_beattracking_get_bpm (const aubio_beattracking_t * bt)
 {
-  if (bt->bp != 0) {
-    smpl_t current_bpm = 60. / aubio_beattracking_get_period_s(bt);
+  smpl_t current_bpm;
+  
+  /* Phase 3: Use tempogram if enabled */
+  if (bt->use_tempogram && bt->tempogram_obj && bt->tempogram_out) {
+    /* Get tempo from tempogram analysis */
+    current_bpm = aubio_tempogram_get_tempo(bt->tempogram_obj, bt->tempogram_out);
+    
+    /* Tempogram already handles multi-octave analysis internally,
+     * but we still apply smoothing */
+  } else if (bt->bp != 0) {
+    /* Standard autocorrelation-based tempo detection */
+    current_bpm = 60. / aubio_beattracking_get_period_s(bt);
     
     /* Phase 3: Multi-octave tempo detection
      * Check if detected tempo might be half or double the actual tempo
@@ -618,19 +652,19 @@ aubio_beattracking_get_bpm (const aubio_beattracking_t * bt)
         }
       }
     }
-    
-    /* Apply light smoothing based on confidence
-     * Higher confidence = less smoothing (more responsive)
-     * Lower confidence = more smoothing (more stable) */
-    if (bt->prev_tempo > 0. && bt->tempo_confidence > 0.) {
-      smpl_t alpha = 0.2 + 0.3 * bt->tempo_confidence;  /* 0.2 to 0.5 */
-      current_bpm = alpha * current_bpm + (1.0 - alpha) * bt->prev_tempo;
-    }
-    
-    return current_bpm;
   } else {
     return 0.;
   }
+  
+  /* Apply light smoothing based on confidence
+   * Higher confidence = less smoothing (more responsive)
+   * Lower confidence = more smoothing (more stable) */
+  if (bt->prev_tempo > 0. && bt->tempo_confidence > 0.) {
+    smpl_t alpha = 0.2 + 0.3 * bt->tempo_confidence;  /* 0.2 to 0.5 */
+    current_bpm = alpha * current_bpm + (1.0 - alpha) * bt->prev_tempo;
+  }
+  
+  return current_bpm;
 }
 
 smpl_t
@@ -754,6 +788,41 @@ aubio_beattracking_set_fft_autocorr(aubio_beattracking_t * bt, uint_t enabled)
 {
   AUBIO_ASSERT_NOT_NULL(bt);
   bt->use_fft_autocorr = enabled ? 1 : 0;
+  return AUBIO_OK;
+}
+
+uint_t
+aubio_beattracking_set_use_tempogram(aubio_beattracking_t * bt, uint_t enabled)
+{
+  AUBIO_ASSERT_NOT_NULL(bt);
+  
+  bt->use_tempogram = enabled ? 1 : 0;
+  
+  /* Lazy initialization of tempogram when first enabled */
+  if (bt->use_tempogram && !bt->tempogram_obj) {
+    /* Create tempogram with power-of-2 window size for FFT */
+    uint_t tempogram_win = 512;  /* Must be power of 2 */
+    bt->tempogram_obj = new_aubio_tempogram(tempogram_win, bt->hop_size, bt->samplerate);
+    
+    if (!bt->tempogram_obj) {
+      AUBIO_ERR("beattracking: failed to create tempogram object\n");
+      bt->use_tempogram = 0;
+      return AUBIO_FAIL;
+    }
+    
+    /* Create tempogram output matrix (rows = tempo bins, cols = 1 for single frame) */
+    uint_t tempo_bins = tempogram_win / 2 + 1;
+    bt->tempogram_out = new_fmat(tempo_bins, 1);
+    
+    if (!bt->tempogram_out) {
+      AUBIO_ERR("beattracking: failed to create tempogram output matrix\n");
+      del_aubio_tempogram(bt->tempogram_obj);
+      bt->tempogram_obj = NULL;
+      bt->use_tempogram = 0;
+      return AUBIO_FAIL;
+    }
+  }
+  
   return AUBIO_OK;
 }
 

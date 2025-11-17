@@ -339,6 +339,20 @@ smpl_t aubio_tempo_get_tempo_variance(const aubio_tempo_t * o);
  */
 uint_t aubio_tempo_set_fft_autocorr(aubio_tempo_t * o, uint_t enabled);
 
+/** enable Fourier tempogram-based tempo detection
+
+  When enabled, uses Short-Time Fourier Transform (STFT) on the onset
+  strength envelope to compute a time-frequency tempo representation.
+  This provides multi-resolution analysis and better time-varying tempo tracking.
+
+  \param o tempo detection object
+  \param enabled 1 to enable tempogram method, 0 for autocorrelation
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_use_tempogram(aubio_tempo_t * o, uint_t enabled);
+
 /** delete tempo detection object
 
   \param o beat tracking object

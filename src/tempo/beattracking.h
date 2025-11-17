@@ -208,6 +208,20 @@ smpl_t aubio_beattracking_get_tempo_variance(const aubio_beattracking_t * bt);
 */
 uint_t aubio_beattracking_set_fft_autocorr(aubio_beattracking_t * bt, uint_t enabled);
 
+/** enable Fourier tempogram-based tempo detection
+
+  When enabled, uses tempogram analysis instead of direct autocorrelation
+  for tempo detection. Provides multi-resolution analysis and better
+  time-varying tempo tracking.
+
+  \param bt beat tracking object
+  \param enabled 1 to enable tempogram, 0 to disable
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_use_tempogram(aubio_beattracking_t * bt, uint_t enabled);
+
 /** get autocorrelation function (for debugging/analysis)
 
   Returns the most recently computed autocorrelation function. Useful for
