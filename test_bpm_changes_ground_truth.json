@@ -1,0 +1,91 @@
+{
+  "sample_rate": 44100,
+  "sections": [
+    {
+      "start_time": 0.0,
+      "end_time": 10.0,
+      "start_sample": 0,
+      "end_sample": 441000,
+      "bpm": 120,
+      "beat_positions": [
+        0,
+        88200,
+        176400,
+        264600,
+        352800
+      ]
+    },
+    {
+      "start_time": 10.0,
+      "end_time": 20.0,
+      "start_sample": 441000,
+      "end_sample": 882000,
+      "bpm": 140,
+      "beat_positions": [
+        441000,
+        516600,
+        592200,
+        667800,
+        743400,
+        819000
+      ]
+    },
+    {
+      "start_time": 20.0,
+      "end_time": 30.0,
+      "start_sample": 882000,
+      "end_sample": 1323000,
+      "bpm": 100,
+      "beat_positions": [
+        882000,
+        987840,
+        1093680,
+        1199520,
+        1305360
+      ]
+    },
+    {
+      "start_time": 30.0,
+      "end_time": 40.0,
+      "start_sample": 1323000,
+      "end_sample": 1764000,
+      "bpm": 160,
+      "beat_positions": [
+        1323000,
+        1389148,
+        1455296,
+        1521444,
+        1587592,
+        1653740,
+        1719888
+      ]
+    },
+    {
+      "start_time": 40.0,
+      "end_time": 50.0,
+      "start_sample": 1764000,
+      "end_sample": 2205000,
+      "bpm": 80,
+      "beat_positions": [
+        1764000,
+        1896300,
+        2028600,
+        2160900
+      ]
+    },
+    {
+      "start_time": 50.0,
+      "end_time": 60.0,
+      "start_sample": 2205000,
+      "end_sample": 2646000,
+      "bpm": 120,
+      "beat_positions": [
+        2205000,
+        2293200,
+        2381400,
+        2469600,
+        2557800
+      ]
+    }
+  ]
+}

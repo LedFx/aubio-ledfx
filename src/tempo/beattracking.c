@@ -237,21 +237,6 @@ aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
   /* Normalize onset detection function by standard deviation for robustness */
   aubio_beattracking_normalize_dfframe(dfframe, normalized_df);
 
-  /* Phase 3: Feed onset to tempogram if enabled */
-  if (bt->use_tempogram && bt->tempogram_obj && bt->tempogram_out) {
-    /* Create single-value onset vector for tempogram */
-    fvec_t *onset_val = new_fvec(1);
-    if (onset_val) {
-      /* Use mean of normalized onset as current strength */
-      onset_val->data[0] = fvec_mean(normalized_df);
-      
-      /* Process through tempogram */
-      aubio_tempogram_do(bt->tempogram_obj, onset_val, bt->tempogram_out);
-      
-      del_fvec(onset_val);
-    }
-  }
-
   /* copy normalized dfframe, apply detection function weighting, and revert */
   fvec_copy (normalized_df, bt->dfrev);
   fvec_weight (bt->dfrev, bt->dfwv);
@@ -851,4 +836,30 @@ aubio_beattracking_get_acf(const aubio_beattracking_t * bt, fvec_t * acf)
     AUBIO_ASSERT_BOUNDS(i, acf->length);
     acf->data[i] = 0.0;
   }
+}
+
+void
+aubio_beattracking_feed_tempogram(aubio_beattracking_t * bt, smpl_t onset_value)
+{
+  AUBIO_ASSERT_NOT_NULL(bt);
+  
+  /* Only process if tempogram is enabled and initialized */
+  if (!bt->use_tempogram || !bt->tempogram_obj || !bt->tempogram_out) {
+    return;
+  }
+  
+  /* Create single-value onset vector for tempogram */
+  fvec_t *onset_val = new_fvec(1);
+  if (!onset_val) {
+    return;
+  }
+  
+  /* Feed onset value to tempogram
+   * This should be called on every hop to build up the onset time series
+   * that the tempogram FFT analyzes for periodic beat patterns
+   */
+  onset_val->data[0] = onset_value;
+  aubio_tempogram_do(bt->tempogram_obj, onset_val, bt->tempogram_out);
+  
+  del_fvec(onset_val);
 }
