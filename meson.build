@@ -493,13 +493,31 @@ endforeach
 if not enable_double
   samplerate_opt = get_option('samplerate')
   if not samplerate_opt.disabled()
-    samplerate_dep = dependency('samplerate', version: '>=0.0.15', required: false, disabler: true)
-    if not samplerate_dep.found() and vcpkg_found
-      samplerate_dep = cc.find_library('samplerate', dirs: vcpkg_library_dirs, required: samplerate_opt.enabled())
+    samplerate_dep = disabler()
+    
+    # When vcpkg is detected, manually construct dependency since pkg-config
+    # doesn't work reliably with environment variables in meson
+    if vcpkg_found
+      # Search for library directly in vcpkg directories
+      samplerate_lib = cc.find_library('samplerate', dirs: vcpkg_library_dirs, required: false)
+      if samplerate_lib.found()
+        # Use the library dependency directly - headers are already available
+        # via global -I flag added on line 218, so no need to add include_directories
+        samplerate_dep = samplerate_lib
+        message('Found libsamplerate in vcpkg directories')
+      endif
+    else
+      # No vcpkg, use system pkg-config
+      samplerate_dep = dependency('samplerate', version: '>=0.0.15', method: 'pkg-config', required: false, disabler: true)
+      if samplerate_dep.found()
+        message('Found libsamplerate via system pkg-config')
+      endif
     endif
+    
     if samplerate_dep.found()
       conf_data.set('HAVE_SAMPLERATE', 1)
       dependencies += samplerate_dep
+      message('libsamplerate support enabled')
     elif samplerate_opt.enabled()
       error('libsamplerate support was requested but the dependency could not be found')
     elif samplerate_opt.auto()

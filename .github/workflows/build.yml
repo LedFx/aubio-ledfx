@@ -133,6 +133,11 @@ jobs:
           echo "MACOSX_DEPLOYMENT_TARGET=10.15" >> $GITHUB_ENV
           echo "CMAKE_PREFIX_PATH=${{ github.workspace }}/vcpkg_installed/x64-osx" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=${{ github.workspace }}/vcpkg_installed/x64-osx/lib/pkgconfig:${{ github.workspace }}/vcpkg_installed/x64-osx/share/pkgconfig" >> $GITHUB_ENV
+          echo "=== Verifying libsamplerate installation (macOS x86_64) ==="
+          ls -la ${{ github.workspace }}/vcpkg_installed/x64-osx/lib/libsamplerate.a 2>/dev/null || echo "WARNING: libsamplerate.a not found!"
+          ls -la ${{ github.workspace }}/vcpkg_installed/x64-osx/lib/pkgconfig/samplerate.pc 2>/dev/null || echo "WARNING: samplerate.pc not found!"
+          export PKG_CONFIG_PATH=${{ github.workspace }}/vcpkg_installed/x64-osx/lib/pkgconfig:${{ github.workspace }}/vcpkg_installed/x64-osx/share/pkgconfig
+          pkg-config --exists samplerate && echo "SUCCESS: pkg-config found samplerate" || echo "WARNING: pkg-config cannot find samplerate"
       - name: Install vcpkg dependencies (macOS ARM64)
         if: runner.os == 'macOS' && matrix.arch == 'arm64'
         env:
@@ -144,6 +149,11 @@ jobs:
           echo "MACOSX_DEPLOYMENT_TARGET=11.0" >> $GITHUB_ENV
           echo "CMAKE_PREFIX_PATH=${{ github.workspace }}/vcpkg_installed/arm64-osx" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=${{ github.workspace }}/vcpkg_installed/arm64-osx/lib/pkgconfig:${{ github.workspace }}/vcpkg_installed/arm64-osx/share/pkgconfig" >> $GITHUB_ENV
+          echo "=== Verifying libsamplerate installation (macOS ARM64) ==="
+          ls -la ${{ github.workspace }}/vcpkg_installed/arm64-osx/lib/libsamplerate.a 2>/dev/null || echo "WARNING: libsamplerate.a not found!"
+          ls -la ${{ github.workspace }}/vcpkg_installed/arm64-osx/lib/pkgconfig/samplerate.pc 2>/dev/null || echo "WARNING: samplerate.pc not found!"
+          export PKG_CONFIG_PATH=${{ github.workspace }}/vcpkg_installed/arm64-osx/lib/pkgconfig:${{ github.workspace }}/vcpkg_installed/arm64-osx/share/pkgconfig
+          pkg-config --exists samplerate && echo "SUCCESS: pkg-config found samplerate" || echo "WARNING: pkg-config cannot find samplerate"
 
         
 
