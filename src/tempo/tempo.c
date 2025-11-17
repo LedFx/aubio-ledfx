@@ -322,6 +322,10 @@ uint_t aubio_tempo_set_adaptive_winlen(aubio_tempo_t * o, uint_t enabled) {
   return aubio_beattracking_set_adaptive_winlen(o->bt, enabled);
 }
 
+uint_t aubio_tempo_set_multi_octave(aubio_tempo_t * o, uint_t enabled) {
+  return aubio_beattracking_set_multi_octave(o->bt, enabled);
+}
+
 void del_aubio_tempo (aubio_tempo_t *o)
 {
   if (o->od)

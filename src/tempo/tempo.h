@@ -274,6 +274,20 @@ uint_t aubio_tempo_set_tempo_prior_std(aubio_tempo_t * o, smpl_t tempo_std);
  */
 uint_t aubio_tempo_set_adaptive_winlen(aubio_tempo_t * o, uint_t enabled);
 
+/** enable multi-octave tempo detection
+
+  When enabled, checks if detected tempo might be half or double the actual
+  tempo, correcting octave errors. Improves detection of slow (< 80 BPM) and
+  fast (> 200 BPM) tempos. Enabled by default.
+
+  \param o tempo object
+  \param enabled 1 to enable multi-octave detection, 0 to disable
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_multi_octave(aubio_tempo_t * o, uint_t enabled);
+
 /** delete tempo detection object
 
   \param o beat tracking object

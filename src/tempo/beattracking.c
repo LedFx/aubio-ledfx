@@ -61,6 +61,8 @@ struct _aubio_beattracking_t
   smpl_t tempo_confidence; /** confidence of current tempo estimate */
   uint_t adaptive_winlen; /** adaptive window length (0 = use default) */
   smpl_t stability_count; /** number of frames with stable tempo */
+  uint_t enable_multi_octave; /** enable multi-octave tempo detection for slow tempos */
+  smpl_t tempo_change_threshold; /** threshold for detecting tempo changes */
 };
 
 aubio_beattracking_t *
@@ -113,6 +115,8 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
   p->tempo_confidence = 0.0;    /* No confidence yet */
   p->adaptive_winlen = 0;       /* 0 = use default winlen */
   p->stability_count = 0.0;     /* No stable tempo yet */
+  p->enable_multi_octave = 1;   /* Enable by default for better slow tempo detection */
+  p->tempo_change_threshold = 0.15;  /* 15% change triggers re-analysis */
 
   /* exponential weighting, dfwv = 0.5 when i =  43 */
   for (i = 0; i < winlen; i++) {
@@ -224,6 +228,35 @@ aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
       }
     }
   }
+  
+  /* Phase 3: Enhanced multi-octave detection
+   * Check peaks at half and double the detected period to catch slow/fast tempos */
+  if (bt->enable_multi_octave) {
+    fvec_t *acfout_enhanced = new_fvec(bt->acfout->length);
+    if (acfout_enhanced) {
+      fvec_copy(bt->acfout, acfout_enhanced);
+      
+      /* Boost autocorrelation at half-period (for slow tempos like 80 BPM) */
+      for (i = 1; i < laglen / 2 - 1; i++) {
+        uint_t double_idx = i * 2;
+        if (double_idx < laglen - 1) {
+          acfout_enhanced->data[i] += 0.5 * bt->acfout->data[double_idx];
+        }
+      }
+      
+      /* Boost autocorrelation at double-period (for fast tempos like 160 BPM) */
+      for (i = laglen / 2; i < laglen - 1; i++) {
+        uint_t half_idx = i / 2;
+        if (half_idx > 0) {
+          acfout_enhanced->data[i] += 0.5 * bt->acfout->data[half_idx];
+        }
+      }
+      
+      fvec_copy(acfout_enhanced, bt->acfout);
+      del_fvec(acfout_enhanced);
+    }
+  }
+  
   /* apply Rayleigh weight */
   fvec_weight (bt->acfout, bt->rwv);
 
@@ -497,6 +530,37 @@ aubio_beattracking_get_bpm (const aubio_beattracking_t * bt)
   if (bt->bp != 0) {
     smpl_t current_bpm = 60. / aubio_beattracking_get_period_s(bt);
     
+    /* Phase 3: Multi-octave tempo detection
+     * Check if detected tempo might be half or double the actual tempo
+     * This helps with slow tempos (< 80 BPM) and fast tempos (> 200 BPM) */
+    if (bt->enable_multi_octave) {
+      smpl_t half_bpm = current_bpm / 2.0;
+      smpl_t double_bpm = current_bpm * 2.0;
+      
+      /* If we have a tempo prior, use it to disambiguate */
+      if (bt->tempo_prior_mean > 0.) {
+        smpl_t distance_current = fabs(current_bpm - bt->tempo_prior_mean);
+        smpl_t distance_half = fabs(half_bpm - bt->tempo_prior_mean);
+        smpl_t distance_double = fabs(double_bpm - bt->tempo_prior_mean);
+        
+        /* Choose the tempo closest to the prior */
+        if (distance_half < distance_current && distance_half < distance_double) {
+          current_bpm = half_bpm;
+        } else if (distance_double < distance_current && distance_double < distance_half) {
+          current_bpm = double_bpm;
+        }
+      } else {
+        /* No prior: Use heuristics
+         * If current BPM is very slow (< 60) or very fast (> 240), 
+         * likely to be octave error */
+        if (current_bpm < 60.0 && double_bpm <= 200.0) {
+          current_bpm = double_bpm;
+        } else if (current_bpm > 240.0 && half_bpm >= 60.0) {
+          current_bpm = half_bpm;
+        }
+      }
+    }
+    
     /* Apply light smoothing based on confidence
      * Higher confidence = less smoothing (more responsive)
      * Lower confidence = more smoothing (more stable) */
@@ -588,5 +652,13 @@ aubio_beattracking_set_adaptive_winlen(aubio_beattracking_t * bt, uint_t enabled
   AUBIO_ASSERT_NOT_NULL(bt);
   /* enabled is uint_t, so bounds checking would be 0 or 1, but accept any non-zero as true */
   bt->adaptive_winlen = enabled ? 1 : 0;
+  return AUBIO_OK;
+}
+
+uint_t
+aubio_beattracking_set_multi_octave(aubio_beattracking_t * bt, uint_t enabled)
+{
+  AUBIO_ASSERT_NOT_NULL(bt);
+  bt->enable_multi_octave = enabled ? 1 : 0;
   return AUBIO_OK;
 }
