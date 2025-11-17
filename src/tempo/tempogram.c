@@ -57,13 +57,50 @@ aubio_tempogram_bpm_to_bin (const aubio_tempogram_t * o, smpl_t bpm)
 {
   AUBIO_ASSERT_NOT_NULL (o);
   
-  // BPM to frequency: f = BPM / 60
-  // Frequency to bin: bin = f * win_s / (samplerate / hop_s)
+  // BPM to beat frequency: f = BPM / 60
+  // Onset sample rate (samples per second in onset time series): sr_onset = samplerate / hop_s
+  // FFT bin corresponds to: bin = f * win_s / sr_onset
   // Combined: bin = (BPM / 60) * win_s / (samplerate / hop_s)
   //                = (BPM * win_s * hop_s) / (60 * samplerate)
+  //
+  // WAIT - this is wrong! Let me recalculate:
+  // Onset samples are taken every hop_s audio samples
+  // So onset_sample_rate = samplerate / hop_s (in onset samples per second)
+  // FFT frequency resolution = onset_sample_rate / win_s
+  // To find bin for beat frequency f: bin = f / freq_resolution
+  //                                      = f * win_s / onset_sample_rate
+  //                                      = f * win_s / (samplerate / hop_s)
+  //                                      = f * win_s * hop_s / samplerate
+  //
+  // NO! That's still wrong. Let's be very careful:
+  // - We collect onset values at rate: onset_rate = samplerate / hop_s (in Hz of onset timeline)
+  // - FFT window contains win_s onset samples
+  // - FFT frequency resolution: delta_f = onset_rate / win_s = (samplerate/hop_s) / win_s
+  // - For beat frequency f_beat, bin index: bin = f_beat / delta_f
+  //                                            = f_beat * win_s / (samplerate/hop_s)
+  //                                            = f_beat * win_s * hop_s / samplerate
+  //
+  // Actually the original formula WAS correct! Let me verify with an example:
+  // 120 BPM, win_s=512, hop_s=256, sr=44100
+  // f_beat = 120/60 = 2 Hz
+  // onset_rate = 44100/256 = 172.27 Hz  
+  // delta_f = 172.27/512 = 0.336 Hz/bin
+  // bin = 2 / 0.336 = 5.95
+  //
+  // Using formula: bin = 2 * 512 * 256 / 44100 = 5.93 ✓ CORRECT!
+  //
+  // So the formula is right, but maybe there's a different issue...
+  // Actually wait - let me check the FFT setup. The tempogram is doing FFT
+  // on the ONSET time series, not the audio. So the "samplerate" for that
+  // time series is samplerate/hop_s, not samplerate!
   
   smpl_t freq_hz = bpm / 60.0;
-  smpl_t bin_f = freq_hz * o->win_s * o->hop_s / o->samplerate;
+  
+  // Onset sampling rate in the onset time series
+  smpl_t onset_sr = o->samplerate / (smpl_t)o->hop_s;
+  
+  // FFT bin for this frequency
+  smpl_t bin_f = freq_hz * o->win_s / onset_sr;
   uint_t bin = (uint_t) (bin_f + 0.5);  // round to nearest
   
   // Clamp to valid FFT bin range
@@ -81,11 +118,15 @@ aubio_tempogram_bin_to_bpm (const aubio_tempogram_t * o, uint_t bin)
   AUBIO_ASSERT_NOT_NULL (o);
   AUBIO_ASSERT_BOUNDS (bin, o->win_s / 2 + 1);
   
-  // Reverse of bpm_to_bin:
-  // bin = (BPM * win_s * hop_s) / (60 * samplerate)
-  // BPM = (bin * 60 * samplerate) / (win_s * hop_s)
+  // Onset sampling rate
+  smpl_t onset_sr = o->samplerate / (smpl_t)o->hop_s;
   
-  smpl_t bpm = (bin * 60.0 * o->samplerate) / (o->win_s * o->hop_s);
+  // Frequency for this bin
+  smpl_t freq_hz = bin * onset_sr / o->win_s;
+  
+  // Convert to BPM
+  smpl_t bpm = freq_hz * 60.0;
+  
   return bpm;
 }
 

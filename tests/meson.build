@@ -77,6 +77,7 @@ test_sources = files(
   'src/tempo/test-tempogram-diagnostic.c',
   'src/tempo/test-tempogram-simple.c',
   'src/tempo/test-tempogram-via-tempo-api.c',
+  'src/tempo/test-tempogram-real-audio.c',
   # Temporal tests
   'src/temporal/test-a_weighting.c',
   'src/temporal/test-biquad.c',
