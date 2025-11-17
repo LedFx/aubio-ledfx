@@ -352,6 +352,12 @@ uint_t aubio_tempo_set_use_tempogram(aubio_tempo_t * o, uint_t enabled) {
   return aubio_beattracking_set_use_tempogram(o->bt, enabled);
 }
 
+uint_t aubio_tempo_set_onset_enhancement(aubio_tempo_t * o, uint_t enabled) {
+  AUBIO_ASSERT_NOT_NULL(o);
+  AUBIO_ASSERT_NOT_NULL(o->bt);
+  return aubio_beattracking_set_onset_enhancement(o->bt, enabled);
+}
+
 void del_aubio_tempo (aubio_tempo_t *o)
 {
   if (o->od)
