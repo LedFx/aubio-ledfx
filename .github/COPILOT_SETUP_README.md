@@ -1,21 +1,27 @@
 # Copilot Setup Steps Documentation
 
-This document explains the `.github/copilot-setup-steps.yml` file and how it enhances the GitHub Copilot Coding Agent experience for aubio-ledfx development.
+This document explains the `.github/copilot-setup-steps.yml` file and how it provides a development environment setup for aubio-ledfx.
 
 ## Overview
 
-The `copilot-setup-steps.yml` file automatically configures a complete development environment when GitHub Copilot Coding Agent starts working on this repository. This ensures that Copilot has all the necessary tools and dependencies installed to build, test, and develop aubio-ledfx efficiently.
+The `copilot-setup-steps.yml` file is a GitHub Actions workflow that can be used to set up a complete development environment for aubio-ledfx. It installs all necessary tools and dependencies for building, testing, and developing the project.
 
 ## What Gets Installed
 
 ### 1. System Build Tools
 - **Compilers**: gcc, g++ (C99-compliant for aubio)
 - **Build systems**: ninja-build (used by Meson)
-- **Build utilities**: pkg-config, git, curl, wget, zip, unzip, tar
-- **Assemblers**: nasm (for FFmpeg assembly optimizations in vcpkg)
-- **Development libraries**: libfftw3-dev, libsndfile1-dev, libsamplerate0-dev, libjack-dev
+- **Build utilities**: pkg-config, git
+- **Development libraries**: 
+  - libfftw3-dev (FFT library)
+  - libsndfile1-dev (audio file I/O)
+  - libsamplerate0-dev (sample rate conversion)
+  - libjack-dev (JACK audio)
+  - libavcodec-dev, libavformat-dev, libswresample-dev (FFmpeg)
+  - librubberband-dev (pitch shifting/time stretching)
 
 ### 2. Python Build Environment
+- **Python 3.11**: Set up via actions/setup-python
 - **Meson**: >=1.9.0 (primary build system)
 - **meson-python**: PEP 517 build backend for Python packages
 - **ninja**: Build tool (also installed as Python package)
@@ -26,6 +32,7 @@ The `copilot-setup-steps.yml` file automatically configures a complete developme
 - **pytest**: Python test runner
 - **pytest-cov**: Code coverage for tests
 - **build**: Python package build tool
+- **uv**: Modern, fast Python package manager
 
 ### 4. Security Testing Tools
 - **libasan6**: AddressSanitizer runtime library
@@ -34,48 +41,37 @@ The `copilot-setup-steps.yml` file automatically configures a complete developme
 
 These tools enable running the security test suite defined in `.github/workflows/sanitizers.yml`.
 
-### 5. vcpkg - Dependency Management
-- Clones and bootstraps vcpkg to `$HOME/vcpkg`
-- Provides cross-platform C/C++ package management
-- Automatically installs dependencies from `vcpkg.json`:
-  - pkgconf, libsndfile, libsamplerate, fftw3
-  - Platform-specific: rubberband, ffmpeg (macOS/Windows only)
-  - Audio codecs: mpg123, mp3lame, opus, libogg, libvorbis, libflac (Linux only)
+### 5. Environment Configuration
+Sets up environment variables:
+- `PKG_CONFIG_PATH`: Includes system pkg-config paths
 
-### 6. Optional Development Tools
-- **uv**: Modern, fast Python package manager (faster alternative to pip)
+## Key Changes from Previous Version
 
-### 7. Environment Configuration
-Sets up the following environment variables in `.bashrc`:
-- `VCPKG_ROOT`: Points to vcpkg installation
-- `PATH`: Includes vcpkg executable
-- `PKG_CONFIG_PATH`: Includes system and vcpkg pkg-config paths
-- `CMAKE_PREFIX_PATH`: Includes vcpkg installed packages
+**Removed vcpkg**: The setup now uses system-provided dependencies instead of building them from source with vcpkg. This simplifies the setup and makes it faster, as Ubuntu's package repository provides all necessary libraries.
 
-### 8. Project Setup
-- Installs aubio-ledfx in editable mode (`pip install -e .`)
-- This allows testing changes without reinstalling
-
-### 9. Verification
+**System Dependencies**: All C/C++ dependencies are now installed via apt-get:
+- Audio codecs and formats via libavcodec-dev, libavformat-dev
+- Rubberband for pitch/time manipulation via librubberband-dev
+- No need to build these from source
+### 6. Verification
 - Displays versions of all installed tools
-- Shows vcpkg status
-- Lists installed Python packages
+- Lists available system libraries via pkg-config
+- Shows installed Python packages
 - Provides usage instructions
 
 ## How It Works
 
-When GitHub Copilot Coding Agent starts working on this repository, it:
+The `copilot-setup-steps.yml` file is a standard GitHub Actions workflow that can be:
 
-1. Reads `.github/copilot-setup-steps.yml`
-2. Executes each `- run:` step in order
-3. Sets up a complete development environment
-4. Reports the installation status
+1. Run manually via workflow_dispatch
+2. Referenced as a reusable workflow
+3. Used as a template for setting up development environments
 
-This happens automatically before Copilot begins coding, ensuring all tools are available.
+The workflow has a single job called "setup" that runs on ubuntu-latest and executes 8 steps to configure the environment.
 
 ## Usage Examples
 
-After the setup completes, Copilot (and developers) can:
+After running the setup workflow (manually via GitHub Actions), you can:
 
 ### Build the C Library
 ```bash
@@ -115,20 +111,12 @@ meson test -C builddir --print-errorlogs
 pytest python/tests/
 ```
 
-### Install vcpkg Dependencies
-```bash
-# Dependencies are auto-installed by Meson, but can be manually triggered
-vcpkg install --triplet=x64-linux
-```
+## Benefits
 
-## Benefits for Copilot
-
-1. **Zero Setup Time**: Copilot doesn't need to figure out what tools to install
-2. **Consistent Environment**: Same setup every time, reducing errors
+1. **Simplified Setup**: Uses system packages instead of building from source
+2. **Faster Setup**: No need to compile dependencies with vcpkg
 3. **Complete Toolchain**: All build, test, and security tools available
-4. **Dependency Management**: vcpkg handles all C/C++ library dependencies
-5. **Security Testing**: Can run sanitizer tests immediately
-6. **Fast Iteration**: uv enables faster Python package builds
+4. **Standard Workflow**: Follows GitHub Actions best practices
 
 ## Maintenance
 
@@ -137,30 +125,25 @@ vcpkg install --triplet=x64-linux
 To add a new tool to the setup:
 
 1. Edit `.github/copilot-setup-steps.yml`
-2. Add a new `- run:` step with installation commands
-3. Add a descriptive `name:` field
-4. Update the verification step to check the new tool
-5. Update this documentation
+2. Add a new step in the `jobs.setup.steps` section
+3. Test the workflow by running it manually
+4. Update this documentation
 
 ### Adding New Dependencies
 
 For Python dependencies:
-- Add to the appropriate pip install command in step 2 or 3
-
-For C/C++ dependencies:
-- Add to `vcpkg.json` in the repository root
-- They will be auto-installed by step 8
+- Add to the pip install command in the "Install Python build tools" or "Install Python testing and development tools" step
 
 For system packages:
-- Add to the apt-get install command in step 1
+- Add to the apt-get install command in the "Install system build tools and dependencies" step
 
 ## Platform Notes
 
-This setup file is designed for **Linux-based environments** (Ubuntu). GitHub Copilot Coding Agent typically runs in Linux containers.
+This setup workflow is designed for **Ubuntu Linux** environments (ubuntu-latest in GitHub Actions).
 
 For local development on other platforms:
-- **macOS**: Use Homebrew for system packages, vcpkg still works
-- **Windows**: Use vcpkg for dependencies, MSVC or MinGW-w64 for compilation
+- **macOS**: Use Homebrew for system packages (`brew install` instead of `apt-get`)
+- **Windows**: Use vcpkg or system package managers, MSVC or MinGW-w64 for compilation
 
 See the main README.md for platform-specific instructions.
 
@@ -176,40 +159,29 @@ See the main README.md for platform-specific instructions.
 
 ## Troubleshooting
 
-### Setup Fails
+### Workflow Fails to Run
 
-If a setup step fails, check:
-1. Internet connectivity (vcpkg needs to download packages)
-2. Disk space (vcpkg packages can be large)
-3. System compatibility (Ubuntu/Debian Linux expected)
+If the workflow fails to run, check:
+1. GitHub Actions permissions in repository settings
+2. Workflow file syntax (validate YAML)
+3. Internet connectivity (for downloading packages)
 
-### Tools Not Found After Setup
+### Missing Dependencies
 
-The environment variables are set in `.bashrc`, which may not be loaded in all contexts. To manually source:
+If dependencies are missing after setup:
 ```bash
-source $HOME/.bashrc
-```
+# Manually install system packages
+sudo apt-get update
+sudo apt-get install -y libfftw3-dev libsndfile1-dev libsamplerate0-dev
 
-Or export them for the current session:
-```bash
-export VCPKG_ROOT=$HOME/vcpkg
-export PATH=$HOME/vcpkg:$PATH
-```
-
-### vcpkg Installation Fails
-
-If vcpkg installation is skipped or fails, it can be manually installed:
-```bash
-git clone https://github.com/microsoft/vcpkg.git $HOME/vcpkg
-cd $HOME/vcpkg && ./bootstrap-vcpkg.sh
-export VCPKG_ROOT=$HOME/vcpkg
+# Verify packages are available
+pkg-config --list-all | grep -E "fftw3|sndfile|samplerate"
 ```
 
 ## References
 
-- [GitHub Copilot Environment Setup Documentation](https://docs.github.com/en/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot#creating-environment-setup-files-for-a-repository)
+- [GitHub Actions Workflow Syntax](https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions)
 - [Meson Build System](https://mesonbuild.com/)
-- [vcpkg Documentation](https://vcpkg.io/en/docs/README.html)
 - [meson-python](https://meson-python.readthedocs.io/)
 - [aubio-ledfx Build Documentation](../doc/building.rst)
-- [aubio-ledfx vcpkg Integration](../doc/vcpkg_integration.md)
+- [aubio-ledfx Meson Reference](../doc/meson_reference.rst)
