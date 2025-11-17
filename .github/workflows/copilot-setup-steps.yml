@@ -17,7 +17,6 @@ on:
 
 jobs:
   copilot-setup-steps:
-    name: Setup Development Environment
     runs-on: ubuntu-latest
     
     steps:
