@@ -16,6 +16,7 @@ static int parse_json_sections(const char* json_path, smpl_t* bpms, int* num_sec
   char line[1024];
   int section_count = 0;
   int in_sections = 0;
+  int in_section_object = 0;
   
   while (fgets(line, sizeof(line), fp) && section_count < max_sections) {
     // Simple JSON parsing - look for "sections" array and "bpm" fields
@@ -24,19 +25,38 @@ static int parse_json_sections(const char* json_path, smpl_t* bpms, int* num_sec
       continue;
     }
     
-    if (in_sections && strstr(line, "\"bpm\"")) {
-      // Extract BPM value: "bpm": 120
-      char* bpm_str = strstr(line, ":");
-      if (bpm_str) {
-        smpl_t bpm = atof(bpm_str + 1);
-        if (bpm > 0) {
-          bpms[section_count++] = bpm;
+    // Track when we enter a section object
+    if (in_sections && strstr(line, "{")) {
+      in_section_object = 1;
+    }
+    
+    // Look for "bpm" field (not "bpm_start" or "bpm_end")
+    if (in_sections && in_section_object) {
+      char* bpm_line = strstr(line, "\"bpm\"");
+      if (bpm_line) {
+        // Make sure it's not bpm_start or bpm_end
+        char* next_char = bpm_line + 5;  // Skip "bpm"
+        if (*next_char == '"' || *next_char == ' ' || *next_char == ':') {
+          // Extract BPM value: "bpm": 120
+          char* bpm_str = strstr(bpm_line, ":");
+          if (bpm_str) {
+            smpl_t bpm = atof(bpm_str + 1);
+            if (bpm > 0) {
+              bpms[section_count++] = bpm;
+              PRINT_MSG("  Parsed BPM: %.0f\n", bpm);
+            }
+          }
         }
       }
     }
     
+    // Track when we exit a section object
+    if (in_section_object && strstr(line, "}")) {
+      in_section_object = 0;
+    }
+    
     // Check for end of sections array
-    if (in_sections && strstr(line, "]")) {
+    if (in_sections && !in_section_object && strstr(line, "]")) {
       // Check if this is the closing bracket for sections
       char* trimmed = line;
       while (*trimmed == ' ' || *trimmed == '\t') trimmed++;
@@ -48,6 +68,7 @@ static int parse_json_sections(const char* json_path, smpl_t* bpms, int* num_sec
   
   fclose(fp);
   *num_sections = section_count;
+  PRINT_MSG("  Total BPM sections parsed: %d\n", section_count);
   return 0;
 }
 
@@ -101,6 +122,7 @@ static int test_tempo_on_file(const char* wav_path, const char* json_path, int u
   
   // Process audio
   fvec_t* input = new_fvec(hop_s);
+  fvec_t* tempo_out = new_fvec(1);  // Output for beat detection
   uint_t read = 0;
   uint_t total_frames = 0;
   
@@ -113,7 +135,7 @@ static int test_tempo_on_file(const char* wav_path, const char* json_path, int u
   
   do {
     aubio_source_do(source, input, &read);
-    aubio_tempo_do(tempo, input, NULL);
+    aubio_tempo_do(tempo, input, tempo_out);
     
     smpl_t bpm = aubio_tempo_get_bpm(tempo);
     smpl_t confidence = aubio_tempo_get_confidence(tempo);
@@ -179,6 +201,7 @@ static int test_tempo_on_file(const char* wav_path, const char* json_path, int u
   
   // Cleanup
   del_fvec(input);
+  del_fvec(tempo_out);
   del_aubio_tempo(tempo);
   del_aubio_source(source);
   
