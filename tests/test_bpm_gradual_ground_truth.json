@@ -1,0 +1,32 @@
+{
+  "sample_rate": 44100,
+  "type": "gradual_change",
+  "sections": [
+    {
+      "start_time": 0.0,
+      "end_time": 15.0,
+      "type": "stable",
+      "bpm": 100
+    },
+    {
+      "start_time": 15.0,
+      "end_time": 30.0,
+      "type": "accelerando",
+      "bpm_start": 100,
+      "bpm_end": 140
+    },
+    {
+      "start_time": 30.0,
+      "end_time": 45.0,
+      "type": "stable",
+      "bpm": 140
+    },
+    {
+      "start_time": 45.0,
+      "end_time": 60.0,
+      "type": "ritardando",
+      "bpm_start": 140,
+      "bpm_end": 100
+    }
+  ]
+}
