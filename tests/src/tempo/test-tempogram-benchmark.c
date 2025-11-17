@@ -77,6 +77,8 @@ run_benchmark(const char *filename, bpm_section_t *sections, uint_t num_sections
   // Enable tempogram if requested
   if (use_tempogram) {
     aubio_tempo_set_use_tempogram(tempo, 1);
+    // Enable multi-scale tempogram for Phase 3B improvements (onset enhancement + multi-scale)
+    aubio_tempo_set_multiscale_tempogram(tempo, 1);
   }
   
   // Enable all optimizations for fair comparison
@@ -102,20 +104,23 @@ run_benchmark(const char *filename, bpm_section_t *sections, uint_t num_sections
       if (current_time >= sections[i].start_time && 
           current_time < sections[i].end_time) {
         
-        // Check if tempo is close to expected
-        smpl_t error = fabs(current_bpm - sections[i].expected_bpm);
-        
-        if (!results[i].detected && error < 5.0) {
-          // First detection in this section
-          results[i].detected = 1;
-          results[i].detected_bpm = current_bpm;
-          results[i].error = error;
-          results[i].detection_time = current_time;
-          results[i].response_time = current_time - sections[i].start_time;
-        } else if (results[i].detected && error < results[i].error) {
-          // Better detection found
-          results[i].detected_bpm = current_bpm;
-          results[i].error = error;
+        // We're in this section
+        if (current_bpm > 0) {
+          smpl_t error = fabs(current_bpm - sections[i].expected_bpm);
+          smpl_t confidence = aubio_tempo_get_confidence(tempo);
+          
+          // Consider detection valid if within 10 BPM and confidence > 0.5
+          // (matching multi-scale test criteria)
+          if (error < 10.0 && confidence > 0.5) {
+            // First detection or better detection in this section
+            if (!results[i].detected || error < results[i].error) {
+              results[i].detected = 1;
+              results[i].detected_bpm = current_bpm;
+              results[i].error = error;
+              results[i].detection_time = current_time;
+              results[i].response_time = current_time - sections[i].start_time;
+            }
+          }
         }
         break;
       }
