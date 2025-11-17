@@ -17,6 +17,9 @@ test_sound_gen = custom_target('generate_test_sound',
 # Get the path to the generated test sound
 test_sound_path = meson.current_build_dir() / test_sound_target
 
+# Path to tempo test audio files (in source tree)
+tempo_test_dir = meson.project_source_root() / 'tests'
+
 # Include directories
 tests_inc = include_directories('.', '../src')
 
@@ -149,6 +152,7 @@ foreach test_src : test_sources
       '-DHAVE_CONFIG_H=1',
       '-DAUBIO_UNSTABLE_API=1',
       '-DAUBIO_TESTS_SOURCE=' + test_sound_path,
+      '-DAUBIO_TEMPO_TEST_DIR="' + tempo_test_dir + '"',
     ],
     install: false,
   )
