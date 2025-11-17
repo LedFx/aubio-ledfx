@@ -49,6 +49,8 @@ struct _aubio_tempogram_t {
   fvec_t *bpm_bins;          /**< BPM value for each FFT bin */
   smpl_t current_tempo;      /**< last detected tempo */
   smpl_t confidence;         /**< detection confidence */
+  
+  uint_t plp_smoothing_window; /**< window size for PLP curve smoothing (0 = no smoothing) */
 };
 
 /** convert BPM to FFT bin index */
@@ -237,6 +239,9 @@ new_aubio_tempogram (uint_t win_s, uint_t hop_s, uint_t samplerate)
   
   o->current_tempo = 120.0;
   o->confidence = 0.0;
+  
+  // Default PLP smoothing: 5-frame median filter (good for gradual changes)
+  o->plp_smoothing_window = 5;
   
   return o;
 
@@ -494,6 +499,104 @@ aubio_tempogram_get_plp_curve (aubio_tempogram_t * o,
     plp_curve->data[t] = aubio_tempogram_get_plp_at_time (o, tempogram, t);
   }
   
-  // Optional: smooth the curve for stability
-  // For now, we return the raw PLP values
+  // Apply temporal smoothing if enabled (median filter)
+  if (o->plp_smoothing_window > 1) {
+    uint_t window_size = o->plp_smoothing_window;
+    uint_t half_window = window_size / 2;
+    
+    // Create temporary buffer for smoothed curve
+    fvec_t *smoothed = new_fvec (plp_curve->length);
+    if (!smoothed) {
+      AUBIO_ERR("tempogram: failed to allocate smoothing buffer\n");
+      return;
+    }
+    
+    // Create window buffer for median filtering
+    fvec_t *window_buffer = new_fvec (window_size);
+    if (!window_buffer) {
+      del_fvec (smoothed);
+      AUBIO_ERR("tempogram: failed to allocate window buffer\n");
+      return;
+    }
+    
+    // Apply median filter at each time point
+    for (t = 0; t < plp_curve->length; t++) {
+      AUBIO_ASSERT_BOUNDS (t, plp_curve->length);
+      
+      uint_t window_count = 0;
+      uint_t i;
+      
+      // Collect values in the window around time t
+      for (i = 0; i < window_size; i++) {
+        // Calculate position with bounds checking
+        sint_t pos = (sint_t)t - (sint_t)half_window + (sint_t)i;
+        
+        if (pos >= 0 && pos < (sint_t)plp_curve->length) {
+          AUBIO_ASSERT_BOUNDS (window_count, window_size);
+          AUBIO_ASSERT_BOUNDS ((uint_t)pos, plp_curve->length);
+          window_buffer->data[window_count++] = plp_curve->data[pos];
+        }
+      }
+      
+      // Compute median of collected values
+      if (window_count > 0) {
+        // Temporarily resize window buffer to actual count
+        uint_t orig_length = window_buffer->length;
+        window_buffer->length = window_count;
+        
+        smpl_t median_val = fvec_median (window_buffer);
+        
+        // Restore original length
+        window_buffer->length = orig_length;
+        
+        AUBIO_ASSERT_BOUNDS (t, smoothed->length);
+        smoothed->data[t] = median_val;
+      } else {
+        // Fallback: use original value
+        AUBIO_ASSERT_BOUNDS (t, smoothed->length);
+        AUBIO_ASSERT_BOUNDS (t, plp_curve->length);
+        smoothed->data[t] = plp_curve->data[t];
+      }
+    }
+    
+    // Copy smoothed values back to output
+    for (t = 0; t < plp_curve->length; t++) {
+      AUBIO_ASSERT_BOUNDS (t, plp_curve->length);
+      AUBIO_ASSERT_BOUNDS (t, smoothed->length);
+      plp_curve->data[t] = smoothed->data[t];
+    }
+    
+    // Cleanup
+    del_fvec (window_buffer);
+    del_fvec (smoothed);
+  }
+}
+
+uint_t
+aubio_tempogram_set_plp_smoothing_window (aubio_tempogram_t * o, uint_t window)
+{
+  AUBIO_ASSERT_NOT_NULL (o);
+  
+  // Validate window size (1 means no smoothing, up to 31 for large smoothing)
+  if (window > 31) {
+    AUBIO_ERR("tempogram: plp_smoothing_window must be <= 31\n");
+    return AUBIO_FAIL;
+  }
+  
+  // Window should be odd for symmetric median filter
+  if (window > 1 && window % 2 == 0) {
+    AUBIO_WRN("tempogram: plp_smoothing_window should be odd, adjusting %u to %u\n", 
+              window, window + 1);
+    window++;
+  }
+  
+  o->plp_smoothing_window = window;
+  return AUBIO_OK;
+}
+
+uint_t
+aubio_tempogram_get_plp_smoothing_window (const aubio_tempogram_t * o)
+{
+  AUBIO_ASSERT_NOT_NULL (o);
+  return o->plp_smoothing_window;
 }

@@ -151,6 +151,30 @@ smpl_t aubio_tempogram_get_plp_at_time (aubio_tempogram_t * o,
 void aubio_tempogram_get_plp_curve (aubio_tempogram_t * o,
     const fmat_t * tempogram, fvec_t * plp_curve);
 
+/** set PLP curve smoothing window size
+ 
+  Controls the temporal smoothing applied to the PLP (Predominant Local Pulse) curve.
+  Larger windows provide smoother tempo trajectories but reduce responsiveness to
+  sudden tempo changes.
+ 
+  \param o tempogram object
+  \param window smoothing window size in frames (1 = no smoothing, 5 = default, 
+                max 31). Will be adjusted to nearest odd number for symmetric filtering.
+ 
+  \return 0 on success, 1 on error
+ 
+*/
+uint_t aubio_tempogram_set_plp_smoothing_window (aubio_tempogram_t * o, uint_t window);
+
+/** get PLP curve smoothing window size
+ 
+  \param o tempogram object
+ 
+  \return current smoothing window size
+ 
+*/
+uint_t aubio_tempogram_get_plp_smoothing_window (const aubio_tempogram_t * o);
+
 #ifdef __cplusplus
 }
 #endif
