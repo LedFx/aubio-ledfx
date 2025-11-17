@@ -165,8 +165,9 @@ new_aubio_tempogram (uint_t win_s, uint_t hop_s, uint_t samplerate)
     goto beach;
   }
   
-  // Circular buffer for onset frames (32 frames ~= 24 seconds at default hop)
-  o->buffer_size = 32;
+  // Circular buffer for onset frames
+  // Buffer size should be at least win_s to fill the entire FFT window
+  o->buffer_size = win_s;
   o->onset_buffer = new_fmat (o->buffer_size, 1);  // Each "row" is a time point
   if (!o->onset_buffer) {
     goto beach;
@@ -290,14 +291,15 @@ aubio_tempogram_do (aubio_tempogram_t * o, const fvec_t * onset,
   // Compute FFT
   aubio_fft_do (o->fft, o->fft_input, o->fftout);
   
-  // Compute magnitude spectrum
+  // Compute magnitude spectrum (power spectrum)
+  // FFT output is already in magnitude/phase format, so we just square the magnitude
   for (i = 0; i < fft_bins; i++) {
     AUBIO_ASSERT_BOUNDS (i, fft_bins);
     AUBIO_ASSERT_BOUNDS (i, o->fftout->length);
     
-    smpl_t real = o->fftout->norm[i] * COS (o->fftout->phas[i]);
-    smpl_t imag = o->fftout->norm[i] * SIN (o->fftout->phas[i]);
-    o->magnitude->data[i] = real * real + imag * imag;  // Power spectrum
+    // Power spectrum = magnitude squared
+    smpl_t magnitude = o->fftout->norm[i];
+    o->magnitude->data[i] = magnitude * magnitude;
   }
   
   // Copy magnitude spectrum to tempogram output

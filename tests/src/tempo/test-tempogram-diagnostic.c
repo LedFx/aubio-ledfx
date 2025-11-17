@@ -22,17 +22,19 @@ void print_fvec_stats(const char *name, const fvec_t *v) {
   smpl_t min_val = v->data[0];
   smpl_t max_val = v->data[0];
   smpl_t sum = 0.0;
+  uint_t non_zero = 0;
   
   for (uint_t i = 0; i < v->length; i++) {
     smpl_t val = v->data[i];
     if (val < min_val) min_val = val;
     if (val > max_val) max_val = val;
+    if (val != 0.0) non_zero++;
     sum += val;
   }
   
   smpl_t mean = sum / v->length;
-  fprintf(stderr, "%s: len=%u, min=%.6f, max=%.6f, mean=%.6f\n", 
-          name, v->length, min_val, max_val, mean);
+  fprintf(stderr, "%s: len=%u, non_zero=%u, min=%.6f, max=%.6f, mean=%.6f\n", 
+          name, v->length, non_zero, min_val, max_val, mean);
 }
 
 void print_fmat_stats(const char *name, const fmat_t *m) {
