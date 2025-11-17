@@ -722,11 +722,13 @@ aubio_autocorr_fft (const fvec_t * input, fvec_t * output)
   
   uint_t i;
   uint_t length = input->length;
-  uint_t fft_size = length;
   
-  /* Use power of 2 for FFT efficiency */
+  /* For autocorrelation via FFT, we need to zero-pad to 2*N to avoid circular correlation */
+  uint_t fft_size = length * 2;
+  
+  /* Round up to next power of 2 for FFT efficiency */
   uint_t pow2 = 1;
-  while (pow2 < length) {
+  while (pow2 < fft_size) {
     pow2 <<= 1;
   }
   fft_size = pow2;
@@ -747,7 +749,7 @@ aubio_autocorr_fft (const fvec_t * input, fvec_t * output)
     goto beach;
   }
   
-  /* Zero-pad input to FFT size */
+  /* Zero-pad input to 2*N (critical for avoiding circular correlation artifacts) */
   fvec_zeros(real_input);
   for (i = 0; i < length; i++) {
     AUBIO_ASSERT_BOUNDS(i, real_input->length);
@@ -757,26 +759,33 @@ aubio_autocorr_fft (const fvec_t * input, fvec_t * output)
   /* Forward FFT */
   aubio_fft_do(fft, real_input, fft_output);
   
-  /* Compute power spectrum: |FFT(x)|^2 */
+  /* Compute power spectrum: |FFT(x)|^2
+   * For polar form: power = norm^2 (magnitude squared)
+   * Phase becomes 0 for power spectrum */
   for (i = 0; i < fft_output->length; i++) {
     AUBIO_ASSERT_BOUNDS(i, fft_output->length);
-    smpl_t re = fft_output->norm[i];
-    /* Power is already in norm, but we need squared magnitude */
-    /* norm stores magnitude, so square it for power */
-    fft_output->norm[i] = re * re;
-    fft_output->phas[i] = 0.;  /* Phase is zero for real autocorrelation */
+    smpl_t mag = fft_output->norm[i];
+    fft_output->norm[i] = mag * mag;  /* Power = magnitude squared */
+    fft_output->phas[i] = 0.;  /* Phase is zero for real power spectrum */
   }
   
   /* Inverse FFT to get autocorrelation */
   aubio_fft_rdo(fft, fft_output, acf_full);
   
-  /* Normalize and copy to output */
+  /* Copy and normalize the autocorrelation
+   * Note: FFT gives unnormalized correlation, need to normalize */
+  smpl_t norm_factor = 2.0 / (smpl_t)fft_size;  /* Factor of 2 accounts for zero-padding to 2*N */
+  
   for (i = 0; i < output->length; i++) {
     AUBIO_ASSERT_BOUNDS(i, acf_full->length);
     AUBIO_ASSERT_BOUNDS(i, output->length);
-    /* Normalize by (length - lag) like the direct method */
+    
+    /* Get autocorrelation value and apply FFT normalization */
+    smpl_t acf_value = acf_full->data[i] * norm_factor;
+    
+    /* Normalize by (length - lag) to match direct method's biased estimator */
     if (length > i) {
-      output->data[i] = acf_full->data[i] / (smpl_t)(length - i);
+      output->data[i] = acf_value * (smpl_t)length / (smpl_t)(length - i);
     } else {
       output->data[i] = 0.;
     }
