@@ -194,6 +194,31 @@ smpl_t aubio_beattracking_get_instantaneous_bpm(const aubio_beattracking_t * bt)
 */
 smpl_t aubio_beattracking_get_tempo_variance(const aubio_beattracking_t * bt);
 
+/** enable FFT-based autocorrelation (Phase 3 Advanced)
+
+  When enabled, uses FFT-based autocorrelation which is O(N log N) instead
+  of O(N²) for direct computation. Significantly faster for large windows
+  (> 512 samples). Enabled automatically for windows >= 512.
+
+  \param bt beat tracking object
+  \param enabled 1 to enable FFT autocorrelation, 0 for direct method
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_fft_autocorr(aubio_beattracking_t * bt, uint_t enabled);
+
+/** get autocorrelation function (for debugging/analysis)
+
+  Returns the most recently computed autocorrelation function. Useful for
+  advanced tempo analysis and visualization.
+
+  \param bt beat tracking object
+  \param acf output vector to store autocorrelation (will be resized if needed)
+
+*/
+void aubio_beattracking_get_acf(const aubio_beattracking_t * bt, fvec_t * acf);
+
 /** delete beat tracking object
 
   \param p beat tracking object

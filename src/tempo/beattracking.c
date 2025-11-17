@@ -69,6 +69,11 @@ struct _aubio_beattracking_t
   fvec_t *tempo_history;  /** circular buffer of recent tempo estimates */
   uint_t tempo_history_pos; /** current position in tempo history buffer */
   smpl_t instantaneous_tempo; /** current frame tempo estimate (before smoothing) */
+  
+  /* Phase 3: Advanced autocorrelation and tempogram */
+  uint_t use_fft_autocorr; /** use FFT-based autocorrelation (faster for large windows) */
+  fvec_t *tempogram;  /** Fourier tempogram for tempo analysis */
+  uint_t tempogram_length; /** number of tempogram bins */
 };
 
 aubio_beattracking_t *
@@ -129,6 +134,11 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
   p->tempo_history = new_fvec(16);  /* Keep last 16 tempo estimates (~24 seconds at default hop) */
   p->tempo_history_pos = 0;
   p->instantaneous_tempo = 0.0;
+  
+  /* Phase 3: FFT-based autocorrelation */
+  p->use_fft_autocorr = (winlen >= 512) ? 1 : 0;  /* Use FFT for windows >= 512 samples */
+  p->tempogram = NULL;  /* Lazy initialization when needed */
+  p->tempogram_length = 0;
 
   /* exponential weighting, dfwv = 0.5 when i =  43 */
   for (i = 0; i < winlen; i++) {
@@ -158,6 +168,9 @@ del_aubio_beattracking (aubio_beattracking_t * p)
   del_fvec (p->phout);
   if (p->tempo_history) {
     del_fvec (p->tempo_history);
+  }
+  if (p->tempogram) {
+    del_fvec (p->tempogram);
   }
   AUBIO_FREE (p);
 }
@@ -220,7 +233,11 @@ aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
   fvec_rev (bt->dfrev);
 
   /* compute autocorrelation function on normalized data */
-  aubio_autocorr (normalized_df, bt->acf);
+  if (bt->use_fft_autocorr) {
+    aubio_autocorr_fft (normalized_df, bt->acf);
+  } else {
+    aubio_autocorr (normalized_df, bt->acf);
+  }
   
   del_fvec(normalized_df);
 
@@ -715,4 +732,39 @@ aubio_beattracking_get_tempo_variance(const aubio_beattracking_t * bt)
   
   /* Calculate variance of recent tempo estimates */
   return fvec_variance(bt->tempo_history);
+}
+
+uint_t
+aubio_beattracking_set_fft_autocorr(aubio_beattracking_t * bt, uint_t enabled)
+{
+  AUBIO_ASSERT_NOT_NULL(bt);
+  bt->use_fft_autocorr = enabled ? 1 : 0;
+  return AUBIO_OK;
+}
+
+void
+aubio_beattracking_get_acf(const aubio_beattracking_t * bt, fvec_t * acf)
+{
+  AUBIO_ASSERT_NOT_NULL(bt);
+  AUBIO_ASSERT_NOT_NULL(acf);
+  
+  if (!bt->acf) {
+    fvec_zeros(acf);
+    return;
+  }
+  
+  /* Copy autocorrelation function to output */
+  uint_t copy_len = MIN(bt->acf->length, acf->length);
+  uint_t i;
+  for (i = 0; i < copy_len; i++) {
+    AUBIO_ASSERT_BOUNDS(i, bt->acf->length);
+    AUBIO_ASSERT_BOUNDS(i, acf->length);
+    acf->data[i] = bt->acf->data[i];
+  }
+  
+  /* Zero remaining elements if output is larger */
+  for (i = copy_len; i < acf->length; i++) {
+    AUBIO_ASSERT_BOUNDS(i, acf->length);
+    acf->data[i] = 0.0;
+  }
 }

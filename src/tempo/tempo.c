@@ -338,6 +338,10 @@ smpl_t aubio_tempo_get_tempo_variance(const aubio_tempo_t * o) {
   return aubio_beattracking_get_tempo_variance(o->bt);
 }
 
+uint_t aubio_tempo_set_fft_autocorr(aubio_tempo_t * o, uint_t enabled) {
+  return aubio_beattracking_set_fft_autocorr(o->bt, enabled);
+}
+
 void del_aubio_tempo (aubio_tempo_t *o)
 {
   if (o->od)

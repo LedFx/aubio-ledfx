@@ -352,6 +352,14 @@ uint_t aubio_power_of_two_order(uint_t a);
 */
 void aubio_autocorr (const fvec_t * input, fvec_t * output);
 
+/** compute autocorrelation using FFT (faster for large windows)
+ 
+  \param input input signal
+  \param output output autocorrelation function
+ 
+*/
+void aubio_autocorr_fft (const fvec_t * input, fvec_t * output);
+
 #ifdef __cplusplus
 }
 #endif

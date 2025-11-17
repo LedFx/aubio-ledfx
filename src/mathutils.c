@@ -22,8 +22,10 @@
 
 #include "aubio_priv.h"
 #include "fvec.h"
+#include "cvec.h"
 #include "mathutils.h"
 #include "musicutils.h"
+#include "spectral/fft.h"
 
 /** Window types */
 typedef enum
@@ -701,6 +703,90 @@ aubio_autocorr (const fvec_t * input, fvec_t * output)
     }
     acf[i] = tmp / (smpl_t) (length - i);
   }
+}
+
+void
+aubio_autocorr_fft (const fvec_t * input, fvec_t * output)
+{
+  /* FFT-based autocorrelation using Wiener-Khinchin theorem:
+   * autocorr(x) = IFFT(|FFT(x)|^2)
+   * This is O(N log N) instead of O(N^2) for direct computation
+   */
+  AUBIO_ASSERT_NOT_NULL(input);
+  AUBIO_ASSERT_NOT_NULL(output);
+  
+  if (input->length != output->length) {
+    AUBIO_ERR("autocorr_fft: input and output must have same length\n");
+    return;
+  }
+  
+  uint_t i;
+  uint_t length = input->length;
+  uint_t fft_size = length;
+  
+  /* Use power of 2 for FFT efficiency */
+  uint_t pow2 = 1;
+  while (pow2 < length) {
+    pow2 <<= 1;
+  }
+  fft_size = pow2;
+  
+  /* Create FFT object and buffers */
+  aubio_fft_t *fft = new_aubio_fft(fft_size);
+  if (!fft) {
+    /* Fallback to direct method if FFT creation fails */
+    aubio_autocorr(input, output);
+    return;
+  }
+  
+  fvec_t *real_input = new_fvec(fft_size);
+  cvec_t *fft_output = new_cvec(fft_size);
+  fvec_t *acf_full = new_fvec(fft_size);
+  
+  if (!real_input || !fft_output || !acf_full) {
+    goto beach;
+  }
+  
+  /* Zero-pad input to FFT size */
+  fvec_zeros(real_input);
+  for (i = 0; i < length; i++) {
+    AUBIO_ASSERT_BOUNDS(i, real_input->length);
+    real_input->data[i] = input->data[i];
+  }
+  
+  /* Forward FFT */
+  aubio_fft_do(fft, real_input, fft_output);
+  
+  /* Compute power spectrum: |FFT(x)|^2 */
+  for (i = 0; i < fft_output->length; i++) {
+    AUBIO_ASSERT_BOUNDS(i, fft_output->length);
+    smpl_t re = fft_output->norm[i];
+    /* Power is already in norm, but we need squared magnitude */
+    /* norm stores magnitude, so square it for power */
+    fft_output->norm[i] = re * re;
+    fft_output->phas[i] = 0.;  /* Phase is zero for real autocorrelation */
+  }
+  
+  /* Inverse FFT to get autocorrelation */
+  aubio_fft_rdo(fft, fft_output, acf_full);
+  
+  /* Normalize and copy to output */
+  for (i = 0; i < output->length; i++) {
+    AUBIO_ASSERT_BOUNDS(i, acf_full->length);
+    AUBIO_ASSERT_BOUNDS(i, output->length);
+    /* Normalize by (length - lag) like the direct method */
+    if (length > i) {
+      output->data[i] = acf_full->data[i] / (smpl_t)(length - i);
+    } else {
+      output->data[i] = 0.;
+    }
+  }
+  
+beach:
+  if (real_input) del_fvec(real_input);
+  if (fft_output) del_cvec(fft_output);
+  if (acf_full) del_fvec(acf_full);
+  if (fft) del_aubio_fft(fft);
 }
 
 void
