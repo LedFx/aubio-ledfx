@@ -1,0 +1,117 @@
+# GitHub Copilot Coding Agent Environment Setup
+# This file pre-installs all required tools and dependencies for aubio-ledfx development
+# Reference: https://docs.github.com/en/copilot/customizing-copilot/adding-custom-instructions-for-github-copilot#creating-environment-setup-files-for-a-repository
+
+# Install system packages required for building aubio C library
+- run: |
+    sudo apt-get update && sudo apt-get install -y \
+      build-essential \
+      gcc \
+      g++ \
+      pkg-config \
+      git \
+      curl \
+      wget \
+      zip \
+      unzip \
+      tar \
+      nasm \
+      ninja-build \
+      libfftw3-dev \
+      libsndfile1-dev \
+      libsamplerate0-dev \
+      libjack-dev
+  name: Install system build tools and dependencies
+
+# Install Python and essential Python build tools
+- run: |
+    python3 -m pip install --upgrade pip setuptools wheel
+    pip install "meson>=1.9.0" meson-python ninja "numpy>=1.26.4"
+  name: Install Meson build system and NumPy
+
+# Install Python testing and development tools
+- run: |
+    pip install pytest pytest-cov build
+  name: Install Python testing tools
+
+# Install uv - modern, fast Python package manager (optional but recommended)
+- run: |
+    pip install uv
+  name: Install uv package manager
+
+# Install sanitizer runtime libraries for security testing
+# These are used for detecting memory errors, undefined behavior, etc.
+- run: |
+    sudo apt-get install -y \
+      libasan6 \
+      libubsan1 \
+      valgrind
+  name: Install sanitizer tools for security testing
+
+# Set up vcpkg for cross-platform dependency management
+# vcpkg provides consistent dependencies across Linux, macOS, and Windows
+- run: |
+    if [ ! -d "$HOME/vcpkg" ]; then
+      git clone https://github.com/microsoft/vcpkg.git $HOME/vcpkg
+      cd $HOME/vcpkg && ./bootstrap-vcpkg.sh -disableMetrics
+    fi
+    echo "$HOME/vcpkg" >> $GITHUB_PATH
+  name: Install and bootstrap vcpkg
+
+# Configure environment variables for the build system
+- run: |
+    echo "export VCPKG_ROOT=$HOME/vcpkg" >> $HOME/.bashrc
+    echo "export PATH=$HOME/vcpkg:\$PATH" >> $HOME/.bashrc
+    echo "export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig:\$PKG_CONFIG_PATH" >> $HOME/.bashrc
+    echo "export CMAKE_PREFIX_PATH=$HOME/vcpkg/installed/x64-linux:\$CMAKE_PREFIX_PATH" >> $HOME/.bashrc
+    source $HOME/.bashrc || true
+  name: Set up environment variables
+
+# Install development dependencies from vcpkg manifest (vcpkg.json)
+# This ensures all C library dependencies are available
+- run: |
+    if [ -d "$HOME/vcpkg" ] && [ -f "vcpkg.json" ]; then
+      export VCPKG_ROOT=$HOME/vcpkg
+      cd $(pwd)
+      $HOME/vcpkg/vcpkg install --triplet=x64-linux || echo "Note: vcpkg install failed or not needed"
+    fi
+  name: Install vcpkg dependencies from manifest
+
+# Install aubio-ledfx Python package in editable mode for development
+# This allows testing changes without reinstalling
+- run: |
+    pip install -e . --no-build-isolation || echo "Note: Package installation may require building C library first"
+  name: Install aubio-ledfx in editable mode (optional)
+
+# Verify installations
+- run: |
+    echo "=== Installed Tools ==="
+    python3 --version
+    meson --version
+    ninja --version
+    pkg-config --version
+    gcc --version
+    pytest --version
+    
+    echo ""
+    echo "=== vcpkg Status ==="
+    if [ -d "$HOME/vcpkg" ]; then
+      echo "vcpkg installed at: $HOME/vcpkg"
+      $HOME/vcpkg/vcpkg version
+    fi
+    
+    echo ""
+    echo "=== Python Packages ==="
+    pip list | grep -E "meson|numpy|pytest|uv"
+    
+    echo ""
+    echo "=== Environment Setup Complete ==="
+    echo "You can now:"
+    echo "  - Build C library: meson setup builddir && meson compile -C builddir"
+    echo "  - Build with tests: meson setup builddir -Dtests=true && meson compile -C builddir"
+    echo "  - Build with sanitizers: meson setup builddir -Db_sanitize=address,undefined -Dtests=true"
+    echo "  - Build Python wheel: uv build --wheel (or pip wheel .)"
+    echo "  - Run tests: meson test -C builddir (C) or pytest python/tests/ (Python)"
+    echo "  - Install dependencies: vcpkg install (from vcpkg.json)"
+    echo "  - Run security tests: meson test -C builddir (with sanitizers enabled)"
+  name: Verify installation and show usage
