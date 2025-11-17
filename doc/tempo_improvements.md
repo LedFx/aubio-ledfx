@@ -213,16 +213,27 @@ All existing tests pass with new implementation:
 
 ## Future Enhancements (Planned)
 
-### Phase 3: Advanced Features
-- [ ] Dynamic tempo tracking (frame-by-frame estimates)
+### Phase 3: Advanced Features ✅ COMPLETED
+
+- [x] Dynamic tempo tracking (frame-by-frame estimates)
+- [x] Instantaneous BPM without smoothing
+- [x] Tempo variance calculation for stability analysis
+- [x] Tempo change detection capabilities
 - [ ] Fourier tempogram for efficient tempo analysis
 - [ ] PLP (Predominant Local Pulse) method
-- [ ] Time-varying tempo estimation
+- [ ] Time-varying tempo estimation with backtracking
 - [ ] Improved autocorrelation (FFT-based for large windows)
 
-### Phase 4: Performance Optimization
+**Completed in this release:**
+- `aubio_tempo_set_dynamic_tempo()` - Enable frame-by-frame tracking
+- `aubio_tempo_get_instantaneous_bpm()` - Unsmoothed tempo estimate
+- `aubio_tempo_get_tempo_variance()` - Stability metric
+- Python demo: `python/demos/demo_phase3_dynamic_tempo.py`
+
+### Phase 4: Performance Optimization (Partially Complete)
+- [x] Security assertions (AUBIO_ASSERT_*) on all new code
+- [x] Adaptive window sizing framework
 - [ ] SIMD-optimized autocorrelation
-- [ ] Adaptive window sizing based on tempo stability
 - [ ] Incremental processing for streaming applications
 - [ ] Result caching for repeated analysis
 

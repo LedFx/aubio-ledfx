@@ -63,6 +63,12 @@ struct _aubio_beattracking_t
   smpl_t stability_count; /** number of frames with stable tempo */
   uint_t enable_multi_octave; /** enable multi-octave tempo detection for slow tempos */
   smpl_t tempo_change_threshold; /** threshold for detecting tempo changes */
+  
+  /* Phase 3: Dynamic tempo tracking */
+  uint_t enable_dynamic_tempo; /** enable frame-by-frame tempo estimation */
+  fvec_t *tempo_history;  /** circular buffer of recent tempo estimates */
+  uint_t tempo_history_pos; /** current position in tempo history buffer */
+  smpl_t instantaneous_tempo; /** current frame tempo estimate (before smoothing) */
 };
 
 aubio_beattracking_t *
@@ -117,6 +123,12 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
   p->stability_count = 0.0;     /* No stable tempo yet */
   p->enable_multi_octave = 1;   /* Enable by default for better slow tempo detection */
   p->tempo_change_threshold = 0.15;  /* 15% change triggers re-analysis */
+  
+  /* Phase 3: Dynamic tempo tracking */
+  p->enable_dynamic_tempo = 0;  /* Disabled by default for backward compatibility */
+  p->tempo_history = new_fvec(16);  /* Keep last 16 tempo estimates (~24 seconds at default hop) */
+  p->tempo_history_pos = 0;
+  p->instantaneous_tempo = 0.0;
 
   /* exponential weighting, dfwv = 0.5 when i =  43 */
   for (i = 0; i < winlen; i++) {
@@ -144,6 +156,9 @@ del_aubio_beattracking (aubio_beattracking_t * p)
   del_fvec (p->acfout);
   del_fvec (p->phwv);
   del_fvec (p->phout);
+  if (p->tempo_history) {
+    del_fvec (p->tempo_history);
+  }
   AUBIO_FREE (p);
 }
 
@@ -508,6 +523,17 @@ aubio_beattracking_checkstate (aubio_beattracking_t * bt)
   /* Update previous tempo for smoothing */
   if (bp != 0) {
     smpl_t current_bpm = 60. * bt->samplerate / (bt->hop_size * bp);
+    
+    /* Phase 3: Dynamic tempo tracking - store instantaneous estimate */
+    bt->instantaneous_tempo = current_bpm;
+    
+    if (bt->enable_dynamic_tempo && bt->tempo_history) {
+      /* Store in circular buffer */
+      AUBIO_ASSERT_BOUNDS(bt->tempo_history_pos, bt->tempo_history->length);
+      bt->tempo_history->data[bt->tempo_history_pos] = current_bpm;
+      bt->tempo_history_pos = (bt->tempo_history_pos + 1) % bt->tempo_history->length;
+    }
+    
     bt->prev_tempo = current_bpm;
   }
 }
@@ -661,4 +687,32 @@ aubio_beattracking_set_multi_octave(aubio_beattracking_t * bt, uint_t enabled)
   AUBIO_ASSERT_NOT_NULL(bt);
   bt->enable_multi_octave = enabled ? 1 : 0;
   return AUBIO_OK;
+}
+
+uint_t
+aubio_beattracking_set_dynamic_tempo(aubio_beattracking_t * bt, uint_t enabled)
+{
+  AUBIO_ASSERT_NOT_NULL(bt);
+  bt->enable_dynamic_tempo = enabled ? 1 : 0;
+  return AUBIO_OK;
+}
+
+smpl_t
+aubio_beattracking_get_instantaneous_bpm(const aubio_beattracking_t * bt)
+{
+  AUBIO_ASSERT_NOT_NULL(bt);
+  return bt->instantaneous_tempo;
+}
+
+smpl_t
+aubio_beattracking_get_tempo_variance(const aubio_beattracking_t * bt)
+{
+  AUBIO_ASSERT_NOT_NULL(bt);
+  
+  if (!bt->tempo_history || !bt->enable_dynamic_tempo) {
+    return 0.0;
+  }
+  
+  /* Calculate variance of recent tempo estimates */
+  return fvec_variance(bt->tempo_history);
 }

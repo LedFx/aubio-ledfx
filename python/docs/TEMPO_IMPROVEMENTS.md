@@ -49,6 +49,74 @@ t.set_adaptive_winlen(1)  # 1 = enabled, 0 = disabled
 - Faster updates during stable tempo periods
 - Maintains accuracy while improving responsiveness
 
+### 3. Multi-Octave Tempo Detection
+
+Improved detection of slow and fast tempos:
+
+```python
+t = tempo("default", 1024, 256, 44100)
+
+# Multi-octave detection is enabled by default
+# Disable if needed:
+t.set_multi_octave(0)
+```
+
+**Benefits:**
+- Detects slow tempos (< 80 BPM) by checking double-period hypotheses
+- Detects fast tempos (> 200 BPM) by checking half-period hypotheses
+- Reduces octave errors (e.g., detecting 60 BPM instead of 120 BPM)
+- Works with tempo priors for disambiguation
+
+### 4. Dynamic Tempo Tracking (Phase 3) ⭐ NEW
+
+Frame-by-frame tempo analysis for time-varying tempo detection:
+
+```python
+t = tempo("default", 1024, 256, 44100)
+
+# Enable Phase 3 dynamic tempo tracking
+t.set_dynamic_tempo(1)
+
+# Process audio
+while True:
+    samples, read = src()
+    is_beat = t(samples)
+    
+    # Get multiple tempo metrics
+    smoothed_bpm = t.get_bpm()              # Confidence-weighted average
+    instant_bpm = t.get_instantaneous_bpm()  # Current frame estimate
+    variance = t.get_tempo_variance()        # Tempo stability metric
+    confidence = t.get_confidence()
+    
+    # Detect tempo changes
+    if abs(instant_bpm - smoothed_bpm) > 5.0:
+        print(f"Tempo change: {smoothed_bpm:.1f} → {instant_bpm:.1f} BPM")
+    
+    # Check tempo stability
+    if variance > 50.0:
+        print("Warning: Unstable tempo")
+    
+    if read < hop_size:
+        break
+```
+
+**Phase 3 Features:**
+- `set_dynamic_tempo(enabled)` - Enable frame-by-frame tracking
+- `get_instantaneous_bpm()` - Unsmoothed tempo estimate for current frame
+- `get_tempo_variance()` - Variance over recent tempo history (16 frames)
+
+**Use Cases:**
+- Detecting tempo changes in real-time
+- Analyzing accelerando/ritardando passages
+- Measuring tempo stability
+- Advanced music information retrieval
+- Visualizations showing time-varying tempo
+
+**Performance:**
+- Additional memory: ~1KB for tempo history buffer
+- No performance impact when disabled (default)
+- < 1% overhead when enabled
+
 ### 3. Enhanced Confidence Metrics
 
 Get more reliable confidence values:
@@ -156,6 +224,31 @@ if __name__ == '__main__':
     genre = sys.argv[2] if len(sys.argv) > 2 else 'default'
     
     analyze_tempo(audio_file, genre)
+```
+
+## Demos
+
+### Phase 3 Dynamic Tempo Tracking Demo
+
+Compare static vs dynamic tempo tracking modes:
+
+```bash
+python python/demos/demo_phase3_dynamic_tempo.py tests/test_bpm_changes.wav
+```
+
+This demo showcases:
+- Frame-by-frame tempo estimation
+- Instantaneous vs smoothed BPM
+- Tempo variance calculation
+- Automatic tempo change detection
+- Stability analysis
+
+### Tempo Comparison Demo
+
+Compare original vs all optimized features:
+
+```bash
+python python/demos/demo_tempo_comparison.py tests/test_bpm_changes.wav
 ```
 
 ## API Reference

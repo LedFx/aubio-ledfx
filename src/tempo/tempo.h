@@ -288,6 +288,43 @@ uint_t aubio_tempo_set_adaptive_winlen(aubio_tempo_t * o, uint_t enabled);
  */
 uint_t aubio_tempo_set_multi_octave(aubio_tempo_t * o, uint_t enabled);
 
+/** enable dynamic tempo tracking (Phase 3)
+
+  When enabled, stores history of instantaneous tempo estimates for frame-by-
+  frame analysis. Allows detection of tempo changes and time-varying tempo.
+
+  \param o tempo object
+  \param enabled 1 to enable dynamic tracking, 0 to disable (default)
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_dynamic_tempo(aubio_tempo_t * o, uint_t enabled);
+
+/** get instantaneous tempo estimate (Phase 3)
+
+  Returns current frame's tempo before smoothing. Useful for detecting rapid
+  tempo changes. Requires dynamic tempo tracking enabled.
+
+  \param o tempo object
+
+  \return instantaneous tempo in BPM, 0 if no tempo detected
+
+ */
+smpl_t aubio_tempo_get_instantaneous_bpm(const aubio_tempo_t * o);
+
+/** get tempo variance over recent history (Phase 3)
+
+  Calculates variance of recent tempo estimates. Higher variance indicates
+  unstable or changing tempo. Requires dynamic tempo tracking enabled.
+
+  \param o tempo object
+
+  \return tempo variance in BPM², 0 if dynamic tempo disabled
+
+ */
+smpl_t aubio_tempo_get_tempo_variance(const aubio_tempo_t * o);
+
 /** delete tempo detection object
 
   \param o beat tracking object
