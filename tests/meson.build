@@ -83,6 +83,7 @@ test_sources = files(
   'src/tempo/test-tempogram-via-tempo-api.c',
   'src/tempo/test-tempogram-real-audio.c',
   'src/tempo/test-tempogram-plp.c',
+  'src/tempo/test-tempogram-plp-gradual.c',
   'src/tempo/test-regression-check.c',
   'src/tempo/test-tempo-comprehensive.c',
   # Temporal tests
