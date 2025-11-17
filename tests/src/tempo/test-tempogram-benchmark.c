@@ -211,19 +211,19 @@ int main(void)
   printf("╚════════════════════════════════════════════════════════════════╝\n");
   
   // Test 1: Sudden BPM changes - Autocorrelation mode
-  run_benchmark("test_bpm_changes.wav", sudden_sections, num_sudden_sections,
+  run_benchmark("tests/test_bpm_changes.wav", sudden_sections, num_sudden_sections,
                 0, "Autocorrelation (baseline)");
   
   // Test 2: Sudden BPM changes - Tempogram mode
-  run_benchmark("test_bpm_changes.wav", sudden_sections, num_sudden_sections,
+  run_benchmark("tests/test_bpm_changes.wav", sudden_sections, num_sudden_sections,
                 1, "Fourier Tempogram (new)");
   
   // Test 3: Gradual BPM changes - Autocorrelation mode
-  run_benchmark("test_bpm_gradual.wav", gradual_sections, num_gradual_sections,
+  run_benchmark("tests/test_bpm_gradual.wav", gradual_sections, num_gradual_sections,
                 0, "Autocorrelation (baseline)");
   
   // Test 4: Gradual BPM changes - Tempogram mode  
-  run_benchmark("test_bpm_gradual.wav", gradual_sections, num_gradual_sections,
+  run_benchmark("tests/test_bpm_gradual.wav", gradual_sections, num_gradual_sections,
                 1, "Fourier Tempogram (new)");
   
   printf("\n");

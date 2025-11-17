@@ -77,6 +77,11 @@ struct _aubio_beattracking_t
   aubio_tempogram_t *tempogram_obj;  /** Fourier tempogram analyzer */
   uint_t use_tempogram;   /** enable tempogram-based tempo detection */
   fmat_t *tempogram_out;  /** Tempogram output matrix */
+  
+  /* Phase 3A: Onset enhancement for tempogram */
+  fvec_t *onset_history;  /** circular buffer of recent onset values for median filtering */
+  uint_t onset_history_pos; /** current position in onset history buffer */
+  uint_t onset_enhancement; /** enable onset preprocessing (median filter, thresholding) */
 };
 
 aubio_beattracking_t *
@@ -146,6 +151,11 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
   p->use_tempogram = 0;  /* Disabled by default, opt-in feature */
   p->tempogram_obj = NULL;  /* Lazy initialization when enabled */
   p->tempogram_out = NULL;
+  
+  /* Phase 3A: Onset enhancement for tempogram */
+  p->onset_history = new_fvec(7);  /* 7-sample median filter window (increased from 5) */
+  p->onset_history_pos = 0;
+  p->onset_enhancement = 1;  /* Enabled by default for better real-world performance */
 
   /* exponential weighting, dfwv = 0.5 when i =  43 */
   for (i = 0; i < winlen; i++) {
@@ -175,6 +185,9 @@ del_aubio_beattracking (aubio_beattracking_t * p)
   del_fvec (p->phout);
   if (p->tempo_history) {
     del_fvec (p->tempo_history);
+  }
+  if (p->onset_history) {
+    del_fvec (p->onset_history);
   }
   if (p->tempogram_obj) {
     del_aubio_tempogram (p->tempogram_obj);
@@ -811,6 +824,16 @@ aubio_beattracking_set_use_tempogram(aubio_beattracking_t * bt, uint_t enabled)
   return AUBIO_OK;
 }
 
+uint_t
+aubio_beattracking_set_onset_enhancement(aubio_beattracking_t * bt, uint_t enabled)
+{
+  AUBIO_ASSERT_NOT_NULL(bt);
+  
+  bt->onset_enhancement = enabled ? 1 : 0;
+  
+  return AUBIO_OK;
+}
+
 void
 aubio_beattracking_get_acf(const aubio_beattracking_t * bt, fvec_t * acf)
 {
@@ -838,6 +861,53 @@ aubio_beattracking_get_acf(const aubio_beattracking_t * bt, fvec_t * acf)
   }
 }
 
+/* Phase 3A: Onset Enhancement for Tempogram
+ * Preprocess onset signal to improve beat periodicity detection
+ * Uses median filtering to smooth noisy onset patterns from polyphonic music
+ */
+static smpl_t
+aubio_beattracking_enhance_onset(aubio_beattracking_t * bt, smpl_t raw_onset)
+{
+  AUBIO_ASSERT_NOT_NULL(bt);
+  AUBIO_ASSERT_NOT_NULL(bt->onset_history);
+  
+  /* Skip enhancement if disabled */
+  if (!bt->onset_enhancement) {
+    return raw_onset;
+  }
+  
+  /* Add raw onset to circular history buffer */
+  AUBIO_ASSERT_BOUNDS(bt->onset_history_pos, bt->onset_history->length);
+  bt->onset_history->data[bt->onset_history_pos] = raw_onset;
+  bt->onset_history_pos = (bt->onset_history_pos + 1) % bt->onset_history->length;
+  
+  /* Apply median filter to reduce noise from overlapping drum sounds
+   * Median is robust to outliers while preserving sharp onset peaks
+   * This helps FFT resolve clear periodicity in polyphonic music
+   */
+  smpl_t smoothed_onset = fvec_median(bt->onset_history);
+  
+  /* Adaptive thresholding: enhance peaks above local mean
+   * This increases contrast between beats and background
+   */
+  smpl_t mean_onset = fvec_mean(bt->onset_history);
+  smpl_t enhanced_onset = smoothed_onset;
+  
+  if (smoothed_onset > mean_onset) {
+    /* Boost peaks: amplify onset values above mean by 1.5x (increased from 1.2x)
+     * This makes periodic beats more prominent in FFT analysis
+     */
+    enhanced_onset = mean_onset + 1.5 * (smoothed_onset - mean_onset);
+  } else {
+    /* Suppress values below mean to increase contrast
+     * This helps FFT focus on clear beat peaks
+     */
+    enhanced_onset = smoothed_onset * 0.7;
+  }
+  
+  return enhanced_onset;
+}
+
 void
 aubio_beattracking_feed_tempogram(aubio_beattracking_t * bt, smpl_t onset_value)
 {
@@ -848,17 +918,22 @@ aubio_beattracking_feed_tempogram(aubio_beattracking_t * bt, smpl_t onset_value)
     return;
   }
   
+  /* Apply onset enhancement (Phase 3A) to improve detection on real audio
+   * Median filtering and adaptive thresholding reduce polyphonic noise
+   */
+  smpl_t enhanced_onset = aubio_beattracking_enhance_onset(bt, onset_value);
+  
   /* Create single-value onset vector for tempogram */
   fvec_t *onset_val = new_fvec(1);
   if (!onset_val) {
     return;
   }
   
-  /* Feed onset value to tempogram
+  /* Feed enhanced onset value to tempogram
    * This should be called on every hop to build up the onset time series
    * that the tempogram FFT analyzes for periodic beat patterns
    */
-  onset_val->data[0] = onset_value;
+  onset_val->data[0] = enhanced_onset;
   aubio_tempogram_do(bt->tempogram_obj, onset_val, bt->tempogram_out);
   
   del_fvec(onset_val);

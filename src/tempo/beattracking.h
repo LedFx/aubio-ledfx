@@ -244,6 +244,20 @@ void aubio_beattracking_get_acf(const aubio_beattracking_t * bt, fvec_t * acf);
 */
 void aubio_beattracking_feed_tempogram(aubio_beattracking_t * bt, smpl_t onset_value);
 
+/** enable onset enhancement for tempogram (Phase 3A)
+
+  When enabled, applies median filtering and adaptive thresholding to onset
+  signals before feeding to tempogram. Improves beat detection on polyphonic
+  music by reducing noise from overlapping drum sounds. Enabled by default.
+
+  \param bt beat tracking object
+  \param enabled 1 to enable onset enhancement (default), 0 to disable
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_onset_enhancement(aubio_beattracking_t * bt, uint_t enabled);
+
 /** delete beat tracking object
 
   \param p beat tracking object
