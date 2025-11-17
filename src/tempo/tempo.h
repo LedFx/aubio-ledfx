@@ -241,6 +241,26 @@ uint_t aubio_tempo_set_delay_s(aubio_tempo_t * o, smpl_t delay);
  */
 uint_t aubio_tempo_set_delay_ms(aubio_tempo_t * o, smpl_t delay);
 
+/** set tempo prior mean
+
+  \param o beat tracking object
+  \param tempo_mean prior mean tempo in BPM (default: 120.0)
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_tempo_prior_mean(aubio_tempo_t * o, smpl_t tempo_mean);
+
+/** set tempo prior standard deviation
+
+  \param o beat tracking object
+  \param tempo_std prior standard deviation in BPM (default: 1.0)
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_tempo_prior_std(aubio_tempo_t * o, smpl_t tempo_std);
+
 /** delete tempo detection object
 
   \param o beat tracking object

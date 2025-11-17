@@ -53,6 +53,9 @@ struct _aubio_beattracking_t
   smpl_t rp;
   smpl_t rp1;
   smpl_t rp2;
+  smpl_t onset_std;      /** standard deviation of onset strength for normalization */
+  smpl_t tempo_prior_mean; /** mean of tempo prior distribution (BPM) */
+  smpl_t tempo_prior_std;  /** standard deviation of tempo prior distribution (BPM) */
 };
 
 aubio_beattracking_t *
@@ -96,6 +99,11 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
   p->phout = new_fvec (winlen);
 
   p->timesig = 0;
+  
+  /* Initialize onset normalization and tempo prior parameters */
+  p->onset_std = 0.0;
+  p->tempo_prior_mean = 120.0;  /* Default to 120 BPM */
+  p->tempo_prior_std = 1.0;     /* Default std deviation */
 
   /* exponential weighting, dfwv = 0.5 when i =  43 */
   for (i = 0; i < winlen; i++) {
@@ -126,6 +134,23 @@ del_aubio_beattracking (aubio_beattracking_t * p)
   AUBIO_FREE (p);
 }
 
+/* Normalize onset detection function by standard deviation (librosa-inspired) */
+static void
+aubio_beattracking_normalize_dfframe (const fvec_t * dfframe, fvec_t * normalized)
+{
+  smpl_t std_val = fvec_stddev((fvec_t *)dfframe);
+  uint_t i;
+  
+  /* Avoid division by zero - if std is very small, just copy */
+  if (std_val > 1e-10) {
+    for (i = 0; i < dfframe->length; i++) {
+      normalized->data[i] = dfframe->data[i] / std_val;
+    }
+  } else {
+    fvec_copy(dfframe, normalized);
+  }
+}
+
 
 void
 aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
@@ -145,14 +170,25 @@ aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
   smpl_t bp;                    // beat period
   uint_t a, b;                  // used to build shift invariant comb filterbank
   uint_t kmax;                  // number of elements used to find beat phase
+  
+  fvec_t *normalized_df = new_fvec(dfframe->length);
+  if (!normalized_df) {
+    fvec_zeros(output);
+    return;
+  }
 
-  /* copy dfframe, apply detection function weighting, and revert */
-  fvec_copy (dfframe, bt->dfrev);
+  /* Normalize onset detection function by standard deviation for robustness */
+  aubio_beattracking_normalize_dfframe(dfframe, normalized_df);
+
+  /* copy normalized dfframe, apply detection function weighting, and revert */
+  fvec_copy (normalized_df, bt->dfrev);
   fvec_weight (bt->dfrev, bt->dfwv);
   fvec_rev (bt->dfrev);
 
-  /* compute autocorrelation function */
-  aubio_autocorr (dfframe, bt->acf);
+  /* compute autocorrelation function on normalized data */
+  aubio_autocorr (normalized_df, bt->acf);
+  
+  del_fvec(normalized_df);
 
   /* if timesig is unknown, use metrically unbiased version of filterbank */
   if (!bt->timesig) {
@@ -451,4 +487,38 @@ aubio_beattracking_get_confidence (const aubio_beattracking_t * bt)
     }
   }
   return 0.;
+}
+
+uint_t
+aubio_beattracking_set_tempo_prior_mean(aubio_beattracking_t * bt, smpl_t tempo_mean)
+{
+  if (tempo_mean <= 0.) {
+    AUBIO_ERR("beattracking: tempo prior mean must be positive\n");
+    return AUBIO_FAIL;
+  }
+  bt->tempo_prior_mean = tempo_mean;
+  /* Update Rayleigh parameter based on new prior mean */
+  bt->rayparam = 60. * bt->samplerate / tempo_mean / bt->hop_size;
+  
+  /* Recompute Rayleigh weighting vector */
+  uint_t laglen = bt->rwv->length;
+  uint_t i;
+  for (i = 0; i < laglen; i++) {
+    bt->rwv->data[i] = ((smpl_t) (i + 1.) / SQR ((smpl_t) bt->rayparam)) *
+        EXP ((-SQR ((smpl_t) (i + 1.)) / (2. * SQR ((smpl_t) bt->rayparam))));
+  }
+  return AUBIO_OK;
+}
+
+uint_t
+aubio_beattracking_set_tempo_prior_std(aubio_beattracking_t * bt, smpl_t tempo_std)
+{
+  if (tempo_std <= 0.) {
+    AUBIO_ERR("beattracking: tempo prior std must be positive\n");
+    return AUBIO_FAIL;
+  }
+  bt->tempo_prior_std = tempo_std;
+  /* Adjust g_var based on prior std - wider prior means more variance allowed */
+  bt->g_var = 3.901 * (tempo_std / 1.0);  /* Scale relative to default std of 1.0 */
+  return AUBIO_OK;
 }

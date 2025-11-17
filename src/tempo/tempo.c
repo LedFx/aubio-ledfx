@@ -286,6 +286,14 @@ uint_t aubio_tempo_set_tatum_signature (aubio_tempo_t *o, uint_t signature) {
   }
 }
 
+uint_t aubio_tempo_set_tempo_prior_mean(aubio_tempo_t * o, smpl_t tempo_mean) {
+  return aubio_beattracking_set_tempo_prior_mean(o->bt, tempo_mean);
+}
+
+uint_t aubio_tempo_set_tempo_prior_std(aubio_tempo_t * o, smpl_t tempo_std) {
+  return aubio_beattracking_set_tempo_prior_std(o->bt, tempo_std);
+}
+
 void del_aubio_tempo (aubio_tempo_t *o)
 {
   if (o->od)

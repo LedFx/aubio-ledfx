@@ -68,6 +68,7 @@ test_sources = files(
   # Tempo tests
   'src/tempo/test-beattracking.c',
   'src/tempo/test-tempo.c',
+  'src/tempo/test-tempo-improved.c',
   # Temporal tests
   'src/temporal/test-a_weighting.c',
   'src/temporal/test-biquad.c',

@@ -192,6 +192,32 @@ fvec_sum (fvec_t * s)
 }
 
 smpl_t
+fvec_variance (fvec_t * s)
+{
+  smpl_t mean_val = fvec_mean(s);
+  smpl_t var = 0.0;
+  uint_t j;
+  
+  for (j = 0; j < s->length; j++) {
+    smpl_t diff = s->data[j] - mean_val;
+    var += diff * diff;
+  }
+  
+  // Use N-1 for sample variance (Bessel's correction)
+  if (s->length > 1) {
+    return var / (smpl_t)(s->length - 1);
+  } else {
+    return 0.0;
+  }
+}
+
+smpl_t
+fvec_stddev (fvec_t * s)
+{
+  return SQRT(fvec_variance(s));
+}
+
+smpl_t
 fvec_max (fvec_t * s)
 {
 #if defined(HAVE_INTEL_IPP)

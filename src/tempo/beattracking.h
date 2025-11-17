@@ -107,6 +107,26 @@ smpl_t aubio_beattracking_get_bpm(const aubio_beattracking_t * bt);
 */
 smpl_t aubio_beattracking_get_confidence(const aubio_beattracking_t * bt);
 
+/** set tempo prior mean
+
+  \param bt beat tracking object
+  \param tempo_mean prior mean tempo in BPM (default: 120.0)
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_tempo_prior_mean(aubio_beattracking_t * bt, smpl_t tempo_mean);
+
+/** set tempo prior standard deviation
+
+  \param bt beat tracking object
+  \param tempo_std prior standard deviation in BPM (default: 1.0)
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_tempo_prior_std(aubio_beattracking_t * bt, smpl_t tempo_std);
+
 /** delete beat tracking object
 
   \param p beat tracking object
