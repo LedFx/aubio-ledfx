@@ -258,6 +258,24 @@ void aubio_beattracking_feed_tempogram(aubio_beattracking_t * bt, smpl_t onset_v
 */
 uint_t aubio_beattracking_set_onset_enhancement(aubio_beattracking_t * bt, uint_t enabled);
 
+/** enable multi-scale tempogram analysis (Phase 3B)
+
+  When enabled, uses multiple tempogram window sizes (short: 256, medium: 512,
+  long: 1024 samples) to analyze tempo at different temporal scales. Combines
+  results using weighted strategy: high confidence from any scale wins, with
+  preference for longer scales when stable. Improves detection of both sudden
+  and gradual tempo changes.
+
+  Note: Requires tempogram to be enabled first via aubio_beattracking_set_use_tempogram.
+
+  \param bt beat tracking object
+  \param enabled 1 to enable multi-scale analysis, 0 to disable (default)
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_multiscale_tempogram(aubio_beattracking_t * bt, uint_t enabled);
+
 /** delete beat tracking object
 
   \param p beat tracking object

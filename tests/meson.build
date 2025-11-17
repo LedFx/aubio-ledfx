@@ -74,6 +74,7 @@ test_sources = files(
   'src/tempo/test-autocorr-comparison.c',
   'src/tempo/test-tempogram-basic.c',
   'src/tempo/test-tempogram-benchmark.c',
+  'src/tempo/test-tempogram-benchmark-multiscale.c',
   'src/tempo/test-tempogram-diagnostic.c',
   'src/tempo/test-tempogram-simple.c',
   'src/tempo/test-tempogram-via-tempo-api.c',

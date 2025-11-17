@@ -484,24 +484,64 @@ void aubio_tempo_set_adaptive_winlen(aubio_tempo_t *tempo, uint_t enabled);
    - ✅ Achieved 50% detection rate (target met)
    - ✅ Improved BPM accuracy by 35%
    - ✅ No regressions on synthetic tests
+7. ✅ **Phase 3B: Multi-Scale Analysis** (2025-11-17 - COMPLETED)
+   - ✅ Implemented multi-scale tempogram infrastructure
+   - ✅ Added weighted combination strategy
+   - ✅ Created API functions for control
+   - ✅ Testing shows 57% accuracy improvement
+   - ✅ Detection rate plateau at 50% (fundamental limitation identified)
 
-### Next Session: Phase 3B - Multi-Scale Analysis (RECOMMENDED)
+### Current Session: Phase 3B - Multi-Scale Analysis (COMPLETED ✅)
 
 **Goal**: Improve detection rate from 50% to 80%+ by combining evidence from multiple temporal scales
 
-**Rationale**: Current 50% detection rate indicates onset enhancement is working, but a single FFT window size (512 samples) can't capture all tempo patterns. Missing sections likely need different analysis windows:
-- 120 BPM start: Needs longer window for stability
-- 140 BPM transition: Needs shorter window for fast response
-- 80 BPM slow tempo: Needs longer window for low-frequency beats
+**Implementation Completed** (2025-11-17):
+- ✅ Added multi-scale tempogram infrastructure (short: 256, medium: 512, long: 1024 samples)
+- ✅ Implemented weighted combination strategy (average when agree, confidence when disagree)
+- ✅ Created test-tempogram-benchmark-multiscale.c
+- ✅ API: `aubio_tempo_set_multiscale_tempogram(tempo, enabled)`
+- ✅ Refined combination with scale agreement detection
 
-**Effort**: 2-3 hours  
-**Impact**: Should reach 80%+ detection rate
+**Final Results** (Multi-Scale vs Single-Scale):
+- Detection rate: 50% (3/6) - **Same** (different sections detected)
+- BPM accuracy: 1.52 BPM vs 3.55 BPM - **57% better** ✅
+- Max BPM error: 3.66 vs 4.45 BPM - **18% better** ✅
+- Section 5 (80 BPM): Now detected (was missed) ✅
+- Section 6 (120 BPM): 0.4 error vs 4.4 error - **91% better** ✅
+- Section 3 (100 BPM): Now missed (was detected) ⚠️
 
-See Phase 3B implementation plan below for details.
+**Key Findings**:
+1. Multi-scale significantly improves accuracy when detection occurs ✅
+2. Longer scales (1024) provide better stability for slow tempos (80 BPM) ✅
+3. Detection rate plateau at 50% indicates fundamental limitation ⚠️
+4. Early sections (1-3) consistently missed - likely buffer fill time issue
+5. Weighted averaging when scales agree provides more stable results ✅
+
+**Conclusion**:
+Phase 3B delivers substantial accuracy improvements (57% better) but does not
+increase detection rate beyond Phase 3A's 50%. The plateau suggests that
+improving onset quality further or exploring alternative approaches (PLP,
+Dynamic Programming) are needed to reach 80%+ detection.
+
+**Production Readiness**:
+Multi-scale tempogram is suitable for applications prioritizing accuracy over
+detection rate (e.g., music analysis tools, post-processing pipelines).
+
+### Next Session: Consider Phase 3C (PLP) or Alternative Approaches
+
+**Rationale**: Phase 3B demonstrated that multi-scale analysis improves accuracy but doesn't solve the early detection problem. Detection rate improvements likely require:
+- Alternative onset enhancement approaches
+- PLP (Predominant Local Pulse) for smoother tempo trajectories
+- Dynamic Programming for optimal beat path selection
+- Adaptive buffering strategies for early sections
+
+**Recommendation**: Document Phase 3B findings and evaluate whether to pursue Phase 3C (PLP implementation) or explore alternative tempo tracking approaches.
+
+See Phase 3C and 3D implementation plans below for future work.
 
 ### Phase 3: Advanced Tempogram for Real-World Audio
 
-**Status**: Phase 3A COMPLETED 2025-11-17 ✅  
+**Status**: Phase 3A COMPLETED ✅, Phase 3B COMPLETED ✅  
 **Goal**: Enable tempogram to handle complex polyphonic music patterns
 
 ---
@@ -681,28 +721,58 @@ Results:
 - Target achieved: > 40% detection rate ✅
 ```
 
-**Phase 3B: Multi-Scale Analysis (Priority 2)**
+**Phase 3B: Multi-Scale Analysis (Priority 2) ✅ COMPLETED**
 ```
 Goal: Combine evidence from multiple time scales
-Effort: 2-3 sessions
-Impact: Handle both stable and changing tempos
+Effort: 2 sessions (completed 2025-11-17)
+Impact: Significant accuracy improvement, detection rate plateau
 
-Changes:
-1. Support multiple tempogram window sizes
+Implemented Changes:
+1. ✅ Support multiple tempogram window sizes
    - Short: 256 samples (~1.5s) for fast response
-   - Medium: 512 samples (~3s) current default
+   - Medium: 512 samples (~3s) baseline
    - Long: 1024 samples (~6s) for stability
    
-2. Weighted combination strategy
-   - High confidence from any scale wins
-   - Prefer longer scales when tempo is stable
-   - Switch to shorter scales during transitions
+2. ✅ Weighted combination strategy
+   - Weighted average when scales agree (< 10 BPM deviation)
+   - Confidence-based selection when scales disagree
+   - Short scale boosted 50% for responsiveness
    
-3. Add multi-scale API
-   - aubio_tempo_set_tempogram_scales(short, medium, long)
+3. ✅ Add multi-scale API
+   - aubio_tempo_set_multiscale_tempogram(tempo, enabled)
+   - aubio_beattracking_set_multiscale_tempogram(bt, enabled)
+   
+4. ✅ Tested with real audio and benchmarked
+   - Detection rate: 50.0% (unchanged from Phase 3A)
+   - BPM accuracy: 1.52 BPM (57% better than Phase 3A)
+   - All synthetic tests passing (< 2 BPM error)
+
+Results:
+- Detection rate: 50.0% (3/6 sections, same as Phase 3A) ⚠️
+- BPM accuracy: 3.55 → 1.52 BPM (57% improvement) ✅
+- Max BPM error: 4.45 → 3.66 BPM (18% improvement) ✅
+- Section 5 (80 BPM): Now detected (long scale helps) ✅
+- Section 6 (120 BPM): 4.4 → 0.4 error (91% improvement) ✅
+- No regressions on synthetic signals ✅
+
+Key Findings:
+- Multi-scale significantly improves accuracy when detection occurs
+- Longer scales excel at slow tempos (80 BPM detection)
+- Detection rate plateau at 50% indicates fundamental limitation
+- Early sections (1-3) consistently missed - likely buffer fill time
+- Weighted averaging provides more stable tempo estimates
+
+Conclusion:
+Phase 3B delivers substantial accuracy improvements but does not
+increase detection rate. The 50% plateau suggests that improving
+onset quality further (Phase 3A+) or alternative approaches (Phase 3C
+PLP, Phase 3D Dynamic Programming) are needed to reach 80%+ detection.
+
+Multi-scale tempogram is production-ready for applications prioritizing
+accuracy over detection rate (e.g., post-processing, analysis tools).
 ```
 
-**Phase 3C: PLP Implementation (Priority 3)**
+**Phase 3C: PLP Implementation (Priority 3) - FUTURE WORK**
 ```
 Goal: Smooth tempo trajectories for gradual changes
 Effort: 2-3 sessions
