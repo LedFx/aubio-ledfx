@@ -303,14 +303,6 @@ aubio_tempogram_do (aubio_tempogram_t * o, const fvec_t * onset,
   // Add onset value to circular buffer
   AUBIO_ASSERT_BOUNDS (o->buffer_write_pos, o->buffer_size);
   o->onset_buffer->data[o->buffer_write_pos][0] = onset->data[0];
-  
-  // Debug logging (first 20 calls only)
-  static uint_t debug_count = 0;
-  if (debug_count < 20) {
-    AUBIO_DBG("tempogram: onset[%u] = %.6f\n", debug_count, onset->data[0]);
-    debug_count++;
-  }
-  
   o->buffer_write_pos = (o->buffer_write_pos + 1) % o->buffer_size;
   
   // Fill FFT input with onset buffer (time-reversed for causality)
