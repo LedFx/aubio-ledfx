@@ -13,6 +13,12 @@
 #include <string.h>
 #include <math.h>
 
+/* Define test file path - either from compile-time definition or relative */
+#ifndef AUBIO_TEMPO_TEST_DIR
+#define AUBIO_TEMPO_TEST_DIR "tests"
+#endif
+#define TEMPO_TEST_FILE(name) AUBIO_TEMPO_TEST_DIR "/" name
+
 #define MAX_SECTIONS 10
 #define TOLERANCE_BPM 5.0  /* Acceptable BPM error */
 #define RESPONSE_TIME_THRESHOLD 7.0  /* Max acceptable response time in seconds (Davies algorithm requires 5-6s) */
@@ -214,7 +220,7 @@ int print_results(benchmark_results_t *results) {
 }
 
 int main(int argc, char **argv) {
-    const char *test_file = "tests/test_bpm_changes.wav";
+    const char *test_file = TEMPO_TEST_FILE("test_bpm_changes.wav");
     uint_t samplerate = 0;
     uint_t win_size = 1024;
     uint_t hop_size = 256;
