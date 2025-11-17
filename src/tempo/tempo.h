@@ -368,6 +368,20 @@ uint_t aubio_tempo_set_use_tempogram(aubio_tempo_t * o, uint_t enabled);
  */
 uint_t aubio_tempo_set_onset_enhancement(aubio_tempo_t * o, uint_t enabled);
 
+/** enable multi-scale tempogram analysis (Phase 3B)
+
+  When enabled, uses multiple tempogram window sizes to analyze tempo at
+  different temporal scales. Combines results for better detection of both
+  sudden and gradual tempo changes. Requires tempogram to be enabled first.
+
+  \param o tempo detection object
+  \param enabled 1 to enable multi-scale analysis, 0 to disable (default)
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_multiscale_tempogram(aubio_tempo_t * o, uint_t enabled);
+
 /** delete tempo detection object
 
   \param o beat tracking object

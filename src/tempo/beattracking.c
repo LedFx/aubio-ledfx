@@ -82,6 +82,13 @@ struct _aubio_beattracking_t
   fvec_t *onset_history;  /** circular buffer of recent onset values for median filtering */
   uint_t onset_history_pos; /** current position in onset history buffer */
   uint_t onset_enhancement; /** enable onset preprocessing (median filter, thresholding) */
+  
+  /* Phase 3B: Multi-scale tempogram analysis */
+  uint_t use_multiscale;   /** enable multi-scale tempogram analysis */
+  aubio_tempogram_t *tempogram_short;  /** short-scale tempogram (256 samples, ~1.5s) */
+  aubio_tempogram_t *tempogram_long;   /** long-scale tempogram (1024 samples, ~6s) */
+  fmat_t *tempogram_short_out;  /** short-scale output matrix */
+  fmat_t *tempogram_long_out;   /** long-scale output matrix */
 };
 
 aubio_beattracking_t *
@@ -156,6 +163,13 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
   p->onset_history = new_fvec(7);  /* 7-sample median filter window (increased from 5) */
   p->onset_history_pos = 0;
   p->onset_enhancement = 1;  /* Enabled by default for better real-world performance */
+  
+  /* Phase 3B: Multi-scale tempogram analysis */
+  p->use_multiscale = 0;  /* Disabled by default */
+  p->tempogram_short = NULL;  /* Lazy initialization */
+  p->tempogram_long = NULL;   /* Lazy initialization */
+  p->tempogram_short_out = NULL;
+  p->tempogram_long_out = NULL;
 
   /* exponential weighting, dfwv = 0.5 when i =  43 */
   for (i = 0; i < winlen; i++) {
@@ -194,6 +208,19 @@ del_aubio_beattracking (aubio_beattracking_t * p)
   }
   if (p->tempogram_out) {
     del_fmat (p->tempogram_out);
+  }
+  /* Phase 3B: Multi-scale tempogram cleanup */
+  if (p->tempogram_short) {
+    del_aubio_tempogram (p->tempogram_short);
+  }
+  if (p->tempogram_short_out) {
+    del_fmat (p->tempogram_short_out);
+  }
+  if (p->tempogram_long) {
+    del_aubio_tempogram (p->tempogram_long);
+  }
+  if (p->tempogram_long_out) {
+    del_fmat (p->tempogram_long_out);
   }
   AUBIO_FREE (p);
 }
@@ -611,8 +638,39 @@ aubio_beattracking_get_bpm (const aubio_beattracking_t * bt)
   
   /* Phase 3: Use tempogram if enabled */
   if (bt->use_tempogram && bt->tempogram_obj && bt->tempogram_out) {
-    /* Get tempo from tempogram analysis */
-    current_bpm = aubio_tempogram_get_tempo(bt->tempogram_obj, bt->tempogram_out);
+    /* Phase 3B: Multi-scale tempogram analysis */
+    if (bt->use_multiscale && bt->tempogram_short && bt->tempogram_long) {
+      /* Get tempo from all three scales */
+      smpl_t tempo_short = aubio_tempogram_get_tempo(bt->tempogram_short, bt->tempogram_short_out);
+      smpl_t tempo_medium = aubio_tempogram_get_tempo(bt->tempogram_obj, bt->tempogram_out);
+      smpl_t tempo_long = aubio_tempogram_get_tempo(bt->tempogram_long, bt->tempogram_long_out);
+      
+      smpl_t conf_short = aubio_tempogram_get_confidence(bt->tempogram_short);
+      smpl_t conf_medium = aubio_tempogram_get_confidence(bt->tempogram_obj);
+      smpl_t conf_long = aubio_tempogram_get_confidence(bt->tempogram_long);
+      
+      /* Weighted combination: high confidence from any scale wins */
+      smpl_t max_conf = conf_short;
+      current_bpm = tempo_short;
+      
+      if (conf_medium > max_conf) {
+        max_conf = conf_medium;
+        current_bpm = tempo_medium;
+      }
+      
+      if (conf_long > max_conf) {
+        max_conf = conf_long;
+        current_bpm = tempo_long;
+      }
+      
+      /* If confidences are similar, prefer longer scale for stability */
+      if (fabs(conf_long - max_conf) < 0.5 && fabs(tempo_long - current_bpm) < 10.0) {
+        current_bpm = tempo_long;
+      }
+    } else {
+      /* Single-scale tempogram */
+      current_bpm = aubio_tempogram_get_tempo(bt->tempogram_obj, bt->tempogram_out);
+    }
     
     /* Tempogram already handles multi-octave analysis internally,
      * but we still apply smoothing */
@@ -834,6 +892,76 @@ aubio_beattracking_set_onset_enhancement(aubio_beattracking_t * bt, uint_t enabl
   return AUBIO_OK;
 }
 
+uint_t
+aubio_beattracking_set_multiscale_tempogram(aubio_beattracking_t * bt, uint_t enabled)
+{
+  AUBIO_ASSERT_NOT_NULL(bt);
+  
+  bt->use_multiscale = enabled ? 1 : 0;
+  
+  /* Lazy initialization of multi-scale tempograms when first enabled */
+  if (bt->use_multiscale && !bt->tempogram_short) {
+    /* Ensure main tempogram is initialized first */
+    if (!bt->tempogram_obj) {
+      AUBIO_ERR("beattracking: enable tempogram before multi-scale\n");
+      bt->use_multiscale = 0;
+      return AUBIO_FAIL;
+    }
+    
+    /* Create short-scale tempogram (256 samples, ~1.5s at 44.1kHz/256hop) */
+    uint_t short_win = 256;
+    bt->tempogram_short = new_aubio_tempogram(short_win, bt->hop_size, bt->samplerate);
+    
+    if (!bt->tempogram_short) {
+      AUBIO_ERR("beattracking: failed to create short-scale tempogram\n");
+      bt->use_multiscale = 0;
+      return AUBIO_FAIL;
+    }
+    
+    uint_t short_bins = short_win / 2 + 1;
+    bt->tempogram_short_out = new_fmat(short_bins, 1);
+    
+    if (!bt->tempogram_short_out) {
+      AUBIO_ERR("beattracking: failed to create short-scale output matrix\n");
+      del_aubio_tempogram(bt->tempogram_short);
+      bt->tempogram_short = NULL;
+      bt->use_multiscale = 0;
+      return AUBIO_FAIL;
+    }
+    
+    /* Create long-scale tempogram (1024 samples, ~6s at 44.1kHz/256hop) */
+    uint_t long_win = 1024;
+    bt->tempogram_long = new_aubio_tempogram(long_win, bt->hop_size, bt->samplerate);
+    
+    if (!bt->tempogram_long) {
+      AUBIO_ERR("beattracking: failed to create long-scale tempogram\n");
+      del_fmat(bt->tempogram_short_out);
+      bt->tempogram_short_out = NULL;
+      del_aubio_tempogram(bt->tempogram_short);
+      bt->tempogram_short = NULL;
+      bt->use_multiscale = 0;
+      return AUBIO_FAIL;
+    }
+    
+    uint_t long_bins = long_win / 2 + 1;
+    bt->tempogram_long_out = new_fmat(long_bins, 1);
+    
+    if (!bt->tempogram_long_out) {
+      AUBIO_ERR("beattracking: failed to create long-scale output matrix\n");
+      del_aubio_tempogram(bt->tempogram_long);
+      bt->tempogram_long = NULL;
+      del_fmat(bt->tempogram_short_out);
+      bt->tempogram_short_out = NULL;
+      del_aubio_tempogram(bt->tempogram_short);
+      bt->tempogram_short = NULL;
+      bt->use_multiscale = 0;
+      return AUBIO_FAIL;
+    }
+  }
+  
+  return AUBIO_OK;
+}
+
 void
 aubio_beattracking_get_acf(const aubio_beattracking_t * bt, fvec_t * acf)
 {
@@ -935,6 +1063,16 @@ aubio_beattracking_feed_tempogram(aubio_beattracking_t * bt, smpl_t onset_value)
    */
   onset_val->data[0] = enhanced_onset;
   aubio_tempogram_do(bt->tempogram_obj, onset_val, bt->tempogram_out);
+  
+  /* Phase 3B: Feed multi-scale tempograms if enabled */
+  if (bt->use_multiscale) {
+    if (bt->tempogram_short && bt->tempogram_short_out) {
+      aubio_tempogram_do(bt->tempogram_short, onset_val, bt->tempogram_short_out);
+    }
+    if (bt->tempogram_long && bt->tempogram_long_out) {
+      aubio_tempogram_do(bt->tempogram_long, onset_val, bt->tempogram_long_out);
+    }
+  }
   
   del_fvec(onset_val);
 }
