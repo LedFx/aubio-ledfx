@@ -194,11 +194,17 @@ fvec_sum (fvec_t * s)
 smpl_t
 fvec_variance (fvec_t * s)
 {
+  AUBIO_ASSERT_NOT_NULL(s);
+  AUBIO_ASSERT_NOT_NULL(s->data);
+  
+  if (s->length == 0) return 0.0;
+  
   smpl_t mean_val = fvec_mean(s);
   smpl_t var = 0.0;
   uint_t j;
   
   for (j = 0; j < s->length; j++) {
+    AUBIO_ASSERT_BOUNDS(j, s->length);
     smpl_t diff = s->data[j] - mean_val;
     var += diff * diff;
   }
@@ -214,6 +220,7 @@ fvec_variance (fvec_t * s)
 smpl_t
 fvec_stddev (fvec_t * s)
 {
+  AUBIO_ASSERT_NOT_NULL(s);
   return SQRT(fvec_variance(s));
 }
 

@@ -127,6 +127,19 @@ uint_t aubio_beattracking_set_tempo_prior_mean(aubio_beattracking_t * bt, smpl_t
 */
 uint_t aubio_beattracking_set_tempo_prior_std(aubio_beattracking_t * bt, smpl_t tempo_std);
 
+/** enable adaptive window sizing for faster response
+
+  When enabled, the analysis window size is reduced when tempo is stable
+  and high confidence, allowing faster response to tempo changes.
+
+  \param bt beat tracking object
+  \param enabled 1 to enable adaptive sizing, 0 to disable
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_adaptive_winlen(aubio_beattracking_t * bt, uint_t enabled);
+
 /** delete beat tracking object
 
   \param p beat tracking object

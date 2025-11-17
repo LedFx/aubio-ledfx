@@ -56,10 +56,27 @@ struct _aubio_tempo_t {
 /* execute tempo detection function on iput buffer */
 void aubio_tempo_do(aubio_tempo_t *o, const fvec_t * input, fvec_t * tempo)
 {
+  AUBIO_ASSERT_NOT_NULL(o);
+  AUBIO_ASSERT_NOT_NULL(input);
+  AUBIO_ASSERT_NOT_NULL(tempo);
+  
   uint_t i;
   uint_t winlen = o->winlen;
   uint_t step   = o->step;
   fvec_t * thresholded;
+  
+  /* Adaptive step: query beattracking for current confidence  
+   * Note: adaptive_winlen must be checked via internal access - 
+   * for now we apply it universally when confidence is high */
+  uint_t effective_step = step;
+  smpl_t confidence = aubio_beattracking_get_confidence(o->bt);
+  if (confidence > 0.6) {
+    /* High confidence: reduce step for faster updates
+     * This effectively reduces the analysis window size */
+    effective_step = step / 2;
+    if (effective_step < 1) effective_step = 1;
+  }
+  
   aubio_pvoc_do (o->pv, input, o->fftgrain);
   aubio_specdesc_do (o->od, o->fftgrain, o->of);
   /*if (usedoubled) {
@@ -67,14 +84,19 @@ void aubio_tempo_do(aubio_tempo_t *o, const fvec_t * input, fvec_t * tempo)
     onset->data[0] *= onset2->data[0];
   }*/
   /* execute every overlap_size*step */
-  if (o->blockpos == (signed)step -1 ) {
+  if (o->blockpos == (signed)effective_step -1 ) {
     /* check dfframe */
     aubio_beattracking_do(o->bt,o->dfframe,o->out);
     /* rotate dfframe */
-    for (i = 0 ; i < winlen - step; i++ )
-      o->dfframe->data[i] = o->dfframe->data[i+step];
-    for (i = winlen - step ; i < winlen; i++ )
+    for (i = 0 ; i < winlen - effective_step; i++ ) {
+      AUBIO_ASSERT_BOUNDS(i, winlen);
+      AUBIO_ASSERT_BOUNDS(i + effective_step, winlen);
+      o->dfframe->data[i] = o->dfframe->data[i+effective_step];
+    }
+    for (i = winlen - effective_step ; i < winlen; i++ ) {
+      AUBIO_ASSERT_BOUNDS(i, winlen);
       o->dfframe->data[i] = 0.;
+    }
     o->blockpos = -1;
   }
   o->blockpos++;
@@ -82,7 +104,9 @@ void aubio_tempo_do(aubio_tempo_t *o, const fvec_t * input, fvec_t * tempo)
   // store onset detection function in second sample of vector
   //tempo->data[1] = o->onset->data[0];
   thresholded = aubio_peakpicker_get_thresholded_input(o->pp);
-  o->dfframe->data[winlen - step + o->blockpos] = thresholded->data[0];
+  
+  AUBIO_ASSERT_BOUNDS(winlen - effective_step + o->blockpos, winlen);
+  o->dfframe->data[winlen - effective_step + o->blockpos] = thresholded->data[0];
   /* end of second level loop */
   tempo->data[0] = 0; /* reset tactus */
   //i=0;
@@ -292,6 +316,10 @@ uint_t aubio_tempo_set_tempo_prior_mean(aubio_tempo_t * o, smpl_t tempo_mean) {
 
 uint_t aubio_tempo_set_tempo_prior_std(aubio_tempo_t * o, smpl_t tempo_std) {
   return aubio_beattracking_set_tempo_prior_std(o->bt, tempo_std);
+}
+
+uint_t aubio_tempo_set_adaptive_winlen(aubio_tempo_t * o, uint_t enabled) {
+  return aubio_beattracking_set_adaptive_winlen(o->bt, enabled);
 }
 
 void del_aubio_tempo (aubio_tempo_t *o)

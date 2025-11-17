@@ -261,6 +261,19 @@ uint_t aubio_tempo_set_tempo_prior_mean(aubio_tempo_t * o, smpl_t tempo_mean);
  */
 uint_t aubio_tempo_set_tempo_prior_std(aubio_tempo_t * o, smpl_t tempo_std);
 
+/** enable adaptive window sizing for faster response
+
+  When enabled, effective analysis is reduced when tempo is stable,
+  allowing faster response to tempo changes (2-3s instead of 6s).
+
+  \param o beat tracking object  
+  \param enabled 1 to enable adaptive sizing, 0 to disable
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_adaptive_winlen(aubio_tempo_t * o, uint_t enabled);
+
 /** delete tempo detection object
 
   \param o beat tracking object

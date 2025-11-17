@@ -59,6 +59,8 @@ struct _aubio_beattracking_t
   smpl_t tempo_prior_std;  /** standard deviation of tempo prior distribution (BPM) */
   smpl_t prev_tempo;     /** previous tempo estimate for smoothing */
   smpl_t tempo_confidence; /** confidence of current tempo estimate */
+  uint_t adaptive_winlen; /** adaptive window length (0 = use default) */
+  smpl_t stability_count; /** number of frames with stable tempo */
 };
 
 aubio_beattracking_t *
@@ -109,6 +111,8 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
   p->tempo_prior_std = 1.0;     /* Default std deviation */
   p->prev_tempo = 0.0;          /* No previous tempo yet */
   p->tempo_confidence = 0.0;    /* No confidence yet */
+  p->adaptive_winlen = 0;       /* 0 = use default winlen */
+  p->stability_count = 0.0;     /* No stable tempo yet */
 
   /* exponential weighting, dfwv = 0.5 when i =  43 */
   for (i = 0; i < winlen; i++) {
@@ -143,12 +147,18 @@ del_aubio_beattracking (aubio_beattracking_t * p)
 static void
 aubio_beattracking_normalize_dfframe (const fvec_t * dfframe, fvec_t * normalized)
 {
+  AUBIO_ASSERT_NOT_NULL(dfframe);
+  AUBIO_ASSERT_NOT_NULL(normalized);
+  AUBIO_ASSERT_LENGTH(normalized, dfframe->length);
+  
   smpl_t std_val = fvec_stddev((fvec_t *)dfframe);
   uint_t i;
   
   /* Avoid division by zero - if std is very small, just copy */
   if (std_val > 1e-10) {
     for (i = 0; i < dfframe->length; i++) {
+      AUBIO_ASSERT_BOUNDS(i, dfframe->length);
+      AUBIO_ASSERT_BOUNDS(i, normalized->length);
       normalized->data[i] = dfframe->data[i] / std_val;
     }
   } else {
@@ -526,10 +536,17 @@ aubio_beattracking_update_confidence (aubio_beattracking_t * bt)
 uint_t
 aubio_beattracking_set_tempo_prior_mean(aubio_beattracking_t * bt, smpl_t tempo_mean)
 {
-  if (tempo_mean <= 0.) {
-    AUBIO_ERR("beattracking: tempo prior mean must be positive\n");
+  AUBIO_ASSERT_NOT_NULL(bt);
+  
+  /* Check for invalid input first, before assertions */
+  if (tempo_mean <= 0. || tempo_mean > 300.) {
+    AUBIO_ERR("beattracking: tempo prior mean must be in range (0, 300] BPM\n");
     return AUBIO_FAIL;
   }
+  
+  /* Now assert on the valid range in debug builds */
+  AUBIO_ASSERT_RANGE(tempo_mean, 20.0, 300.0);
+  
   bt->tempo_prior_mean = tempo_mean;
   /* Update Rayleigh parameter based on new prior mean */
   bt->rayparam = 60. * bt->samplerate / tempo_mean / bt->hop_size;
@@ -538,6 +555,7 @@ aubio_beattracking_set_tempo_prior_mean(aubio_beattracking_t * bt, smpl_t tempo_
   uint_t laglen = bt->rwv->length;
   uint_t i;
   for (i = 0; i < laglen; i++) {
+    AUBIO_ASSERT_BOUNDS(i, laglen);
     bt->rwv->data[i] = ((smpl_t) (i + 1.) / SQR ((smpl_t) bt->rayparam)) *
         EXP ((-SQR ((smpl_t) (i + 1.)) / (2. * SQR ((smpl_t) bt->rayparam))));
   }
@@ -547,12 +565,28 @@ aubio_beattracking_set_tempo_prior_mean(aubio_beattracking_t * bt, smpl_t tempo_
 uint_t
 aubio_beattracking_set_tempo_prior_std(aubio_beattracking_t * bt, smpl_t tempo_std)
 {
-  if (tempo_std <= 0.) {
-    AUBIO_ERR("beattracking: tempo prior std must be positive\n");
+  AUBIO_ASSERT_NOT_NULL(bt);
+  
+  /* Check for invalid input first */
+  if (tempo_std <= 0. || tempo_std > 10.) {
+    AUBIO_ERR("beattracking: tempo prior std must be in range (0, 10] BPM\n");
     return AUBIO_FAIL;
   }
+  
+  /* Now assert on valid range in debug builds */
+  AUBIO_ASSERT_RANGE(tempo_std, 0.1, 10.0);
+  
   bt->tempo_prior_std = tempo_std;
   /* Adjust g_var based on prior std - wider prior means more variance allowed */
   bt->g_var = 3.901 * (tempo_std / 1.0);  /* Scale relative to default std of 1.0 */
+  return AUBIO_OK;
+}
+
+uint_t
+aubio_beattracking_set_adaptive_winlen(aubio_beattracking_t * bt, uint_t enabled)
+{
+  AUBIO_ASSERT_NOT_NULL(bt);
+  /* enabled is uint_t, so bounds checking would be 0 or 1, but accept any non-zero as true */
+  bt->adaptive_winlen = enabled ? 1 : 0;
   return AUBIO_OK;
 }
