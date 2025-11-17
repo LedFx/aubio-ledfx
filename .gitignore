@@ -59,3 +59,9 @@ vcpkg_installed/
 _codeql_detected_source_root
 .vscode/settings.json
 tmp_aubio_*
+
+# Generated test audio files
+test_bpm_changes.wav
+test_bpm_gradual.wav
+test_bpm_changes_ground_truth.json
+test_bpm_gradual_ground_truth.json

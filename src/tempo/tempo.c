@@ -107,6 +107,10 @@ void aubio_tempo_do(aubio_tempo_t *o, const fvec_t * input, fvec_t * tempo)
   
   AUBIO_ASSERT_BOUNDS(winlen - effective_step + o->blockpos, winlen);
   o->dfframe->data[winlen - effective_step + o->blockpos] = thresholded->data[0];
+  
+  /* Feed onset to tempogram on every hop if enabled */
+  aubio_beattracking_feed_tempogram(o->bt, thresholded->data[0]);
+  
   /* end of second level loop */
   tempo->data[0] = 0; /* reset tactus */
   //i=0;

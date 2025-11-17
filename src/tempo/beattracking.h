@@ -233,6 +233,17 @@ uint_t aubio_beattracking_set_use_tempogram(aubio_beattracking_t * bt, uint_t en
 */
 void aubio_beattracking_get_acf(const aubio_beattracking_t * bt, fvec_t * acf);
 
+/** feed onset value to tempogram if enabled
+
+  This should be called on every hop to feed onset values to the tempogram
+  for FFT-based tempo analysis. Only has effect if tempogram is enabled.
+
+  \param bt beat tracking object
+  \param onset_value onset strength value (usually thresholded onset)
+
+*/
+void aubio_beattracking_feed_tempogram(aubio_beattracking_t * bt, smpl_t onset_value);
+
 /** delete beat tracking object
 
   \param p beat tracking object
