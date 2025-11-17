@@ -28,6 +28,7 @@
 
 uint_t fvec_gettimesig (fvec_t * acf, uint_t acflen, uint_t gp);
 void aubio_beattracking_checkstate (aubio_beattracking_t * bt);
+static void aubio_beattracking_update_confidence (aubio_beattracking_t * bt);
 
 struct _aubio_beattracking_t
 {
@@ -56,6 +57,8 @@ struct _aubio_beattracking_t
   smpl_t onset_std;      /** standard deviation of onset strength for normalization */
   smpl_t tempo_prior_mean; /** mean of tempo prior distribution (BPM) */
   smpl_t tempo_prior_std;  /** standard deviation of tempo prior distribution (BPM) */
+  smpl_t prev_tempo;     /** previous tempo estimate for smoothing */
+  smpl_t tempo_confidence; /** confidence of current tempo estimate */
 };
 
 aubio_beattracking_t *
@@ -104,6 +107,8 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
   p->onset_std = 0.0;
   p->tempo_prior_mean = 120.0;  /* Default to 120 BPM */
   p->tempo_prior_std = 1.0;     /* Default std deviation */
+  p->prev_tempo = 0.0;          /* No previous tempo yet */
+  p->tempo_confidence = 0.0;    /* No confidence yet */
 
   /* exponential weighting, dfwv = 0.5 when i =  43 */
   for (i = 0; i < winlen; i++) {
@@ -364,6 +369,9 @@ aubio_beattracking_checkstate (aubio_beattracking_t * bt)
     //still only using general model
     gp = 0;
   }
+  
+  /* Update confidence after computing gp */
+  aubio_beattracking_update_confidence(bt);
 
   //now look for step change - i.e. a difference between gp and rp that
   // is greater than 2*constthresh - always true in first case, since gp = 0
@@ -453,6 +461,12 @@ aubio_beattracking_checkstate (aubio_beattracking_t * bt)
   bt->bp = bp;
   bt->rp1 = rp1;
   bt->rp2 = rp2;
+  
+  /* Update previous tempo for smoothing */
+  if (bp != 0) {
+    smpl_t current_bpm = 60. * bt->samplerate / (bt->hop_size * bp);
+    bt->prev_tempo = current_bpm;
+  }
 }
 
 smpl_t
@@ -471,7 +485,17 @@ smpl_t
 aubio_beattracking_get_bpm (const aubio_beattracking_t * bt)
 {
   if (bt->bp != 0) {
-    return 60. / aubio_beattracking_get_period_s(bt);
+    smpl_t current_bpm = 60. / aubio_beattracking_get_period_s(bt);
+    
+    /* Apply light smoothing based on confidence
+     * Higher confidence = less smoothing (more responsive)
+     * Lower confidence = more smoothing (more stable) */
+    if (bt->prev_tempo > 0. && bt->tempo_confidence > 0.) {
+      smpl_t alpha = 0.2 + 0.3 * bt->tempo_confidence;  /* 0.2 to 0.5 */
+      current_bpm = alpha * current_bpm + (1.0 - alpha) * bt->prev_tempo;
+    }
+    
+    return current_bpm;
   } else {
     return 0.;
   }
@@ -480,13 +504,23 @@ aubio_beattracking_get_bpm (const aubio_beattracking_t * bt)
 smpl_t
 aubio_beattracking_get_confidence (const aubio_beattracking_t * bt)
 {
+  return bt->tempo_confidence;
+}
+
+/* Update and get confidence with caching */
+static void
+aubio_beattracking_update_confidence (aubio_beattracking_t * bt)
+{
   if (bt->gp) {
     smpl_t acf_sum = fvec_sum(bt->acfout);
     if (acf_sum != 0.) {
-      return fvec_quadratic_peak_mag (bt->acfout, bt->gp) / acf_sum;
+      bt->tempo_confidence = fvec_quadratic_peak_mag (bt->acfout, bt->gp) / acf_sum;
+    } else {
+      bt->tempo_confidence = 0.;
     }
+  } else {
+    bt->tempo_confidence = 0.;
   }
-  return 0.;
 }
 
 uint_t
