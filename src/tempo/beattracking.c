@@ -94,7 +94,8 @@ struct _aubio_beattracking_t
   /* Phase 3D: Dynamic programming beat tracker */
   uint_t use_dp;           /** enable DP-based beat tracking */
   aubio_dptracker_t *dptracker_obj;  /** DP beat tracker object */
-  uint_t dp_frame_count;   /** frame counter for periodic beat extraction */
+  uint_t dp_frames_since_extract;   /** frames since last beat extraction */
+  smpl_t dp_cached_bpm;     /** cached BPM from last extraction */
 };
 
 aubio_beattracking_t *
@@ -652,7 +653,25 @@ aubio_beattracking_get_bpm (const aubio_beattracking_t * bt)
   
   /* Phase 3D: Use DP tracker if enabled */
   if (bt->use_dp && bt->dptracker_obj) {
-    current_bpm = aubio_dptracker_get_bpm(bt->dptracker_obj);
+    /* Session +2 FIX: Extract beats only every 'step' frames to avoid
+     * creating a periodic signal that DP detects as beats.
+     * Cache the result between extractions for consistent BPM reporting. */
+    if (bt->dp_frames_since_extract >= bt->step) {
+      /* Time to extract beats */
+      fvec_t *dummy_beats = new_fvec(bt->rwv->length);
+      if (dummy_beats) {
+        /* Cast away const - we need to update internal state and cache */
+        aubio_beattracking_t *bt_nonconst = (aubio_beattracking_t *)bt;
+        
+        aubio_dptracker_get_beats(bt_nonconst->dptracker_obj, dummy_beats);
+        bt_nonconst->dp_cached_bpm = aubio_dptracker_get_bpm(bt_nonconst->dptracker_obj);
+        bt_nonconst->dp_frames_since_extract = 0;
+        
+        del_fvec(dummy_beats);
+      }
+    }
+    
+    current_bpm = bt->dp_cached_bpm;
     
     /* If DP tracker has sufficient beats, use its estimate */
     if (current_bpm > 0 && aubio_dptracker_get_num_beats(bt->dptracker_obj) >= 2) {
@@ -841,14 +860,15 @@ aubio_beattracking_set_tempo_prior_std(aubio_beattracking_t * bt, smpl_t tempo_s
 {
   AUBIO_ASSERT_NOT_NULL(bt);
   
-  /* Check for invalid input first */
-  if (tempo_std <= 0. || tempo_std > 10.) {
-    AUBIO_ERR("beattracking: tempo prior std must be in range (0, 10] BPM\n");
+  /* Session +2 FIX: Increased maximum from 10 to 50 BPM to allow default of 20 BPM
+   * and provide more flexibility for tempo range specification */
+  if (tempo_std <= 0. || tempo_std > 50.) {
+    AUBIO_ERR("beattracking: tempo prior std must be in range (0, 50] BPM\n");
     return AUBIO_FAIL;
   }
   
   /* Now assert on valid range in debug builds */
-  AUBIO_ASSERT_RANGE(tempo_std, 0.1, 10.0);
+  AUBIO_ASSERT_RANGE(tempo_std, 0.1, 50.0);
   
   bt->tempo_prior_std = tempo_std;
   /* Adjust g_var based on prior std - wider prior means more variance allowed */
@@ -1043,8 +1063,9 @@ aubio_beattracking_set_use_dp(aubio_beattracking_t * bt, uint_t enabled)
       return AUBIO_FAIL;
     }
     
-    /* Initialize frame counter for beat extraction */
-    bt->dp_frame_count = 0;
+    /* Initialize frame tracking and cache */
+    bt->dp_frames_since_extract = 0;
+    bt->dp_cached_bpm = 0.0;
     
     /* Set default tempo prior (120 BPM ± 20 BPM) */
     aubio_dptracker_set_tempo(bt->dptracker_obj, 120.0, 20.0);
@@ -1139,19 +1160,9 @@ aubio_beattracking_feed_tempogram(aubio_beattracking_t * bt, smpl_t onset_value)
       aubio_beattracking_enhance_onset(bt, onset_value) : onset_value;
     aubio_dptracker_do(bt->dptracker_obj, enhanced_onset);
     
-    /* Extract beats periodically to update beat sequence and BPM
-     * This is necessary for aubio_dptracker_get_bpm() to work properly
-     * Call more frequently (every 8 frames) for better responsiveness */
-    bt->dp_frame_count++;
-    if (bt->dp_frame_count >= 8) {  /* Changed from bt->step to 8 for more frequent updates */
-      /* Use rwv length as window size (it's set to laglen in constructor) */
-      fvec_t *dummy_beats = new_fvec(bt->rwv->length);
-      if (dummy_beats) {
-        aubio_dptracker_get_beats(bt->dptracker_obj, dummy_beats);
-        del_fvec(dummy_beats);
-      }
-      bt->dp_frame_count = 0;
-    }
+    /* Session +2 FIX: Count frames for periodic extraction
+     * Extract beats every 'step' frames to prevent detecting extraction frequency */
+    bt->dp_frames_since_extract++;
   }
   
   /* Only process tempogram if enabled and initialized */
