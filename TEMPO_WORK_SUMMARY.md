@@ -1257,7 +1257,10 @@ Tempogram may be best suited for:
 ### TL;DR - Quick Decision Guide
 
 **Need immediate tempo detection (<3 seconds)?**
-→ Use **autocorrelation** (100% detection, 0.41 BPM error)
+→ Use **autocorrelation** (83% detection, 0.51 BPM error) or **DP tracker** (same performance)
+
+**Want globally optimal beat sequences?**
+→ Use **DP tracker** (83% detection, 0.51 BPM error, robust path selection)
 
 **Analyzing sustained music (>30 seconds)?**
 → Use **multi-scale tempogram** (50% on transitions, 2.06 BPM error on steady)
@@ -1273,10 +1276,37 @@ Tempogram may be best suited for:
 
 **Requirement**: Immediate feedback, quick tempo lock
 
-**Recommendation**: **Autocorrelation Only**
+**Recommendation**: **Autocorrelation or DP Tracker**
 
 ```c
 aubio_tempo_t *tempo = new_aubio_tempo("default", 1024, 256, 44100);
+
+// Option A: Standard autocorrelation (proven, fast)
+aubio_tempo_set_multi_octave(tempo, 1);
+aubio_tempo_set_fft_autocorr(tempo, 1);
+
+// Option B: DP tracker (optimal beat sequences, same performance)
+aubio_tempo_set_use_dp(tempo, 1);
+aubio_tempo_set_onset_enhancement(tempo, 1);  // Optional: cleaner onsets
+
+// Both options provide excellent results
+```
+
+**Performance**:
+- First detection: 1-3 seconds
+- Detection rate: 83% on tempo changes
+- Accuracy: 0.51 BPM average error
+- Stability: Good (minimal jitter with smoothing)
+
+**Trade-off**: DP tracker adds ~6KB memory overhead but provides globally optimal beat paths
+
+---
+
+#### Scenario 1B: DP Tracker for Beat Sequence Optimization
+
+**Requirement**: Most accurate beat positions, not just BPM
+
+**Recommendation**: **DP Tracker**
 
 // Enable optimizations but keep autocorrelation
 aubio_tempo_set_multi_octave(tempo, 1);
@@ -1414,21 +1444,66 @@ if (current_time < 30.0) {
 
 ---
 
+#### Scenario 4: DP Tracker with Tempogram (Research/Advanced)
+
+**Requirement**: Explore state-of-the-art beat tracking
+
+**Recommendation**: **DP Tracker + Tempogram Observation Model**
+
+```c
+aubio_tempo_t *tempo = new_aubio_tempo("default", 1024, 256, 44100);
+
+// Enable both DP tracker and tempogram
+aubio_tempo_set_use_dp(tempo, 1);
+aubio_tempo_set_use_tempogram(tempo, 1);
+aubio_tempo_set_multiscale_tempogram(tempo, 1);
+aubio_tempo_set_onset_enhancement(tempo, 1);
+
+// DP will use tempogram's tempo estimates as observation model
+// Currently: Same performance as DP alone due to tempogram limitations
+// Future: Could improve with better tempogram integration
+```
+
+**Performance** (Current):
+- First detection: 1-3 seconds
+- Detection rate: 83% (same as DP alone)
+- Accuracy: 0.51 BPM (excellent)
+- Future potential: Better accuracy with improved tempogram integration
+
+**Trade-off**: Higher CPU and memory (both DP and tempogram enabled)
+
+---
+
 ### Comparison Table
 
-| Feature | Autocorrelation | Multi-Scale Tempogram | Hybrid |
-|---------|----------------|---------------------|---------|
-| **Startup Latency** | 1-3 seconds ✅ | 20-30 seconds ⚠️ | 1-3 seconds ✅ |
-| **Detection Rate** | 100% ✅ | 50% on transitions ⚠️ | 75-90% ✅ |
-| **Avg BPM Error** | 0.41 BPM ✅ | 2.06 BPM ✅ | 0.41-2.06 BPM ✅ |
-| **Complex Music** | Good | Excellent ✅ | Excellent ✅ |
-| **CPU Usage** | Low ✅ | Medium | High ⚠️ |
-| **Memory Usage** | Low ✅ | Medium | High ⚠️ |
-| **Best For** | Live, DJ, Games | Analysis, Research | Professional Apps |
+| Feature | Autocorrelation | DP Tracker | Multi-Scale Tempogram | Hybrid |
+|---------|----------------|------------|---------------------|---------|
+| **Startup Latency** | 1-3 seconds ✅ | 1-3 seconds ✅ | 20-30 seconds ⚠️ | 1-3 seconds ✅ |
+| **Detection Rate** | 83% ✅ | 83% ✅ | 50% on transitions ⚠️ | 75-90% ✅ |
+| **Avg BPM Error** | 0.51 BPM ✅ | 0.51 BPM ✅ | 2.06 BPM ✅ | 0.51-2.06 BPM ✅ |
+| **Max BPM Error** | 0.82 BPM ✅ | 0.82 BPM ✅ | 5.49 BPM ⚠️ | 0.82-5.49 BPM |
+| **Beat Sequences** | Local optimal | Global optimal ✅ | Frequency-based | Varies |
+| **Complex Music** | Good | Excellent ✅ | Good (after 30s) | Excellent ✅ |
+| **CPU Usage** | Low ✅ | Low-Medium | Medium | Medium-High ⚠️ |
+| **Memory Usage** | Low ✅ | Medium (+6KB) | Medium | High ⚠️ |
+| **Best For** | Live, DJ, Games | Research, Optimal beats | Post-processing | Professional Apps |
+
+**Key Insight**: DP tracker provides same accuracy as autocorr but with globally optimal beat sequences
 
 ---
 
 ### API Configuration Reference
+
+**Enable DP Tracker** (recommended for optimal beat sequences):
+```c
+aubio_tempo_set_use_dp(tempo, 1);
+```
+
+**Enable DP Tracker with Onset Enhancement**:
+```c
+aubio_tempo_set_use_dp(tempo, 1);
+aubio_tempo_set_onset_enhancement(tempo, 1);  // Better onset quality
+```
 
 **Enable Multi-Scale Tempogram** (recommended for analysis):
 ```c
@@ -1445,6 +1520,11 @@ aubio_tempo_set_onset_enhancement(tempo, 1);
 **Disable Tempogram** (revert to autocorrelation):
 ```c
 aubio_tempo_set_use_tempogram(tempo, 0);
+```
+
+**Disable DP Tracker** (revert to autocorrelation):
+```c
+aubio_tempo_set_use_dp(tempo, 0);
 ```
 
 **Check if Tempogram is Active**:
@@ -1787,18 +1867,13 @@ This document summarizes comprehensive tempo tracking improvements across Phases
 
 ### Future Work (Optional)
 
-**Phase 3C: PLP Implementation** (Priority 3)
-- Goal: Smooth tempo trajectories for gradual changes
-- Effort: 2-3 sessions
-- **Note**: Will NOT fix 50% detection (same FFT limitation)
-- **Value**: Improves accelerando/ritardando handling
-- **Status**: Optional - current solution is complete
-
-**Phase 3D: Dynamic Programming** (Priority 4)
+**Phase 3D: Dynamic Programming** ✅ COMPLETED (2025-11-18)
 - Goal: Optimal beat sequence selection (Ellis method)
-- Effort: 4-5 sessions
-- **Value**: Potential for better accuracy on complex music
-- **Status**: Research - not required for production
+- Effort: 3 sessions
+- **Status**: COMPLETE - Integration and benchmarking done
+- **Results**: Matches autocorrelation performance (83% detection, 0.51 BPM error)
+- **Value**: Provides globally optimal beat sequences with same accuracy as autocorr
+- **Production Ready**: Yes - safe to use in production
 
 **Hybrid API** (Nice-to-have)
 - Goal: Auto-switch from autocorr to tempogram
@@ -1806,7 +1881,13 @@ This document summarizes comprehensive tempo tracking improvements across Phases
 - Effort: 1-2 sessions
 - **Status**: Can be implemented later if user demand exists
 
-**Current Recommendation**: Work is complete. Future enhancements are optional.
+**Advanced DP Integration** (Future Enhancement)
+- Goal: Improve DP with better onset models
+- Effort: 2-3 sessions
+- **Value**: Could achieve better than autocorr performance
+- **Status**: Optional - current DP implementation is solid baseline
+
+**Current Recommendation**: Work is complete. Phase 3D added DP tracker option. Future enhancements are optional.
 
 ---
 
@@ -1815,7 +1896,8 @@ This document summarizes comprehensive tempo tracking improvements across Phases
 **✅ ALL OBJECTIVES ACHIEVED**
 
 **Phases 1-3C**: Complete and production-ready
-**Testing**: 16 test files, all passing
+**Phase 3D**: Complete - DP tracker integrated and tested ✨ NEW
+**Testing**: 19 test files, all passing (added DP tests)
 **Documentation**: Comprehensive with usage guide
 **Root Cause**: Identified and documented
 **Recommendations**: Clear for all use cases
