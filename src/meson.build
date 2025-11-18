@@ -44,7 +44,6 @@ aubio_sources += files(
   'synth/sampler.c',
   'synth/wavetable.c',
   'tempo/beattracking.c',
-  'tempo/dptracker.c',
   'tempo/tempo.c',
   'tempo/tempogram.c',
   'temporal/a_weighting.c',
