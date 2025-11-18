@@ -24,6 +24,7 @@
 #include "mathutils.h"
 #include "tempo/beattracking.h"
 #include "tempo/tempogram.h"
+#include "tempo/dptracker.h"
 
 /** define to 1 to print out tracking difficulties */
 #define AUBIO_BEAT_WARNINGS 0
@@ -89,6 +90,10 @@ struct _aubio_beattracking_t
   aubio_tempogram_t *tempogram_long;   /** long-scale tempogram (1024 samples, ~6s) */
   fmat_t *tempogram_short_out;  /** short-scale output matrix */
   fmat_t *tempogram_long_out;   /** long-scale output matrix */
+  
+  /* Phase 3D: Dynamic programming beat tracker */
+  uint_t use_dp;           /** enable DP-based beat tracking */
+  aubio_dptracker_t *dptracker_obj;  /** DP beat tracker object */
 };
 
 aubio_beattracking_t *
@@ -170,6 +175,10 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
   p->tempogram_long = NULL;   /* Lazy initialization */
   p->tempogram_short_out = NULL;
   p->tempogram_long_out = NULL;
+  
+  /* Phase 3D: Dynamic programming beat tracker */
+  p->use_dp = 0;  /* Disabled by default */
+  p->dptracker_obj = NULL;  /* Lazy initialization when enabled */
 
   /* exponential weighting, dfwv = 0.5 when i =  43 */
   for (i = 0; i < winlen; i++) {
@@ -221,6 +230,10 @@ del_aubio_beattracking (aubio_beattracking_t * p)
   }
   if (p->tempogram_long_out) {
     del_fmat (p->tempogram_long_out);
+  }
+  /* Phase 3D: DP tracker cleanup */
+  if (p->dptracker_obj) {
+    del_aubio_dptracker (p->dptracker_obj);
   }
   AUBIO_FREE (p);
 }
@@ -636,6 +649,17 @@ aubio_beattracking_get_bpm (const aubio_beattracking_t * bt)
 {
   smpl_t current_bpm;
   
+  /* Phase 3D: Use DP tracker if enabled */
+  if (bt->use_dp && bt->dptracker_obj) {
+    current_bpm = aubio_dptracker_get_bpm(bt->dptracker_obj);
+    
+    /* If DP tracker has sufficient beats, use its estimate */
+    if (current_bpm > 0 && aubio_dptracker_get_num_beats(bt->dptracker_obj) >= 2) {
+      return current_bpm;
+    }
+    /* Otherwise fall through to other methods */
+  }
+  
   /* Phase 3: Use tempogram if enabled */
   if (bt->use_tempogram && bt->tempogram_obj && bt->tempogram_out) {
     /* Phase 3B: Multi-scale tempogram analysis */
@@ -999,6 +1023,32 @@ aubio_beattracking_set_multiscale_tempogram(aubio_beattracking_t * bt, uint_t en
   return AUBIO_OK;
 }
 
+uint_t
+aubio_beattracking_set_use_dp(aubio_beattracking_t * bt, uint_t enabled)
+{
+  AUBIO_ASSERT_NOT_NULL(bt);
+  
+  bt->use_dp = enabled ? 1 : 0;
+  
+  /* Lazy initialization of DP tracker when first enabled */
+  if (bt->use_dp && !bt->dptracker_obj) {
+    /* Create DP tracker with same window size as beat tracking */
+    uint_t dp_win = 512;  /* Standard DP window size */
+    bt->dptracker_obj = new_aubio_dptracker(dp_win, bt->hop_size, bt->samplerate);
+    
+    if (!bt->dptracker_obj) {
+      AUBIO_ERR("beattracking: failed to create DP tracker object\n");
+      bt->use_dp = 0;
+      return AUBIO_FAIL;
+    }
+    
+    /* Set default tempo prior (120 BPM ± 20 BPM) */
+    aubio_dptracker_set_tempo(bt->dptracker_obj, 120.0, 20.0);
+  }
+  
+  return AUBIO_OK;
+}
+
 void
 aubio_beattracking_get_acf(const aubio_beattracking_t * bt, fvec_t * acf)
 {
@@ -1078,7 +1128,15 @@ aubio_beattracking_feed_tempogram(aubio_beattracking_t * bt, smpl_t onset_value)
 {
   AUBIO_ASSERT_NOT_NULL(bt);
   
-  /* Only process if tempogram is enabled and initialized */
+  /* Feed DP tracker if enabled (Phase 3D) */
+  if (bt->use_dp && bt->dptracker_obj) {
+    /* Apply onset enhancement if enabled for better DP beat tracking */
+    smpl_t enhanced_onset = bt->onset_enhancement ? 
+      aubio_beattracking_enhance_onset(bt, onset_value) : onset_value;
+    aubio_dptracker_do(bt->dptracker_obj, enhanced_onset);
+  }
+  
+  /* Only process tempogram if enabled and initialized */
   if (!bt->use_tempogram || !bt->tempogram_obj || !bt->tempogram_out) {
     return;
   }
