@@ -70,6 +70,7 @@ struct _aubio_beattracking_t
   uint_t enable_dynamic_tempo; /** enable frame-by-frame tempo estimation */
   fvec_t *tempo_history;  /** circular buffer of recent tempo estimates */
   uint_t tempo_history_pos; /** current position in tempo history buffer */
+  uint_t tempo_history_count; /** number of valid samples stored in tempo history */
   smpl_t instantaneous_tempo; /** current frame tempo estimate (before smoothing) */
   
   /* Phase 3: Advanced autocorrelation and tempogram */
@@ -146,9 +147,10 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
   p->tempo_change_threshold = 0.15;  /* 15% change triggers re-analysis */
   
   /* Phase 3: Dynamic tempo tracking */
-  p->enable_dynamic_tempo = 0;  /* Disabled by default for backward compatibility */
+  p->enable_dynamic_tempo = 1;  /* Enabled by default for stability (median filtering) */
   p->tempo_history = new_fvec(16);  /* Keep last 16 tempo estimates (~24 seconds at default hop) */
   p->tempo_history_pos = 0;
+  p->tempo_history_count = 0;
   p->instantaneous_tempo = 0.0;
   
   /* Phase 3: FFT-based autocorrelation */
@@ -319,35 +321,34 @@ aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
       fvec_copy(bt->acfout, acfout_enhanced);
       
       /* Boost autocorrelation at half-period (for slow tempos like 80 BPM)
-       * Increased boost factor from 0.5 to 0.75 for better slow tempo detection */
+       * Increased boost factor (0.75) ensures the slow tempo peak is visible */
       for (i = 1; i < laglen / 2 - 1; i++) {
         uint_t double_idx = i * 2;
         if (double_idx < laglen - 1) {
           AUBIO_ASSERT_BOUNDS(i, acfout_enhanced->length);
           AUBIO_ASSERT_BOUNDS(double_idx, bt->acfout->length);
-          acfout_enhanced->data[i] += 0.75 * bt->acfout->data[double_idx];
+          acfout_enhanced->data[i] += 0.75f * bt->acfout->data[double_idx];
         }
       }
-      
+
       /* Boost autocorrelation at double-period (for fast tempos like 160 BPM)
-       * Increased boost factor from 0.5 to 0.75 for better fast tempo detection */
+       * Increased boost factor (0.75) keeps the fast tempo peak competitive */
       for (i = laglen / 2; i < laglen - 1; i++) {
         uint_t half_idx = i / 2;
         if (half_idx > 0) {
           AUBIO_ASSERT_BOUNDS(i, acfout_enhanced->length);
           AUBIO_ASSERT_BOUNDS(half_idx, bt->acfout->length);
-          acfout_enhanced->data[i] += 0.75 * bt->acfout->data[half_idx];
+          acfout_enhanced->data[i] += 0.75f * bt->acfout->data[half_idx];
         }
       }
-      
+
       /* Extra boost for very fast tempos (140-200 BPM range: frames 43-74)
-       * This helps detect 160 BPM which is at ~65 frames */
+       * This helps detect 160 BPM which sits around lag index 65 */
       for (i = 43; i < 75 && i < laglen - 1; i++) {
         AUBIO_ASSERT_BOUNDS(i, acfout_enhanced->length);
-        /* Additional 20% boost for very fast tempo range */
-        acfout_enhanced->data[i] *= 1.2;
+        acfout_enhanced->data[i] *= 1.2f;
       }
-      
+
       fvec_copy(acfout_enhanced, bt->acfout);
       del_fvec(acfout_enhanced);
     }
@@ -613,6 +614,9 @@ aubio_beattracking_checkstate (aubio_beattracking_t * bt)
       AUBIO_ASSERT_BOUNDS(bt->tempo_history_pos, bt->tempo_history->length);
       bt->tempo_history->data[bt->tempo_history_pos] = current_bpm;
       bt->tempo_history_pos = (bt->tempo_history_pos + 1) % bt->tempo_history->length;
+      if (bt->tempo_history_count < bt->tempo_history->length) {
+        bt->tempo_history_count++;
+      }
     }
     
     bt->prev_tempo = current_bpm;
@@ -749,12 +753,55 @@ aubio_beattracking_get_bpm (const aubio_beattracking_t * bt)
     return 0.;
   }
   
-  /* Apply light smoothing based on confidence
-   * Higher confidence = less smoothing (more responsive)
-   * Lower confidence = more smoothing (more stable) */
-  if (bt->prev_tempo > 0. && bt->tempo_confidence > 0.) {
-    smpl_t alpha = 0.2 + 0.3 * bt->tempo_confidence;  /* 0.2 to 0.5 */
-    current_bpm = alpha * current_bpm + (1.0 - alpha) * bt->prev_tempo;
+  /* Apply strong smoothing to prevent octave jumps
+   * Use median of recent estimates if dynamic tempo is enabled */
+  if (bt->enable_dynamic_tempo && bt->tempo_history && bt->tempo_history_count >= 5) {
+    /* Use median of last 5 estimates for stability */
+    fvec_t *recent = new_fvec(5);
+    if (recent) {
+      uint_t i;
+      for (i = 0; i < recent->length; i++) {
+        uint_t idx = (bt->tempo_history_pos + bt->tempo_history->length - 1 - i)
+            % bt->tempo_history->length;
+        AUBIO_ASSERT_BOUNDS(idx, bt->tempo_history->length);
+        AUBIO_ASSERT_BOUNDS(i, recent->length);
+        recent->data[i] = bt->tempo_history->data[idx];
+      }
+      smpl_t median_tempo = fvec_median(recent);
+      del_fvec(recent);
+
+      if (median_tempo > 0.) {
+        /* Reject octave errors relative to historical median */
+        if (current_bpm > 1.7 * median_tempo) {
+          current_bpm = current_bpm / 2.0;
+        } else if (current_bpm < 0.6 * median_tempo) {
+          current_bpm = current_bpm * 2.0;
+        }
+
+        /* Adapt smoothing strength based on how large the tempo jump is */
+        smpl_t diff = ABS(current_bpm - median_tempo);
+        smpl_t smoothing = 0.3;
+        if (diff > 12.0) {
+          smoothing = 0.0;
+        } else if (diff > 6.0) {
+          smoothing = 0.1;
+        }
+        current_bpm = (1.0 - smoothing) * current_bpm + smoothing * median_tempo;
+      }
+    }
+  } else if (bt->prev_tempo > 0.) {
+    /* Fallback: stronger exponential smoothing (0.6 instead of variable alpha)
+     * This prevents jumps when dynamic tempo is disabled */
+    
+    /* First check for octave errors relative to previous tempo */
+    if (current_bpm > 1.7 * bt->prev_tempo) {
+      current_bpm = current_bpm / 2.0;
+    } else if (current_bpm < 0.6 * bt->prev_tempo) {
+      current_bpm = current_bpm * 2.0;
+    }
+    
+    /* Then smooth */
+    current_bpm = 0.6 * current_bpm + 0.4 * bt->prev_tempo;
   }
   
   return current_bpm;
@@ -894,8 +941,22 @@ aubio_beattracking_set_use_tempogram(aubio_beattracking_t * bt, uint_t enabled)
   
   /* Lazy initialization of tempogram when first enabled */
   if (bt->use_tempogram && !bt->tempogram_obj) {
-    /* Create tempogram with power-of-2 window size for FFT */
-    uint_t tempogram_win = 512;  /* Must be power of 2 */
+    /* Create tempogram with a power-of-2 window size >= hop size */
+    uint_t desired_win = bt->hop_size;
+    if (desired_win < 256) {
+      desired_win = 256;
+    }
+    uint_t tempogram_win = aubio_next_power_of_two(desired_win);
+
+    if (tempogram_win < desired_win || tempogram_win > 4096) {
+      AUBIO_ERR(
+        "beattracking: hop size %d incompatible with tempogram window %d\n",
+        bt->hop_size, tempogram_win
+      );
+      bt->use_tempogram = 0;
+      return AUBIO_FAIL;
+    }
+
     bt->tempogram_obj = new_aubio_tempogram(tempogram_win, bt->hop_size, bt->samplerate);
     
     if (!bt->tempogram_obj) {
@@ -946,8 +1007,13 @@ aubio_beattracking_set_multiscale_tempogram(aubio_beattracking_t * bt, uint_t en
       return AUBIO_FAIL;
     }
     
-    /* Create short-scale tempogram (256 samples, ~1.5s at 44.1kHz/256hop) */
-    uint_t short_win = 256;
+    /* Create short-scale tempogram (>= hop size, ~1.5s at 44.1kHz/256hop) */
+    uint_t short_win = aubio_next_power_of_two(MAX(256, bt->hop_size));
+    if (short_win > 4096) {
+      AUBIO_ERR("beattracking: hop size %d too large for short tempogram window\n", bt->hop_size);
+      bt->use_multiscale = 0;
+      return AUBIO_FAIL;
+    }
     bt->tempogram_short = new_aubio_tempogram(short_win, bt->hop_size, bt->samplerate);
     
     if (!bt->tempogram_short) {
@@ -967,8 +1033,17 @@ aubio_beattracking_set_multiscale_tempogram(aubio_beattracking_t * bt, uint_t en
       return AUBIO_FAIL;
     }
     
-    /* Create long-scale tempogram (1024 samples, ~6s at 44.1kHz/256hop) */
-    uint_t long_win = 1024;
+    /* Create long-scale tempogram (>= hop size, ~6s window) */
+    uint_t long_win = aubio_next_power_of_two(MAX(1024, bt->hop_size));
+    if (long_win > 4096) {
+      AUBIO_ERR("beattracking: hop size %d too large for long tempogram window\n", bt->hop_size);
+      bt->use_multiscale = 0;
+      del_fmat(bt->tempogram_short_out);
+      bt->tempogram_short_out = NULL;
+      del_aubio_tempogram(bt->tempogram_short);
+      bt->tempogram_short = NULL;
+      return AUBIO_FAIL;
+    }
     bt->tempogram_long = new_aubio_tempogram(long_win, bt->hop_size, bt->samplerate);
     
     if (!bt->tempogram_long) {
