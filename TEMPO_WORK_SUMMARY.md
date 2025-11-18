@@ -1069,25 +1069,49 @@ PLP temporal smoothing is suitable for:
 
 ---
 
-**Phase 3D: Dynamic Programming Path (Priority 4 - Optional)**
+**Phase 3D: Dynamic Programming Path (IN PROGRESS 🚧 - Started 2025-11-18)**
 ```
-Goal: Optimal beat sequence selection
+Goal: Optimal beat sequence selection using Ellis (2007) algorithm
 Effort: 4-5 sessions
 Impact: State-of-the-art accuracy on complex music
+Status: Session 1 - Research & Design COMPLETE ✅
 
-Changes:
-1. Implement Ellis dynamic programming tracker
-   - Build cost matrix for all possible beat paths
-   - Include tempo continuity constraints
-   - Find globally optimal solution via Viterbi
+Session 1 Progress (2025-11-18):
+✅ Researched Ellis (2007) "Beat Tracking by Dynamic Programming"
+✅ Created detailed design document (doc/PHASE3D_DYNAMIC_PROGRAMMING.md)
+✅ Defined cost function: P_δ̂(δ) = -[log₂(δ/δ̂)]²
+✅ Designed DP tracker API and data structures
+✅ Planned integration with tempogram observation model
+✅ Established benchmarking strategy and success criteria
+
+Next Steps:
+1. Session 2: Implement core DP infrastructure (dptracker.c)
+   - Create aubio_dptracker_t structure
+   - Implement penalty function
+   - Implement DP recursion loop
+   - Unit tests for basic functionality
    
-2. Use tempogram as observation model
-   - Tempogram provides tempo likelihoods
-   - DP finds most likely tempo sequence
+2. Session 3: Implement Viterbi backtracking
+   - Beat sequence extraction
+   - Tempo estimation from DP path
+   - Integration with beattracking
    
-3. Make optional feature
-   - Enable with aubio_tempo_set_use_dp(1)
-   - Higher CPU cost but better accuracy
+3. Session 4: Optimization & benchmarking
+   - Performance profiling
+   - Test on test_bpm_changes.wav
+   - Compare with autocorr/tempogram baselines
+   
+4. Session 5: Documentation & validation
+   - Update TEMPO_WORK_SUMMARY.md with results
+   - Usage examples and recommendations
+   - Final performance metrics
+
+Design Details:
+- Cost function: -[log₂(δ/δ̂)]² (symmetric on log scale)
+- DP score: C({tᵢ}) = Σᵢ O(tᵢ) + Σᵢ P_δ̂(tᵢ - tᵢ₋₁)
+- Complexity: O(W) per frame, W ≈ 100-200 frames
+- Memory: ~6KB additional for DP buffers (win_s=512)
+- See doc/PHASE3D_DYNAMIC_PROGRAMMING.md for full specification
 ```
 
 #### 3.4 Detailed Plan for Next Session (Phase 3A)
