@@ -241,6 +241,147 @@ uint_t aubio_tempo_set_delay_s(aubio_tempo_t * o, smpl_t delay);
  */
 uint_t aubio_tempo_set_delay_ms(aubio_tempo_t * o, smpl_t delay);
 
+/** set tempo prior mean
+
+  \param o beat tracking object
+  \param tempo_mean prior mean tempo in BPM (default: 120.0)
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_tempo_prior_mean(aubio_tempo_t * o, smpl_t tempo_mean);
+
+/** set tempo prior standard deviation
+
+  \param o beat tracking object
+  \param tempo_std prior standard deviation in BPM (default: 1.0)
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_tempo_prior_std(aubio_tempo_t * o, smpl_t tempo_std);
+
+/** enable adaptive window sizing for faster response
+
+  When enabled, effective analysis is reduced when tempo is stable,
+  allowing faster response to tempo changes (2-3s instead of 6s).
+
+  \param o beat tracking object  
+  \param enabled 1 to enable adaptive sizing, 0 to disable
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_adaptive_winlen(aubio_tempo_t * o, uint_t enabled);
+
+/** enable multi-octave tempo detection
+
+  When enabled, checks if detected tempo might be half or double the actual
+  tempo, correcting octave errors. Improves detection of slow (< 80 BPM) and
+  fast (> 200 BPM) tempos. Enabled by default.
+
+  \param o tempo object
+  \param enabled 1 to enable multi-octave detection, 0 to disable
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_multi_octave(aubio_tempo_t * o, uint_t enabled);
+
+/** enable dynamic tempo tracking (Phase 3)
+
+  When enabled, stores history of instantaneous tempo estimates for frame-by-
+  frame analysis. Allows detection of tempo changes and time-varying tempo.
+
+  \param o tempo object
+  \param enabled 1 to enable dynamic tracking, 0 to disable (default)
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_dynamic_tempo(aubio_tempo_t * o, uint_t enabled);
+
+/** get instantaneous tempo estimate (Phase 3)
+
+  Returns current frame's tempo before smoothing. Useful for detecting rapid
+  tempo changes. Requires dynamic tempo tracking enabled.
+
+  \param o tempo object
+
+  \return instantaneous tempo in BPM, 0 if no tempo detected
+
+ */
+smpl_t aubio_tempo_get_instantaneous_bpm(const aubio_tempo_t * o);
+
+/** get tempo variance over recent history (Phase 3)
+
+  Calculates variance of recent tempo estimates. Higher variance indicates
+  unstable or changing tempo. Requires dynamic tempo tracking enabled.
+
+  \param o tempo object
+
+  \return tempo variance in BPM², 0 if dynamic tempo disabled
+
+ */
+smpl_t aubio_tempo_get_tempo_variance(const aubio_tempo_t * o);
+
+/** enable FFT-based autocorrelation (Phase 3 Advanced)
+
+  When enabled, uses FFT-based autocorrelation which is O(N log N) instead of
+  O(N²). Significantly faster for large windows (> 512 samples). Auto-enabled
+  for windows >= 512.
+
+  \param o tempo object
+  \param enabled 1 to enable FFT autocorrelation, 0 for direct method
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_fft_autocorr(aubio_tempo_t * o, uint_t enabled);
+
+/** enable Fourier tempogram-based tempo detection
+
+  When enabled, uses Short-Time Fourier Transform (STFT) on the onset
+  strength envelope to compute a time-frequency tempo representation.
+  This provides multi-resolution analysis and better time-varying tempo tracking.
+
+  \param o tempo detection object
+  \param enabled 1 to enable tempogram method, 0 for autocorrelation
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_use_tempogram(aubio_tempo_t * o, uint_t enabled);
+
+/** enable onset enhancement for tempogram (Phase 3A)
+
+  When enabled, applies median filtering and adaptive thresholding to onset
+  signals before feeding to tempogram. Improves beat detection on polyphonic
+  music by reducing noise from overlapping drum sounds. Enabled by default
+  when tempogram is enabled.
+
+  \param o tempo detection object
+  \param enabled 1 to enable onset enhancement (default), 0 to disable
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_onset_enhancement(aubio_tempo_t * o, uint_t enabled);
+
+/** enable multi-scale tempogram analysis (Phase 3B)
+
+  When enabled, uses multiple tempogram window sizes to analyze tempo at
+  different temporal scales. Combines results for better detection of both
+  sudden and gradual tempo changes. Requires tempogram to be enabled first.
+
+  \param o tempo detection object
+  \param enabled 1 to enable multi-scale analysis, 0 to disable (default)
+
+  \return `0` if successful, non-zero otherwise
+
+ */
+uint_t aubio_tempo_set_multiscale_tempogram(aubio_tempo_t * o, uint_t enabled);
+
 /** delete tempo detection object
 
   \param o beat tracking object

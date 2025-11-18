@@ -17,6 +17,9 @@ test_sound_gen = custom_target('generate_test_sound',
 # Get the path to the generated test sound
 test_sound_path = meson.current_build_dir() / test_sound_target
 
+# Path to tempo test audio files (in source tree)
+tempo_test_dir = meson.project_source_root() / 'tests'
+
 # Include directories
 tests_inc = include_directories('.', '../src')
 
@@ -68,6 +71,21 @@ test_sources = files(
   # Tempo tests
   'src/tempo/test-beattracking.c',
   'src/tempo/test-tempo.c',
+  'src/tempo/test-tempo-improved.c',
+  'src/tempo/test-tempo-benchmark.c',
+  'src/tempo/test-tempo-benchmark-optimized.c',
+  'src/tempo/test-autocorr-comparison.c',
+  'src/tempo/test-tempogram-basic.c',
+  'src/tempo/test-tempogram-benchmark.c',
+  'src/tempo/test-tempogram-benchmark-multiscale.c',
+  'src/tempo/test-tempogram-diagnostic.c',
+  'src/tempo/test-tempogram-simple.c',
+  'src/tempo/test-tempogram-via-tempo-api.c',
+  'src/tempo/test-tempogram-real-audio.c',
+  'src/tempo/test-tempogram-plp.c',
+  'src/tempo/test-tempogram-plp-gradual.c',
+  'src/tempo/test-regression-check.c',
+  'src/tempo/test-tempo-comprehensive.c',
   # Temporal tests
   'src/temporal/test-a_weighting.c',
   'src/temporal/test-biquad.c',
@@ -136,6 +154,7 @@ foreach test_src : test_sources
       '-DHAVE_CONFIG_H=1',
       '-DAUBIO_UNSTABLE_API=1',
       '-DAUBIO_TESTS_SOURCE=' + test_sound_path,
+      '-DAUBIO_TEMPO_TEST_DIR="' + tempo_test_dir + '"',
     ],
     install: false,
   )

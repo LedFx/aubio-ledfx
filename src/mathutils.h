@@ -137,6 +137,24 @@ void fvec_push(fvec_t *in, smpl_t new_elem);
 */
 smpl_t fvec_sum (fvec_t * v);
 
+/** compute the variance of a vector
+
+  \param v vector to compute the variance of
+
+  \return the variance of v
+
+*/
+smpl_t fvec_variance (fvec_t * v);
+
+/** compute the standard deviation of a vector
+
+  \param v vector to compute the standard deviation of
+
+  \return the standard deviation of v
+
+*/
+smpl_t fvec_stddev (fvec_t * v);
+
 /** compute the High Frequency Content of a vector
 
   The High Frequency Content is defined as \f$ \sum_0^{N-1} (k+1) v[k] \f$.
@@ -333,6 +351,14 @@ uint_t aubio_power_of_two_order(uint_t a);
 
 */
 void aubio_autocorr (const fvec_t * input, fvec_t * output);
+
+/** compute autocorrelation using FFT (faster for large windows)
+ 
+  \param input input signal
+  \param output output autocorrelation function
+ 
+*/
+void aubio_autocorr_fft (const fvec_t * input, fvec_t * output);
 
 #ifdef __cplusplus
 }

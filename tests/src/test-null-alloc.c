@@ -190,9 +190,24 @@ int test_notes(void) {
 
 /* Test I/O constructors */
 int test_io(void) {
-  aubio_sink_wavwrite_t *sw = new_aubio_sink_wavwrite("/tmp/test.wav", 44100);
+  /* Use platform-appropriate temp path */
+#ifdef _WIN32
+  char_t temp_path[256];
+  char_t *temp_dir = getenv("TEMP");
+  if (!temp_dir) temp_dir = getenv("TMP");
+  if (!temp_dir) temp_dir = ".";
+  snprintf((char*)temp_path, sizeof(temp_path), "%s\\test-aubio.wav", temp_dir);
+#else
+  const char_t *temp_path = "/tmp/test-aubio.wav";
+#endif
+  
+  aubio_sink_wavwrite_t *sw = new_aubio_sink_wavwrite(temp_path, 44100);
   TEST("new_aubio_sink_wavwrite", sw != NULL);
-  del_aubio_sink_wavwrite(sw);
+  if (sw) {
+    del_aubio_sink_wavwrite(sw);
+    /* Clean up test file */
+    remove((const char*)temp_path);
+  }
   
   aubio_source_wavread_t *sr = new_aubio_source_wavread("sounds/woodblock.wav", 44100, 256);
   TEST("new_aubio_source_wavread", sr != NULL || 1); // OK if file doesn't exist

@@ -107,6 +107,175 @@ smpl_t aubio_beattracking_get_bpm(const aubio_beattracking_t * bt);
 */
 smpl_t aubio_beattracking_get_confidence(const aubio_beattracking_t * bt);
 
+/** set tempo prior mean
+
+  \param bt beat tracking object
+  \param tempo_mean prior mean tempo in BPM (default: 120.0)
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_tempo_prior_mean(aubio_beattracking_t * bt, smpl_t tempo_mean);
+
+/** set tempo prior standard deviation
+
+  \param bt beat tracking object
+  \param tempo_std prior standard deviation in BPM (default: 1.0)
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_tempo_prior_std(aubio_beattracking_t * bt, smpl_t tempo_std);
+
+/** enable adaptive window sizing for faster response
+
+  When enabled, the analysis window size is reduced when tempo is stable
+  and high confidence, allowing faster response to tempo changes.
+
+  \param bt beat tracking object
+  \param enabled 1 to enable adaptive sizing, 0 to disable
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_adaptive_winlen(aubio_beattracking_t * bt, uint_t enabled);
+
+/** enable multi-octave tempo detection
+
+  When enabled, the detector checks if the detected tempo might be half or
+  double the actual tempo, and corrects it based on the tempo prior or
+  heuristics. This improves detection of slow tempos (< 80 BPM) and very
+  fast tempos (> 200 BPM).
+
+  \param bt beat tracking object
+  \param enabled 1 to enable multi-octave detection (default), 0 to disable
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_multi_octave(aubio_beattracking_t * bt, uint_t enabled);
+
+/** enable dynamic tempo tracking (Phase 3)
+
+  When enabled, the beat tracker stores a history of instantaneous tempo
+  estimates, allowing frame-by-frame tempo analysis and variance calculation.
+  This enables detection of tempo changes and time-varying tempo tracking.
+
+  \param bt beat tracking object
+  \param enabled 1 to enable dynamic tempo tracking, 0 to disable (default)
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_dynamic_tempo(aubio_beattracking_t * bt, uint_t enabled);
+
+/** get instantaneous tempo estimate (Phase 3)
+
+  Returns the current frame's tempo estimate before smoothing. Useful for
+  detecting rapid tempo changes or analyzing time-varying tempo.
+
+  \param bt beat tracking object
+
+  \return instantaneous tempo in BPM, 0 if no tempo detected
+
+*/
+smpl_t aubio_beattracking_get_instantaneous_bpm(const aubio_beattracking_t * bt);
+
+/** get tempo variance over recent history (Phase 3)
+
+  Calculates variance of recent tempo estimates from the history buffer.
+  Higher variance indicates unstable or changing tempo. Requires dynamic
+  tempo tracking to be enabled.
+
+  \param bt beat tracking object
+
+  \return tempo variance in BPM², 0 if dynamic tempo disabled
+
+*/
+smpl_t aubio_beattracking_get_tempo_variance(const aubio_beattracking_t * bt);
+
+/** enable FFT-based autocorrelation (Phase 3 Advanced)
+
+  When enabled, uses FFT-based autocorrelation which is O(N log N) instead
+  of O(N²) for direct computation. Significantly faster for large windows
+  (> 512 samples). Enabled automatically for windows >= 512.
+
+  \param bt beat tracking object
+  \param enabled 1 to enable FFT autocorrelation, 0 for direct method
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_fft_autocorr(aubio_beattracking_t * bt, uint_t enabled);
+
+/** enable Fourier tempogram-based tempo detection
+
+  When enabled, uses tempogram analysis instead of direct autocorrelation
+  for tempo detection. Provides multi-resolution analysis and better
+  time-varying tempo tracking.
+
+  \param bt beat tracking object
+  \param enabled 1 to enable tempogram, 0 to disable
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_use_tempogram(aubio_beattracking_t * bt, uint_t enabled);
+
+/** get autocorrelation function (for debugging/analysis)
+
+  Returns the most recently computed autocorrelation function. Useful for
+  advanced tempo analysis and visualization.
+
+  \param bt beat tracking object
+  \param acf output vector to store autocorrelation (will be resized if needed)
+
+*/
+void aubio_beattracking_get_acf(const aubio_beattracking_t * bt, fvec_t * acf);
+
+/** feed onset value to tempogram if enabled
+
+  This should be called on every hop to feed onset values to the tempogram
+  for FFT-based tempo analysis. Only has effect if tempogram is enabled.
+
+  \param bt beat tracking object
+  \param onset_value onset strength value (usually thresholded onset)
+
+*/
+void aubio_beattracking_feed_tempogram(aubio_beattracking_t * bt, smpl_t onset_value);
+
+/** enable onset enhancement for tempogram (Phase 3A)
+
+  When enabled, applies median filtering and adaptive thresholding to onset
+  signals before feeding to tempogram. Improves beat detection on polyphonic
+  music by reducing noise from overlapping drum sounds. Enabled by default.
+
+  \param bt beat tracking object
+  \param enabled 1 to enable onset enhancement (default), 0 to disable
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_onset_enhancement(aubio_beattracking_t * bt, uint_t enabled);
+
+/** enable multi-scale tempogram analysis (Phase 3B)
+
+  When enabled, uses multiple tempogram window sizes (short: 256, medium: 512,
+  long: 1024 samples) to analyze tempo at different temporal scales. Combines
+  results using weighted strategy: high confidence from any scale wins, with
+  preference for longer scales when stable. Improves detection of both sudden
+  and gradual tempo changes.
+
+  Note: Requires tempogram to be enabled first via aubio_beattracking_set_use_tempogram.
+
+  \param bt beat tracking object
+  \param enabled 1 to enable multi-scale analysis, 0 to disable (default)
+
+  \return `0` if successful, non-zero otherwise
+
+*/
+uint_t aubio_beattracking_set_multiscale_tempogram(aubio_beattracking_t * bt, uint_t enabled);
+
 /** delete beat tracking object
 
   \param p beat tracking object
