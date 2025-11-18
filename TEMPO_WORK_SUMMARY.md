@@ -1,11 +1,28 @@
 # Tempo & Beat Tracking Work Summary
 
-**Branch**: copilot/review-markdown-files-progress  
-**Date**: 2025-11-17  
-**Focus**: Tempo and beat tracking improvements  
+**Branch**: copilot/validate-tempo-tasks-and-improvements  
+**Last Updated**: 2025-11-18  
+**Focus**: Tempo and beat tracking improvements + Critical bug fixes  
 **Files**: 41 tempo-related files  
-**Tests**: 14 C test files  
-**Documentation**: ~50,000 lines  
+**Tests**: 21 C test files (expanded)  
+**Documentation**: ~3000 lines (this file)  
+
+---
+
+## ⚠️ CRITICAL UPDATE (2025-11-18)
+
+**Major Discovery**: Phase 3D DP tracker integration bug found during validation.
+
+**Issue**: DP tracker was **never actually running** despite being marked "complete". All performance claims (83% detection, matches autocorr) were measuring autocorrelation fallback, not the DP tracker itself.
+
+**Root Cause**: `aubio_dptracker_get_beats()` was never called, so `num_beats` stayed at 0, causing `get_bpm()` to always return 0.0 and fall back to autocorrelation.
+
+**Status**: 
+- ✅ Bug identified and partially fixed (commit 56dcb19)
+- ⚠️ DP now runs but underperforms: 17% detection vs 83% autocorr
+- 🔄 Sessions +1, +2, +3 planned to properly fix DP tracker
+
+**Impact on Documentation**: All Phase 3D performance claims in this document prior to this update were incorrect. See updated Phase 3D section below for accurate status.
 
 ---
 
@@ -1069,12 +1086,17 @@ PLP temporal smoothing is suitable for:
 
 ---
 
-**Phase 3D: Dynamic Programming Path (IN PROGRESS 🚧 - Started 2025-11-18)**
+**Phase 3D: Dynamic Programming Path (CRITICAL BUG FOUND 2025-11-18) ⚠️**
 ```
 Goal: Optimal beat sequence selection using Ellis (2007) algorithm
-Effort: 4-5 sessions
-Impact: State-of-the-art accuracy on complex music
-Status: Session 3 - Integration COMPLETE ✅
+Effort: Originally 4-5 sessions, now extended with bug fixes
+Impact: State-of-the-art accuracy on complex music (NOT YET ACHIEVED)
+Status: Sessions 1-4 INVALIDATED due to integration bug ❌
+        Bug fix in progress, Sessions +1/+2/+3 planned 🔄
+
+⚠️ CRITICAL DISCOVERY (2025-11-18):
+All Sessions 1-4 results were measuring AUTOCORRELATION, not DP tracker.
+DP tracker was never actually running - always falling back to autocorr.
 
 Session 1 Progress (2025-11-18):
 ✅ Researched Ellis (2007) "Beat Tracking by Dynamic Programming"
@@ -1104,90 +1126,211 @@ Session 3 Progress (2025-11-18):
 ✅ Added proper memory cleanup in destructor
 ✅ Created integration test: test-tempo-dp.c
 ✅ Created comprehensive benchmark: test-tempo-dp-benchmark.c
-✅ All tests passing with < 1 BPM error on synthetic audio
-✅ Benchmark shows DP matches autocorrelation performance (83.3% detection, 0.51 BPM error)
+❌ INTEGRATION BUG: Never called aubio_dptracker_get_beats()
+❌ Result: DP tracker never actually ran, all tests measured autocorr fallback
 
 Session 4 Progress (2025-11-18):
 ✅ Created test-dptracker-performance.c for CPU and memory profiling
-✅ Memory profiling: Linear scaling (6-48 KB for 256-2048 window sizes)
-✅ CPU profiling: 0.644 μs per frame (9008x realtime factor)
-✅ Overhead analysis: +3.9% vs autocorrelation (minimal)
-✅ Scalability confirmed across window sizes
 ✅ Created test-tempo-dp-gradual.c for gradual tempo testing
-✅ Tested on accelerando/ritardando patterns (test_bpm_gradual.wav)
-✅ Results: Matches autocorrelation performance exactly
-✅ All 4 sections tracked accurately (0.51-5.71 BPM error range)
-✅ DP tracker confirmed production-ready for realtime use
+❌ All performance data INVALID (measured autocorrelation, not DP)
+❌ "Matches autocorr" was actually "IS autocorr" due to fallback
 
-Key Implementation Details:
-- DP tracker receives same onset values as tempogram (shared feed function)
-- Lazy initialization on first enable (512-frame window, 120±20 BPM default)
-- Priority order in get_bpm(): DP → tempogram → autocorrelation
-- Onset enhancement applied when both DP and enhancement enabled
-- Integration with tempogram as observation model supported
-- Memory usage: ~12 KB for DP buffers (win_s=512)
-- CPU overhead: +3.9% vs autocorrelation (minimal, 30.5 vs 29.3 μs/frame)
-- Realtime factor: 9008x on isolated DP operations, 190x in full tempo pipeline
+VALIDATION Session (2025-11-18):
+✅ Discovered DP tracker producing identical results to autocorr
+✅ Root cause identified: aubio_dptracker_get_beats() never called
+✅ Bug partially fixed: Added periodic get_beats() calls (commit 56dcb19)
+✅ DP tracker NOW RUNS but underperforms:
+   - Autocorrelation: 5/6 sections (83%), 0.51 BPM avg error
+   - DP Tracker:      1/6 sections (17%), 0.31 BPM avg error
+   - Only detects section 5 (80 BPM), misses all others
 
-Performance Profiling Results (Session 4):
-┌─────────────┬─────────────┬───────────┬────────────┐
-│ Window Size │ Memory (KB) │ CPU (μs)  │ RT Factor  │
-├─────────────┼─────────────┼───────────┼────────────┤
-│ 256 frames  │ 6.25        │ 0.678     │ 8567x      │
-│ 512 frames  │ 12.25       │ 0.663     │ 8755x      │
-│ 1024 frames │ 24.25       │ 0.658     │ 8819x      │
-│ 2048 frames │ 48.25       │ 0.655     │ 8868x      │
-└─────────────┴─────────────┴───────────┴────────────┘
+Current Implementation Status:
+- DP tracker receives onset values ✅
+- DP tracker builds DP table ✅
+- DP tracker extracts beats every 8 frames ✅
+- DP tracker returns BPM estimates ✅
+- But performance is poor (17% vs 83%) ❌
 
-Gradual Tempo Results (Session 4 - test_bpm_gradual.wav):
-┌──────────────────────┬──────────────┬───────────────┬──────────────┐
-│ Section              │ Expected Avg │ Autocorr BPM  │ DP BPM       │
-├──────────────────────┼──────────────┼───────────────┼──────────────┤
-│ Steady 100 BPM       │ 100.0        │ 100.51 (0.51) │ 100.51 (0.51)│
-│ Accelerando 100→140  │ 120.0        │ 114.29 (5.71) │ 114.29 (5.71)│
-│ Steady 140 BPM       │ 140.0        │ 143.77 (3.77) │ 143.77 (3.77)│
-│ Ritardando 140→100   │ 120.0        │ 117.45 (2.55) │ 117.45 (2.55)│
-└──────────────────────┴──────────────┴───────────────┴──────────────┘
-Note: Numbers in parentheses are absolute errors in BPM
+Hypothesized Issues:
+1. Tempo adaptation: May be locked to 120 BPM ± 20 BPM prior
+2. Observation model: Raw onsets may not provide enough signal
+3. Parameter tuning: Search range, penalty weights may need adjustment
+4. Beat extraction frequency: Every 8 frames may not be optimal
 
-Benchmark Results (test_bpm_changes.wav - 6 sections):
+Benchmark Results (AFTER BUG FIX - test_bpm_changes.wav):
 ╔════════════════════════════════════════════════════════════════════╗
 ║ Method                Detection   Avg Error   Max Error   Response ║
 ╠════════════════════════════════════════════════════════════════════╣
 ║ Autocorrelation       5/6 (83%)   0.51 BPM    0.82 BPM    3.17 s   ║
 ║ Multi-Scale Tempogram 3/6 (50%)   2.06 BPM    5.49 BPM    0.00 s   ║
-║ DP Tracker            5/6 (83%)   0.51 BPM    0.82 BPM    3.17 s   ║
-║ DP + Tempogram        5/6 (83%)   0.51 BPM    0.82 BPM    3.17 s   ║
+║ DP Tracker            1/6 (17%)   0.31 BPM    0.31 BPM    0.00 s   ║
+║ DP + Tempogram        1/6 (17%)   0.31 BPM    0.31 BPM    0.00 s   ║
 ╚════════════════════════════════════════════════════════════════════╝
+
+DP Tracker Section Details (AFTER BUG FIX):
+  Section 1 (120 BPM): ✗ Not detected
+  Section 2 (140 BPM): ✗ Not detected
+  Section 3 (100 BPM): ✗ Not detected
+  Section 4 (160 BPM): ✗ Not detected
+  Section 5 ( 80 BPM): ✓ Detected 80.31 BPM (error: 0.31 BPM)
+  Section 6 (120 BPM): ✗ Not detected
 
 Key Findings:
 - DP tracker matches autocorrelation's excellent performance (expected)
-- Both achieve 83.3% detection rate with < 1 BPM error
-- DP tracker is currently using autocorrelation-based onsets
-- Tempogram still has early-section limitation (50% detection)
-- DP + Tempogram combo currently same as DP alone (onset quality issue)
+- DP tracker currently has poor real-world performance (17% detection)
+- Basic DP algorithm works (test-dptracker-basic passes with 0.33 BPM error)
+- Integration issue: DP now runs but needs better observation model
+- Root cause likely: tempo adaptation failure or insufficient onset signal
 
-Next Steps:
-1. Session 4: Optimization & Advanced Integration ✅ COMPLETED (2025-11-18)
-   - ✅ Profile DP tracker performance (CPU and memory)
-   - ✅ Improve onset quality for better DP path selection (same as autocorr)
-   - ✅ Test on gradual tempo changes (test_bpm_gradual.wav)
-   - ✅ Explore DP with improved observation models (tested with tempogram)
+Next Steps (UPDATED 2025-11-18):
+
+PREVIOUS Sessions 4-5: INVALIDATED
+❌ Session 4: All performance data was autocorrelation, not DP
+❌ Session 5: Documentation based on incorrect data
+
+NEW Session Plan (Post-Bug-Fix):
+
+Session +1: Expand Test Ecosystem with Debug Capabilities (PLANNED)
+Goal: Create comprehensive test infrastructure to diagnose DP issues
+Effort: 1 session
+Priority: HIGH - Required before fixing DP
+
+Tasks:
+1. Add debug modes to all tempo tests
+   - Verbose onset logging (frame-by-frame)
+   - DP state visualization (scores, backpointers)
+   - Beat sequence tracking
+   - Tempo trajectory plotting
    
-2. Session 5: Documentation & Production Readiness (IN PROGRESS - 2025-11-18)
-   - Update TEMPO_WORK_SUMMARY.md with final results
-   - Document usage recommendations (when to use DP vs other methods)
-   - Create code examples and API documentation
-   - Final performance validation and benchmarking
+2. Create unit tests for DP components
+   - Test penalty function in isolation
+   - Test beat extraction at different window fills
+   - Test tempo adaptation with changing priors
+   - Test observation model variations
+   
+3. Create integration tests with known failure modes
+   - Test tempo change detection (120→140 BPM)
+   - Test octave ambiguity (80 vs 160 BPM)
+   - Test onset sparsity (varying beat strengths)
+   - Test buffer wraparound edge cases
+   
+4. Implement diagnostic tools
+   - DP score histogram analysis
+   - Beat interval distribution
+   - Confidence evolution over time
+   - Comparison with ground truth beat times
+
+Expected Outcomes:
+- Identify why DP only detects section 5 (80 BPM)
+- Understand tempo adaptation behavior
+- Quantify onset signal quality requirements
+- Establish baseline for Session +2 fixes
+
+Files to Create:
+- tests/src/tempo/test-dptracker-debug.c (diagnostic mode)
+- tests/src/tempo/test-dptracker-unit.c (component tests)
+- tests/src/tempo/test-tempo-integration-debug.c (full pipeline debug)
+- scripts/analyze_dp_state.py (visualization tool)
+
+Session +2: Plan DP Fixes Based on Test Results (PLANNED)
+Goal: Use Session +1 tests to identify and plan specific fixes
+Effort: 1 session
+Priority: HIGH - Diagnostic phase
+
+Tasks:
+1. Run Session +1 test suite on failing sections
+   - Analyze DP scores for sections 1-4, 6
+   - Compare with successful section 5
+   - Identify parameter sensitivity
+   
+2. Hypothesis testing
+   - Test different tempo priors (wider/narrower ranges)
+   - Test different penalty weights
+   - Test different beat extraction frequencies
+   - Test with tempogram observations vs raw onsets
+   
+3. Document findings
+   - Root cause analysis for each failing section
+   - Parameter sensitivity analysis
+   - Recommended fix approaches
+   - Risk assessment for each approach
+   
+4. Create fix implementation plan
+   - Prioritize fixes by impact
+   - Define success criteria per fix
+   - Estimate effort per fix
+   - Plan incremental testing strategy
+
+Expected Outcomes:
+- Clear understanding of why DP underperforms
+- Specific parameter adjustments identified
+- Observation model improvements planned
+- Tempo adaptation strategy defined
+
+Deliverables:
+- Diagnostic report with findings
+- Fix plan with priorities
+- Updated TEMPO_WORK_SUMMARY.md
+- Test expectations for Session +3
+
+Session +3: Implement DP Fixes and Validate (PLANNED)
+Goal: Fix DP tracker to match or exceed autocorrelation performance
+Effort: 1-2 sessions
+Priority: HIGH - Implementation phase
+Target: 80%+ detection rate, < 1 BPM error
+
+Tasks:
+1. Implement fixes from Session +2 plan
+   - Adjust tempo adaptation logic
+   - Improve observation model
+   - Tune penalty function parameters
+   - Optimize beat extraction timing
+   
+2. Validate incrementally
+   - Test each fix in isolation
+   - Use Session +1 debug tests
+   - Compare before/after metrics
+   - Ensure no regressions
+   
+3. Benchmark final implementation
+   - Run all tempo test suites
+   - Compare with autocorrelation baseline
+   - Test on real-world audio files
+   - Measure CPU/memory impact
+   
+4. Update documentation
+   - Document actual DP performance
+   - Update usage recommendations
+   - Correct all previous claims
+   - Add troubleshooting guide
+
+Success Criteria:
+- Detection rate: ≥ 80% (target: match autocorr's 83%)
+- BPM accuracy: < 1.0 BPM avg error
+- All 6 test sections detected reliably
+- No regression on autocorrelation performance
+- CPU overhead < 10% vs autocorr
+
+Expected Outcomes:
+- DP tracker production-ready
+- Performance meets or exceeds autocorrelation
+- Clear documentation of capabilities
+- Test suite prevents future regressions
+
+Deliverables:
+- Fixed DP tracker implementation
+- Updated benchmark results
+- Corrected documentation
+- Production readiness report
 
 Design Reference:
 - Cost function: -[log₂(δ/δ̂)]² (symmetric on log scale)
 - DP score: C({tᵢ}) = Σᵢ O(tᵢ) + Σᵢ P_δ̂(tᵢ - tᵢ₋₁)
 - Complexity: O(W) per frame, W ≈ 100-200 frames
-- Memory: ~6KB additional for DP buffers (win_s=512)
+- Memory: ~12 KB for DP buffers (win_s=512)
 - See doc/PHASE3D_DYNAMIC_PROGRAMMING.md for full specification
 
-Files Created:
+Files Created (Sessions 1-4):
 - src/tempo/dptracker.h (4.6 KB, 12 API functions)
 - src/tempo/dptracker.c (10.5 KB, full implementation)
 - tests/src/tempo/test-dptracker-basic.c (5.3 KB, 8 test cases)
@@ -1195,6 +1338,9 @@ Files Created:
 - tests/src/tempo/test-tempo-dp-benchmark.c (11.4 KB, comprehensive benchmark)
 - tests/src/tempo/test-dptracker-performance.c (9.9 KB, CPU/memory profiling)
 - tests/src/tempo/test-tempo-dp-gradual.c (9.5 KB, gradual tempo test)
+
+Bug Fix (Validation Session):
+- src/tempo/beattracking.c: Added periodic get_beats() calls (commit 56dcb19)
 ```
 
 #### 3.4 Detailed Plan for Next Session (Phase 3A)
@@ -1784,45 +1930,64 @@ This document summarizes comprehensive tempo tracking improvements across Phases
 
 ---
 
-### Final Performance Comparison
+### Final Performance Comparison (UPDATED 2025-11-18)
 
-| Method | Detection | Avg Error | Startup | Best For |
-|--------|-----------|-----------|---------|----------|
-| **Autocorrelation** | 100% (6/6) | 0.41 BPM | 1-3s | Live, DJ, Real-time |
-| **Tempogram (multi-scale)** | 50% (3/6) | 2.06 BPM | 30s | Analysis, Research |
-| **Hybrid (recommended)** | 75-90% | 0.41-2.06 | 1-3s | Professional Apps |
+| Method | Detection | Avg Error | Startup | Status | Best For |
+|--------|-----------|-----------|---------|--------|----------|
+| **Autocorrelation** | 83% (5/6) | 0.51 BPM | 1-3s | ✅ Production Ready | Live, DJ, Real-time |
+| **DP Tracker** | 17% (1/6) | 0.31 BPM* | 0s | ⚠️ BROKEN - Needs Fix | Not Recommended |
+| **Tempogram (multi-scale)** | 50% (3/6) | 2.06 BPM | 30s | ✅ Production Ready | Analysis (>30s) |
+| **Hybrid (autocorr+tempogram)** | 75-90% | 0.51-2.06 | 1-3s | ✅ Production Ready | Professional Apps |
+
+*Note: DP error only for the 1 section it detects (80 BPM). High error on missed sections.
+
+**Production Recommendations (UPDATED)**:
+- ✅ **Use Autocorrelation**: Default, proven, reliable (83% detection)
+- ✅ **Use Multi-Scale Tempogram**: For analysis applications (>30s latency acceptable)
+- ✅ **Use Hybrid**: Best overall for professional applications
+- ❌ **Do NOT use DP Tracker**: Currently broken, only 17% detection
 
 ---
 
-### Testing Infrastructure (16 test files)
+### Testing Infrastructure (21 test files - UPDATED 2025-11-18)
 
 **Core Tests:**
-1. test-tempo.c - Baseline validation
-2. test-tempo-improved.c - Phase 1 features
-3. test-tempo-benchmark.c - Quantitative metrics
-4. test-tempo-comprehensive.c - Time-based validation
-5. test-beattracking.c - Davies algorithm
+1. test-tempo.c - Baseline validation ✅
+2. test-tempo-improved.c - Phase 1 features ✅
+3. test-tempo-benchmark.c - Quantitative metrics ✅
+4. test-tempo-comprehensive.c - Time-based validation ✅
+5. test-beattracking.c - Davies algorithm ✅
 
 **Tempogram Tests:**
-6. test-tempogram-diagnostic.c - Math validation (1.12 BPM error)
-7. test-tempogram-basic.c - API sanity
-8. test-tempogram-simple.c - Quick iteration
+6. test-tempogram-diagnostic.c - Math validation (1.12 BPM error) ✅
+7. test-tempogram-basic.c - API sanity ✅
+8. test-tempogram-simple.c - Quick iteration ✅
 9. test-tempogram-benchmark.c - Real audio (50% detection) ✅
 10. test-tempogram-benchmark-multiscale.c - Phase 3B validation ✅
-11. test-tempogram-via-tempo-api.c - Integration test
-12. test-tempogram-real-audio.c - Production scenarios
-13. test-regression-check.c - Prevent regressions
-14. test-autocorr-comparison.c - FFT research
+11. test-tempogram-via-tempo-api.c - Integration test ✅
+12. test-tempogram-real-audio.c - Production scenarios ✅
+13. test-regression-check.c - Prevent regressions ✅
+14. test-autocorr-comparison.c - FFT research ✅
 
 **PLP Tests (Phase 3C):**
 15. test-tempogram-plp.c - Basic PLP and smoothing validation ✅
 16. test-tempogram-plp-gradual.c - Real audio with gradual changes ✅
 
-**Test Status**: All tests passing ✅
+**DP Tracker Tests (Phase 3D - NEED EXPANSION):**
+17. test-dptracker-basic.c - Component validation ✅ (passes)
+18. test-dptracker-performance.c - CPU/memory profiling ⚠️ (data invalid - was autocorr)
+19. test-tempo-dp.c - Integration test ⚠️ (passes but was testing autocorr)
+20. test-tempo-dp-benchmark.c - Performance ❌ (17% detection - FAILING)
+21. test-tempo-dp-gradual.c - Gradual tempo ⚠️ (data invalid - was autocorr)
+
+**Test Status**: 
+- 16/21 tests passing and valid ✅
+- 5/21 DP tests need fixes or have invalid data ⚠️
+- Session +1 will expand test ecosystem with debug modes
 
 ---
 
-### Documentation (~50,000+ lines)
+### Documentation (~3000 lines this file)
 
 **Created Files:**
 1. TEMPO_WORK_SUMMARY.md (this file) - Complete summary
@@ -1836,62 +2001,101 @@ This document summarizes comprehensive tempo tracking improvements across Phases
 
 ---
 
-### Production Readiness
+### Production Readiness (UPDATED 2025-11-18)
 
-**Autocorrelation (Phase 1)**: ✅ READY
+**Autocorrelation (Phase 1)**: ✅ PRODUCTION READY
 - Use for: Live performance, DJ software, games, real-time analysis
-- Performance: 100% detection, 0.41 BPM error, <3s startup
-- Recommendation: **Default choice for most applications**
+- Performance: 83% detection (5/6 sections), 0.51 BPM error, 1-3s startup
+- Recommendation: **Default choice - proven and reliable**
 
-**Multi-Scale Tempogram (Phase 3A+3B)**: ✅ READY (with caveats)
+**Multi-Scale Tempogram (Phase 3A+3B)**: ✅ PRODUCTION READY (with caveats)
 - Use for: Music analysis, post-processing, research, long-form content
-- Performance: 50% on transitions, 2.06 BPM error, 30s startup
+- Performance: 50% on transitions, 2.06 BPM error, 30s startup latency
 - Recommendation: **Use with hybrid approach or accept 30s latency**
 
-**Hybrid Approach**: ✅ DOCUMENTED
-- Use for: Professional applications needing best of both
-- Performance: 75-90% detection, 0.41-2.06 BPM error, <3s startup
+**PLP Temporal Smoothing (Phase 3C)**: ✅ PRODUCTION READY
+- Use for: Gradual tempo tracking, classical music, smooth tempo curves
+- Performance: Variance reduction, configurable smoothing (1-31 frames)
+- Recommendation: **Enable for classical music or tempo curve analysis**
+
+**DP Tracker (Phase 3D)**: ❌ NOT PRODUCTION READY
+- Current status: BROKEN - only 17% detection (1/6 sections)
+- Root cause: Integration bug found, partial fix applied, needs more work
+- Performance: When it detects, error is 0.31 BPM (excellent but rare)
+- Recommendation: **DO NOT USE - Sessions +1/+2/+3 planned to fix**
+
+**Hybrid Approach**: ✅ PRODUCTION READY
+- Use for: Professional applications needing best of both worlds
+- Performance: 75-90% detection, 0.51-2.06 BPM error, 1-3s startup
 - Recommendation: **Best overall solution** (see Usage Recommendations)
 
 ---
 
-### Key Achievements
+### Key Achievements (UPDATED 2025-11-18)
 
 **Technical Excellence:**
 - ✅ < 1 BPM error on autocorrelation (state-of-the-art)
 - ✅ < 2.5 BPM error on tempogram when stable (excellent)
 - ✅ 50% tempogram detection (expected given harmonic ambiguity)
-- ✅ No regressions on existing functionality
+- ✅ PLP temporal smoothing working (variance reduction)
+- ✅ No regressions on autocorrelation/tempogram functionality
 - ✅ All memory safety assertions in place (SECURITY/)
+- ⚠️ DP tracker implementation complete but underperforming
 
 **Documentation Quality:**
-- ✅ Comprehensive usage guide with code examples
+- ✅ Comprehensive usage guide with 7 code examples (770+ lines)
 - ✅ Clear trade-off explanations
 - ✅ Root cause analysis of limitations
 - ✅ Recommendations for different scenarios
-- ✅ 14 test files with ground truth validation
+- ✅ 21 test files (16 valid, 5 DP tests need work)
+- ✅ Honest reporting of DP tracker issues
 
 **Production Value:**
-- ✅ Three deployment options (autocorr, tempogram, hybrid)
+- ✅ Three proven deployment options (autocorr, tempogram, hybrid)
 - ✅ Clear guidance for each use case
 - ✅ Performance tuning documented
 - ✅ Common pitfalls identified
 - ✅ API reference complete
+- ⚠️ DP tracker marked as experimental until fixed
 
 ---
 
-### Recommendations for Users
+### Critical Issues Found (2025-11-18)
 
-**Start Here**: Read "Usage Recommendations" section above
+**DP Tracker Integration Bug:**
+- ❌ DP tracker was never actually running (Sessions 1-4 invalid)
+- ❌ All performance claims were measuring autocorrelation fallback
+- ✅ Bug identified and partially fixed (commit 56dcb19)
+- ⚠️ DP now runs but only achieves 17% detection vs 83% autocorr
+- 🔄 Sessions +1/+2/+3 planned to properly diagnose and fix
+
+**Impact:**
+- Previous documentation claimed DP matched autocorr (INCORRECT)
+- Previous profiling data measured autocorr, not DP (INVALID)
+- Production recommendations for DP were premature (REVERTED)
+
+**Current Status:**
+- Autocorrelation: ✅ Production ready (83% detection, 0.51 BPM error)
+- Tempogram: ✅ Production ready (50% detection, limitations understood)
+- PLP: ✅ Production ready (smooth tempo curves)
+- DP Tracker: ❌ Experimental only (17% detection, needs fixing)
+
+---
+
+### Recommendations for Users (UPDATED 2025-11-18)
+
+**Start Here**: Read "Usage Recommendations" section for code examples
 
 **Quick Decisions**:
-1. **Need immediate results?** → Use autocorrelation (default)
-2. **Analyzing music files?** → Use multi-scale tempogram
-3. **Building professional app?** → Implement hybrid approach
+1. **Need immediate results?** → Use autocorrelation (default) ✅
+2. **Analyzing music files?** → Use multi-scale tempogram ✅
+3. **Building professional app?** → Implement hybrid approach ✅
+4. **Want DP tracker?** → Wait for Sessions +1/+2/+3 fixes ⏳
 
 **Don't Do**:
 - ❌ Use tempogram for live performance without hybrid
 - ❌ Expect 100% detection from tempogram
+- ❌ Use DP tracker in production (currently broken)
 - ❌ Enable tempogram without multi-scale
 
 **Do**:
@@ -1904,16 +2108,17 @@ This document summarizes comprehensive tempo tracking improvements across Phases
 
 ### Future Work (Optional)
 
-**Phase 3D: Dynamic Programming** ✅ COMPLETED (2025-11-18)
+### Future Work (UPDATED 2025-11-18)
+
+**Phase 3D: Dynamic Programming** ⚠️ EXPERIMENTAL - BUG FOUND (2025-11-18)
 - Goal: Optimal beat sequence selection (Ellis method)
-- Effort: 4 sessions (completed)
-- **Status**: COMPLETE - All sessions finished
-- **Session 4 Additions**: Performance profiling and gradual tempo testing
-- **Results**: Matches autocorrelation performance (83% detection, 0.51 BPM error)
-- **Performance**: +3.9% CPU overhead, ~12KB memory, 9008x realtime factor
-- **Gradual Tempo**: Handles accelerando/ritardando with same accuracy as autocorr
-- **Value**: Provides globally optimal beat sequences with minimal overhead
-- **Production Ready**: Yes - highly efficient and thoroughly tested ✅
+- Effort: Originally 4 sessions, now extended with bug fixes (Sessions +1/+2/+3)
+- **Status**: INCOMPLETE - Integration bug discovered during validation
+- **Bug**: DP tracker was never actually running (always fell back to autocorr)
+- **Current**: Bug partially fixed, DP now runs but only 17% detection
+- **Next**: Sessions +1/+2/+3 to diagnose and fix properly
+- **Value**: Could provide globally optimal beat sequences (NOT YET ACHIEVED)
+- **Production Ready**: NO - experimental only, do not use ❌
 
 **Hybrid API** (Nice-to-have)
 - Goal: Auto-switch from autocorr to tempogram
@@ -1921,46 +2126,73 @@ This document summarizes comprehensive tempo tracking improvements across Phases
 - Effort: 1-2 sessions
 - **Status**: Can be implemented later if user demand exists
 
-**Advanced DP Integration** (Future Enhancement)
+**Advanced DP Integration** (Depends on Phase 3D fix)
 - Goal: Improve DP with better onset models
-- Effort: 2-3 sessions
+- Effort: 2-3 sessions AFTER Sessions +1/+2/+3
 - **Value**: Could achieve better than autocorr performance
-- **Status**: Optional - current DP implementation is solid baseline
+- **Status**: Blocked until basic DP works correctly
 
-**Current Recommendation**: Work is complete. Phase 3D added DP tracker option. Future enhancements are optional.
+**Current Recommendation**: 
+- ✅ Autocorrelation is production-ready default
+- ✅ Tempogram is production-ready for analysis use cases
+- ✅ PLP is production-ready for smooth tempo curves
+- ⚠️ DP tracker needs fixing (Sessions +1/+2/+3)
+- 🔄 Future enhancements blocked until DP is fixed
 
 ---
 
-### Final Status
+### Final Status (UPDATED 2025-11-18)
 
-**✅ ALL OBJECTIVES ACHIEVED**
+**⚠️ CRITICAL UPDATE - DP TRACKER BUG DISCOVERED**
 
-**Phases 1-3C**: Complete and production-ready
-**Phase 3D**: Complete - DP tracker fully integrated, profiled, and documented ✨
-**Session 4 (2025-11-18)**: Performance profiling and gradual tempo testing complete ✅
-**Testing**: 21 test files, all passing (added 2 DP profiling tests)
-**Documentation**: Comprehensive with usage guide and performance metrics
-**Root Cause**: Identified and documented
-**Recommendations**: Clear for all use cases
+**Phases 1-3C**: ✅ Complete and production-ready
+**Phase 3D**: ⚠️ INCOMPLETE - Critical integration bug found
+
+**What Happened:**
+- Validation revealed DP tracker producing identical results to autocorrelation
+- Investigation found DP was **never actually running** (always fell back to autocorr)
+- Root cause: `aubio_dptracker_get_beats()` never called, so `num_beats` stayed at 0
+- All Sessions 1-4 performance claims were measuring autocorrelation, not DP
+- Bug partially fixed (commit 56dcb19), but DP now only achieves 17% detection
+
+**Testing**: 21 test files
+- 16 tests valid and passing ✅
+- 5 DP tests have invalid data or fail ⚠️
+- Session +1 will expand test ecosystem
+
+**Documentation**: Corrected with honest reporting ✅
+- Previous DP claims marked as invalid
+- Accurate performance data updated
+- Sessions +1/+2/+3 planned to fix DP
+
+**Root Cause**: Integration bug (found and documented)
+
+**Recommendations**: 
+- ✅ Use autocorrelation (83% detection, 0.51 BPM error)
+- ✅ Use tempogram for analysis (50% detection, 30s latency)
+- ✅ Use PLP for smooth tempo curves
+- ❌ Do NOT use DP tracker (17% detection, broken)
 
 **This work provides**:
-1. State-of-the-art autocorrelation (< 1 BPM error)
-2. DP tracker for optimal beat sequences (minimal 3.9% overhead)
-3. Advanced tempogram option (FFT-based)
-4. PLP temporal smoothing for gradual tempo changes
-5. Clear hybrid approach guidance
-6. Comprehensive test infrastructure (21 tests)
-7. Production-ready code with security assertions
-8. Complete performance profiling data
+1. ✅ State-of-the-art autocorrelation (< 1 BPM error)
+2. ✅ Advanced tempogram option (FFT-based, understood limitations)
+3. ✅ PLP temporal smoothing for gradual tempo changes
+4. ✅ Clear hybrid approach guidance
+5. ✅ Comprehensive test infrastructure (21 tests)
+6. ✅ Production-ready code with security assertions (autocorr/tempogram)
+7. ✅ Complete API documentation with 7 code examples (770+ lines)
+8. ⚠️ DP tracker implementation (broken, needs Sessions +1/+2/+3)
 
-**Performance Summary** (Phase 3D Final):
-- **DP Tracker**: 83.3% detection, 0.51 BPM avg error
-- **CPU**: 30.5 μs/frame (190x realtime in full pipeline, 9008x isolated)
-- **Memory**: ~12 KB (win_s=512), scales linearly
-- **Overhead**: +3.9% vs autocorrelation (negligible)
-- **Gradual Tempo**: Matches autocorr on accelerando/ritardando
+**Performance Summary (CORRECTED)**:
+- **Autocorrelation**: 83% detection (5/6), 0.51 BPM avg error ✅ PRODUCTION
+- **Tempogram**: 50% detection (3/6), 2.06 BPM avg error ✅ PRODUCTION
+- **PLP**: Variance reduction, smooth curves ✅ PRODUCTION
+- **DP Tracker**: 17% detection (1/6), 0.31 BPM when it works ❌ EXPERIMENTAL
 
-**Tempo tracking work is COMPLETE** ✅
+**Tempo tracking work status**:
+- ✅ Phases 1-3C: COMPLETE and production-ready
+- ⚠️ Phase 3D: INCOMPLETE - requires Sessions +1/+2/+3 to fix
+- 🔄 Sessions +1/+2/+3: Planned to properly fix DP tracker
 
 ---
 
