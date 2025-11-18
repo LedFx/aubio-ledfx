@@ -210,11 +210,14 @@ class aubio_specdesc(TestCase):
         a = arange(c.length * 2, 0, -2, dtype=float_type)
         c.norm = a
         cumsum = .95*sum(a*a)
-        i = 0; rollsum = 0
+        # C implementation matches documentation: returns bin INDEX where threshold is crossed
+        # Initialize with first element, matching C code in statistics.c lines 197-203
+        i = 0
+        rollsum = a[i]*a[i]
         while rollsum < cumsum:
+            i += 1
             rollsum += a[i]*a[i]
-            i+=1
-        rolloff = i 
+        rolloff = i  # i is the bin index, not count
         assert_equal (rolloff, o(c))
 
 class aubio_specdesc_wrong(TestCase):
