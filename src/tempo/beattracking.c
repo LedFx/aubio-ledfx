@@ -94,6 +94,7 @@ struct _aubio_beattracking_t
   /* Phase 3D: Dynamic programming beat tracker */
   uint_t use_dp;           /** enable DP-based beat tracking */
   aubio_dptracker_t *dptracker_obj;  /** DP beat tracker object */
+  uint_t dp_frame_count;   /** frame counter for periodic beat extraction */
 };
 
 aubio_beattracking_t *
@@ -1042,6 +1043,9 @@ aubio_beattracking_set_use_dp(aubio_beattracking_t * bt, uint_t enabled)
       return AUBIO_FAIL;
     }
     
+    /* Initialize frame counter for beat extraction */
+    bt->dp_frame_count = 0;
+    
     /* Set default tempo prior (120 BPM ± 20 BPM) */
     aubio_dptracker_set_tempo(bt->dptracker_obj, 120.0, 20.0);
   }
@@ -1134,6 +1138,20 @@ aubio_beattracking_feed_tempogram(aubio_beattracking_t * bt, smpl_t onset_value)
     smpl_t enhanced_onset = bt->onset_enhancement ? 
       aubio_beattracking_enhance_onset(bt, onset_value) : onset_value;
     aubio_dptracker_do(bt->dptracker_obj, enhanced_onset);
+    
+    /* Extract beats periodically to update beat sequence and BPM
+     * This is necessary for aubio_dptracker_get_bpm() to work properly
+     * Call more frequently (every 8 frames) for better responsiveness */
+    bt->dp_frame_count++;
+    if (bt->dp_frame_count >= 8) {  /* Changed from bt->step to 8 for more frequent updates */
+      /* Use rwv length as window size (it's set to laglen in constructor) */
+      fvec_t *dummy_beats = new_fvec(bt->rwv->length);
+      if (dummy_beats) {
+        aubio_dptracker_get_beats(bt->dptracker_obj, dummy_beats);
+        del_fvec(dummy_beats);
+      }
+      bt->dp_frame_count = 0;
+    }
   }
   
   /* Only process tempogram if enabled and initialized */
