@@ -382,24 +382,6 @@ uint_t aubio_tempo_set_onset_enhancement(aubio_tempo_t * o, uint_t enabled);
  */
 uint_t aubio_tempo_set_multiscale_tempogram(aubio_tempo_t * o, uint_t enabled);
 
-/** enable dynamic programming beat tracking (Phase 3D)
-
-  When enabled, uses the Ellis (2007) dynamic programming algorithm to find
-  globally optimal beat sequences by balancing onset strength with tempo
-  continuity constraints. Provides state-of-the-art accuracy on complex music
-  with tempo variations.
-  
-  Note: Works best when combined with tempogram as observation model for optimal
-  beat sequence selection.
-
-  \param o tempo detection object
-  \param enabled 1 to enable DP tracking, 0 to disable (default)
-
-  \return `0` if successful, non-zero otherwise
-
- */
-uint_t aubio_tempo_set_use_dp(aubio_tempo_t * o, uint_t enabled);
-
 /** delete tempo detection object
 
   \param o beat tracking object
