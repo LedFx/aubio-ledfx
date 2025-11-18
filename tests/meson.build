@@ -70,6 +70,7 @@ test_sources = files(
   'src/synth/test-wavetable.c',
   # Tempo tests
   'src/tempo/test-beattracking.c',
+  'src/tempo/test-dptracker-basic.c',
   'src/tempo/test-tempo.c',
   'src/tempo/test-tempo-improved.c',
   'src/tempo/test-tempo-benchmark.c',
