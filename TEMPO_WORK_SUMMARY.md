@@ -1384,55 +1384,70 @@ Deliverables:
 - ✅ Session +3 plan with priorities
 - 🔄 Implementation deferred to Session +3
 
-Session +3: Implement DP Fixes and Validate (READY TO START)
+Session +3: Implement DP Fixes and Validate ❌ ATTEMPTED BUT FAILED (2025-11-18)
 Goal: Fix DP tracker to match or exceed autocorrelation performance
-Effort: 1-2 sessions
+Effort: 1 session (unsuccessful - will require different approach)
 Priority: HIGH - Implementation phase
 Target: 80%+ detection rate, < 1 BPM error
+Status: Multiple onset preprocessing strategies attempted, all failed
 
-Tasks:
-1. Implement fixes from Session +2 plan
-   - Adjust tempo adaptation logic
-   - Improve observation model
-   - Tune penalty function parameters
-   - Optimize beat extraction timing
+Tasks Attempted:
+1. ❌ Onset preprocessing with peak detection
+   - Implemented adaptive threshold peak detector
+   - Added cooldown to prevent double-detection
+   - Result: Still stuck at ~72-78 BPM
    
-2. Validate incrementally
-   - Test each fix in isolation
-   - Use Session +1 debug tests
-   - Compare before/after metrics
-   - Ensure no regressions
+2. ❌ Direct onset passthrough
+   - Passed thresholded onset values directly to DP
+   - Hypothesis: Peakpicker already provides suitable signal
+   - Result: Still stuck at ~72 BPM
    
-3. Benchmark final implementation
-   - Run all tempo test suites
-   - Compare with autocorrelation baseline
-   - Test on real-world audio files
-   - Measure CPU/memory impact
+3. ❌ Onset quantization to discrete 0/1
+   - Converted continuous onsets to binary markers
+   - Used adaptive threshold (1.5x running mean)
+   - Result: Still stuck at ~72-83 BPM
    
-4. Update documentation
-   - Document actual DP performance
-   - Update usage recommendations
-   - Correct all previous claims
-   - Add troubleshooting guide
+4. ✅ Created onset peak analysis tool
+   - Analyzes onset stream characteristics
+   - Revealed only 6 peaks in 2000 frames (31 BPM implied)
+   - Showed that peak detection was too restrictive
 
-Success Criteria:
-- Detection rate: ≥ 80% (target: match autocorr's 83%)
-- BPM accuracy: < 1.0 BPM avg error
-- All 6 test sections detected reliably
-- No regression on autocorrelation performance
-- CPU overhead < 10% vs autocorr
+Critical Discovery:
+╔═══════════════════════════════════════════════════════════════╗
+║ Onset Preprocessing is NOT the Solution                       ║
+╠═══════════════════════════════════════════════════════════════╣
+║ ALL preprocessing strategies failed                            ║
+║ DP continues detecting 70-85 BPM regardless of onset treatment║
+║ Basic synthetic test still works (138-140 BPM)                ║
+║ Conclusion: Problem is deeper than onset signal quality       ║
+╚═══════════════════════════════════════════════════════════════╝
 
-Expected Outcomes:
-- DP tracker production-ready
-- Performance meets or exceeds autocorrelation
-- Clear documentation of capabilities
-- Test suite prevents future regressions
+The persistent stuck BPM across 3 sessions of fixes suggests:
+- Extraction strategy is still fundamentally wrong
+- DP parameters incompatible with streaming integration
+- Implementation bug in how DP integrates with beattracking
+- Ellis (2007) algorithm may not be suitable for real-time streaming
 
-Deliverables:
-- Fixed DP tracker implementation
-- Updated benchmark results
-- Corrected documentation
-- Production readiness report
+Files Created/Modified:
+- tests/src/tempo/test-onset-peak-analysis.c (analysis tool)
+- src/tempo/beattracking.c (multiple preprocessing attempts)
+
+Current Status (After Session +3):
+- Detection Rate: 17% (1/6 sections) ❌ No improvement
+- Detected BPM: 72-83 BPM range ❌ Wrong (should be 80-160)
+- Basic Test: 138-140 BPM ✅ Still works
+- Avg Error: 1.36 BPM (only for detected section)
+
+Conclusion: After 3 sessions (extraction fixes, onset preprocessing, quantization),
+DP tracker integration remains fundamentally broken. A different approach is needed.
+
+Session +4: Deep DP Investigation and Alternative Approaches (PLANNED)
+
+Deliverables (Partial):
+- ❌ DP tracker integration still broken
+- ✅ Diagnostic tools created (3 test files)
+- ✅ Documentation updated with accurate status
+- ⚠️ Production readiness: NOT ACHIEVED
 
 Design Reference:
 - Cost function: -[log₂(δ/δ̂)]² (symmetric on log scale)
@@ -1441,8 +1456,199 @@ Design Reference:
 - Memory: ~12 KB for DP buffers (win_s=512)
 - See doc/PHASE3D_DYNAMIC_PROGRAMMING.md for full specification
 
-Files Created (Sessions 1-4):
+Files Created (Sessions 1-4 + Validation Sessions):
 - src/tempo/dptracker.h (4.6 KB, 12 API functions)
+- src/tempo/dptracker.c (10.5 KB, implementation)
+- tests/src/tempo/test-dptracker-basic.c (5.3 KB, unit tests)
+- tests/src/tempo/test-dptracker-performance.c (9.9 KB, profiling - data invalid)
+- tests/src/tempo/test-dptracker-debug.c (14.6 KB, diagnostic tool)
+- tests/src/tempo/test-dptracker-unit.c (11.9 KB, component tests)
+- tests/src/tempo/test-onset-peak-analysis.c (2.3 KB, onset analysis)
+- tests/src/tempo/test-tempo-dp.c (integration test)
+- tests/src/tempo/test-tempo-dp-benchmark.c (benchmark)
+- tests/src/tempo/test-tempo-dp-gradual.c (gradual tempo test)
+
+Bug Fix Attempts (Sessions +1/+2/+3):
+- Commit 56dcb19: Added periodic get_beats() calls → Created ~72 BPM bug
+- Commit d4ee866: Removed periodic calls, tried various extraction strategies
+- Commit 73800eb: Onset preprocessing and quantization
+All attempts failed to fix the fundamental issue
+
+---
+
+## NEXT THREE SESSIONS PLAN (Post-Session +3)
+
+### Session +4: Deep DP Investigation with Internal Logging (PLANNED)
+Goal: Understand WHY DP fails with real audio through internal state analysis
+Effort: 1 session
+Priority: CRITICAL - Diagnostic deep-dive
+Approach: Add extensive logging to DP tracker internals
+
+Tasks:
+1. Add diagnostic logging to DP tracker
+   - Log DP scores for each frame
+   - Log backpointer selections
+   - Log penalty function values
+   - Track best path evolution
+   - Record onset values received
+   
+2. Compare synthetic vs real audio DP behavior
+   - Run basic test with logging
+   - Run integration test with logging
+   - Identify where paths diverge
+   - Understand why real audio produces wrong BPM
+   
+3. Parameter sensitivity analysis
+   - Test wider tempo priors (40-240 BPM)
+   - Adjust penalty function weights (-0.5 to -5.0)
+   - Test different min/max intervals
+   - Try different window sizes (256, 512, 1024, 2048)
+   
+4. Test extraction-free approach
+   - Don't extract beats periodically
+   - Only extract when explicitly requested
+   - See if DP can build correct path without interruption
+   
+Expected Outcomes:
+- Understand exact mechanism of failure
+- Identify which parameter(s) cause stuck BPM
+- Determine if DP can work with different config
+- OR confirm DP integration is fundamentally flawed
+
+Deliverables:
+- DP internal state logging
+- Comparison report: synthetic vs real audio
+- Parameter sensitivity data
+- Go/no-go decision on DP tracker
+
+Success Criteria:
+- Identify root cause mechanism
+- Either find working parameter set OR
+- Prove DP integration cannot work as designed
+
+### Session +5: Final DP Fix OR Declare Research-Only (PLANNED)
+Goal: Either fix DP based on Session +4 findings OR mark as research-only
+Effort: 1 session
+Priority: HIGH - Resolution
+Approach: Depends on Session +4 outcome
+
+**Option A: If Session +4 finds fixable issue**
+Tasks:
+1. Implement parameter adjustments identified in Session +4
+2. Test on all benchmark audio files
+3. Validate ≥80% detection rate achieved
+4. Update documentation with working configuration
+5. Mark DP tracker as production-ready
+
+Success Criteria:
+- Detection rate ≥ 80% (5/6 sections)
+- Avg error < 1.0 BPM
+- No regression on basic test
+- Performance documented
+
+**Option B: If Session +4 shows DP cannot work**
+Tasks:
+1. Document why DP integration fails
+2. Mark DP tracker as "research/experimental only"
+3. Update TEMPO_WORK_SUMMARY.md with final analysis
+4. Remove DP from production recommendations
+5. Keep code for future research
+
+Outcome:
+- Honest assessment of DP limitations
+- Clear documentation of what doesn't work and why
+- Preserved research implementation for future work
+
+**Option C: Hybrid approach if partial success**
+Tasks:
+1. Use autocorrelation for tempo estimation
+2. Use DP only for beat phase alignment
+3. Or limit DP to specific conditions (e.g., steady tempo)
+4. Document hybrid usage pattern
+
+Deliverables:
+- Working DP implementation (Option A)
+- OR research-only documentation (Option B)  
+- OR hybrid integration pattern (Option C)
+- Updated production recommendations
+
+### Session +6: Documentation Finalization and Handoff (PLANNED)
+Goal: Complete all tempo work documentation and prepare for production
+Effort: 1 session
+Priority: MEDIUM - Wrap-up
+Approach: Comprehensive documentation update
+
+Tasks:
+1. Update TEMPO_WORK_SUMMARY.md with final status
+   - Mark all phases as complete with accurate data
+   - Document DP tracker final outcome
+   - Update all performance tables
+   - Correct any remaining inaccuracies
+   
+2. Create production deployment guide
+   - Recommended configurations for different use cases
+   - Performance characteristics table
+   - Troubleshooting guide
+   - API reference with examples
+   
+3. Update code examples section
+   - Remove or mark DP examples if not production-ready
+   - Add warnings where appropriate
+   - Ensure all examples are tested and work
+   
+4. Final validation
+   - Run all 24+ tempo tests
+   - Ensure no regressions
+   - Validate documentation accuracy
+   - Create summary report
+   
+5. Create handoff documentation
+   - Summary of work completed (Phases 1-3D)
+   - Known issues and limitations
+   - Recommendations for future work
+   - Performance benchmarks
+   
+Deliverables:
+- Complete TEMPO_WORK_SUMMARY.md (final version)
+- Production deployment guide
+- Tested code examples
+- Handoff report for maintainers
+- Performance benchmark data
+
+Success Criteria:
+- All documentation accurate and complete
+- No misleading claims about DP tracker
+- Clear production recommendations
+- Complete test suite passing
+- Ready for merge to main branch
+
+Expected Outcomes:
+- Tempo tracking work fully documented
+- Production-ready: Autocorrelation, Tempogram, PLP
+- Experimental: DP tracker (status depends on Sessions +4/+5)
+- Clear path forward for future enhancements
+
+---
+
+## Summary Status (After Session +3)
+
+**Production Ready:**
+- ✅ Autocorrelation: 83% detection, 0.51 BPM error
+- ✅ Multi-Scale Tempogram: 50% detection, 2.06 BPM error (expected for <30s)
+- ✅ PLP Temporal Smoothing: Variance reduction working
+- ✅ Hybrid Autocorr+Tempogram: Documented and recommended
+
+**Experimental/Broken:**
+- ❌ DP Tracker: 17% detection, stuck at ~72-83 BPM
+  - Basic algorithm works (synthetic test: 138-140 BPM)
+  - Integration fundamentally broken despite 3 sessions of fixes
+  - Sessions +4/+5 will determine if fixable
+
+**Tests:** 24 tempo tests (16 valid, 8 DP-related with issues)
+**Documentation:** 3200+ lines in TEMPO_WORK_SUMMARY.md
+**Next:** Sessions +4/+5/+6 to resolve DP and finalize documentation
+
+
 - src/tempo/dptracker.c (10.5 KB, full implementation)
 - tests/src/tempo/test-dptracker-basic.c (5.3 KB, 8 test cases)
 - tests/src/tempo/test-tempo-dp.c (8.1 KB, integration test)
