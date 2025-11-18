@@ -2,7 +2,10 @@
 #include "utils_tests.h"
 #include <stdio.h>
 #include <string.h>
+#ifndef HAVE_WIN_HACKS
 #include <dirent.h>
+#endif
+
 #include <stdlib.h>
 
 // Structure to hold section information
