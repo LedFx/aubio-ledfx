@@ -265,19 +265,18 @@ aubio_dptracker_get_beats(aubio_dptracker_t *dp, fvec_t *beats)
   AUBIO_ASSERT_NOT_NULL(dp);
   AUBIO_ASSERT_NOT_NULL(beats);
   
-  // Find highest score in DP table
-  uint_t best_end = 0;
-  smpl_t best_score = dp->dp_score->data[0];
-  
-  for (uint_t i = 1; i < dp->win_s; i++) {
-    if (dp->dp_score->data[i] > best_score) {
-      best_score = dp->dp_score->data[i];
-      best_end = i;
-    }
+  /* Session +2 FIX: Use most recent frame as end point instead of searching
+   * for highest score. Searching for highest score creates bias toward periodic
+   * extraction frequency. The most recent frame represents the current state. */
+  uint_t best_end;
+  if (dp->buffer_pos == 0) {
+    best_end = dp->win_s - 1;  // Wrapped around
+  } else {
+    best_end = dp->buffer_pos - 1;  // Most recent frame added
   }
   
-  // Store confidence
-  dp->confidence = best_score;
+  // Store confidence from the most recent frame
+  dp->confidence = dp->dp_score->data[best_end];
   
   // Backtrack to recover beat sequence
   uint_t max_beats = MIN(dp->beat_sequence->length, beats->length);
