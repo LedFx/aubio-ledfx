@@ -1263,48 +1263,128 @@ Tempo Prior Validation Issue Found:
 - Default is 20 BPM, which exceeds the allowed range!
 - This may be preventing proper tempo adaptation
 
-Session +2: Plan DP Fixes Based on Test Results (PLANNED → IN PROGRESS)
+Session +2: Plan DP Fixes Based on Test Results ⚠️ PARTIALLY COMPLETE (2025-11-18)
 Goal: Use Session +1 tests to identify and plan specific fixes
-Effort: 1 session
+Effort: 1 session (extended due to complexity)
 Priority: HIGH - Diagnostic phase
+Status: Multiple fixes attempted but issue persists - deeper investigation needed
 
+Tasks Completed:
+1. ✅ Analyzed Session +1 findings (DP stuck at ~72 BPM)
+2. ✅ Implemented 5 different fix attempts
+3. ✅ Tested each fix with diagnostic tools
+4. ✅ Identified that extraction strategy is NOT the root cause
+5. ⚠️ Issue persists - real audio integration fundamentally different
+
+Fixes Attempted (All FAILED to solve main issue):
+
+Fix #1: Remove Periodic Beat Extraction
+- Removed periodic `get_beats()` calls from `feed_tempogram()`
+- Hypothesis: 8-frame periodicity created ~72 BPM signal
+- Result: ❌ Still stuck at ~72 BPM
+
+Fix #2: On-Demand Beat Extraction
+- Moved extraction to `get_bpm()` only
+- Hypothesis: Call extraction only when BPM requested
+- Result: ❌ Still stuck at ~72 BPM
+
+Fix #3: Periodic Extraction Every `step` Frames
+- Extract every 64 frames (beattracking's natural cycle) with caching
+- Added `dp_frames_since_extract` counter and `dp_cached_bpm` cache
+- Hypothesis: Align with beattracking cycle, cache between calls
+- Result: ❌ Still stuck at ~72 BPM (now at 64-frame intervals)
+
+Fix #4: Use Most Recent Frame as Endpoint
+- Modified `get_beats()` to use `buffer_pos - 1` instead of searching
+- Hypothesis: Searching for highest score biases toward extraction frequency
+- Result: ❌ Still stuck at ~72 BPM
+
+Fix #5: Tempo Prior Validation Range ✅ SUCCESS
+- Increased max std from 10 to 50 BPM
+- Result: ✅ Validation errors fixed, but doesn't solve detection issue
+
+Critical Discovery:
+╔═══════════════════════════════════════════════════════════════╗
+║ DP Tracker Core Works, Integration Fails                      ║
+╠═══════════════════════════════════════════════════════════════╣
+║ Basic Test (synthetic beats):    138-140 BPM  ✅ ACCURATE    ║
+║ Integration Test (real audio):   ~72 BPM      ❌ STUCK       ║
+║ Conclusion: Problem is NOT extraction strategy                ║
+╚═══════════════════════════════════════════════════════════════╝
+
+Root Cause Analysis Update:
+The persistent 72 BPM detection regardless of extraction strategy indicates:
+
+1. **Onset Quality Issue**: Real audio onset detection function values may not
+   provide clear beat signals that DP can track. Synthetic tests use strong
+   1.0/0.0 patterns, real audio has continuous varying values.
+
+2. **Parameter Mismatch**: DP tracker parameters (min/max interval, penalty
+   function, tempo prior) may be tuned for synthetic patterns, not real audio
+   onset streams.
+
+3. **Observation Model Problem**: Raw onset values may not be the right
+   observation model for DP. May need tempogram output or peak detection.
+
+Why Basic Test Works vs Integration Fails:
+
+Basic Test Pattern:
+  Beat: onset=1.0 → silence: onset=0.0 × N frames → repeat
+  Single extraction after all beats fed
+  Result: 138-140 BPM ✅
+
+Integration Pattern:
+  Continuous: onset=varying values (0.0-2.0) every frame
+  Extraction every 64 frames while feeding continues  
+  Result: ~72 BPM ❌
+
+Files Modified:
+- src/tempo/beattracking.c: 5 different extraction strategies attempted
+- src/tempo/dptracker.c: Modified get_beats() to use recent frame
+
+Session +3 Plan (UPDATED based on findings):
+
+Priority 1: Onset Signal Investigation 🔍
 Tasks:
-1. Run Session +1 test suite on failing sections
-   - Analyze DP scores for sections 1-4, 6
-   - Compare with successful section 5
-   - Identify parameter sensitivity
-   
-2. Hypothesis testing
-   - Test different tempo priors (wider/narrower ranges)
-   - Test different penalty weights
-   - Test different beat extraction frequencies
-   - Test with tempogram observations vs raw onsets
-   
-3. Document findings
-   - Root cause analysis for each failing section
-   - Parameter sensitivity analysis
-   - Recommended fix approaches
-   - Risk assessment for each approach
-   
-4. Create fix implementation plan
-   - Prioritize fixes by impact
-   - Define success criteria per fix
-   - Estimate effort per fix
-   - Plan incremental testing strategy
+1. Add diagnostic logging to track onset values reaching DP
+2. Compare onset patterns: synthetic (working) vs real audio (failing)
+3. Measure onset statistics (mean, variance, peak frequency)
+4. Test with preprocessed onsets (peak detection, thresholding)
 
-Expected Outcomes:
-- Clear understanding of why DP underperforms
-- Specific parameter adjustments identified
-- Observation model improvements planned
-- Tempo adaptation strategy defined
+Expected Outcome: Understand why DP works with synthetic but fails with real onsets
+
+Priority 2: Preprocessing Implementation 🔧  
+Tasks:
+1. Implement onset peak detection before DP
+2. Test onset value normalization/thresholding
+3. Consider using tempogram peaks as observation model
+4. Test beat-synchronous onset sampling
+
+Expected Outcome: Clean onset signal that DP can track
+
+Priority 3: Parameter Tuning 🎛️
+Tasks:
+1. Adjust min/max interval based on real audio analysis
+2. Test wider tempo prior ranges (60-200 BPM)
+3. Tune penalty function weights
+4. Validate ideal_interval calculation method
+
+Expected Outcome: Parameters optimized for real audio patterns
+
+Success Criteria for Session +3:
+- ✅ Detection rate ≥ 80% (currently 17%)
+- ✅ Average error < 1 BPM (currently acceptable when detected)
+- ✅ All 6 test sections detected
+- ✅ Basic synthetic test continues to work
+- ✅ Real audio integration works
 
 Deliverables:
-- Diagnostic report with findings
-- Fix plan with priorities
-- Updated TEMPO_WORK_SUMMARY.md
-- Test expectations for Session +3
+- ⚠️ Diagnostic report with attempted fixes (this section)
+- ⚠️ Updated hypothesis about onset quality vs extraction strategy
+- ✅ Session +3 plan with priorities
+- 🔄 Implementation deferred to Session +3
 
-Session +3: Implement DP Fixes and Validate (PLANNED)
+Session +3: Implement DP Fixes and Validate (READY TO START)
 Goal: Fix DP tracker to match or exceed autocorrelation performance
 Effort: 1-2 sessions
 Priority: HIGH - Implementation phase
