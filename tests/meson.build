@@ -74,6 +74,7 @@ test_sources = files(
   'src/tempo/test-dptracker-performance.c',
   'src/tempo/test-dptracker-debug.c',
   'src/tempo/test-dptracker-unit.c',
+  'src/tempo/test-onset-peak-analysis.c',
   'src/tempo/test-tempo-dp.c',
   'src/tempo/test-tempo-dp-benchmark.c',
   'src/tempo/test-tempo-dp-gradual.c',

@@ -96,6 +96,10 @@ struct _aubio_beattracking_t
   aubio_dptracker_t *dptracker_obj;  /** DP beat tracker object */
   uint_t dp_frames_since_extract;   /** frames since last beat extraction */
   smpl_t dp_cached_bpm;     /** cached BPM from last extraction */
+  /* Session +3: Onset peak detection for DP */
+  smpl_t dp_last_onset;     /** previous onset value for peak detection */
+  smpl_t dp_onset_threshold; /** dynamic threshold for onset peaks */
+  uint_t dp_cooldown;       /** frames since last peak (prevent double-detection) */
 };
 
 aubio_beattracking_t *
@@ -1067,6 +1071,11 @@ aubio_beattracking_set_use_dp(aubio_beattracking_t * bt, uint_t enabled)
     bt->dp_frames_since_extract = 0;
     bt->dp_cached_bpm = 0.0;
     
+    /* Session +3: Initialize peak detection state */
+    bt->dp_last_onset = 0.0;
+    bt->dp_onset_threshold = 0.3;  /* Initial threshold - will adapt */
+    bt->dp_cooldown = 0;
+    
     /* Set default tempo prior (120 BPM ± 20 BPM) */
     aubio_dptracker_set_tempo(bt->dptracker_obj, 120.0, 20.0);
   }
@@ -1148,6 +1157,63 @@ aubio_beattracking_enhance_onset(aubio_beattracking_t * bt, smpl_t raw_onset)
   return enhanced_onset;
 }
 
+/* Session +3: Onset peak detection for DP tracker
+ * Convert continuous onset stream into discrete beat markers
+ * This solves the fundamental issue: DP expects beat/silence patterns,
+ * not continuous varying onset values from real audio.
+ * 
+ * The onset values we receive are already thresholded by peakpicker,
+ * so they're either "high" (potential beat) or "low" (no beat).
+ * We just need to convert this to a clearer discrete signal.
+ */
+static smpl_t
+aubio_beattracking_detect_onset_peak(aubio_beattracking_t * bt, smpl_t onset_value)
+{
+  AUBIO_ASSERT_NOT_NULL(bt);
+  
+  /* Adaptive threshold based on running average
+   * The thresholded onset values vary, we want to identify the strongest ones */
+  smpl_t alpha = 0.02;  /* Slow adaptation */
+  bt->dp_onset_threshold = (1.0 - alpha) * bt->dp_onset_threshold + alpha * onset_value;
+  
+  /* Ensure reasonable threshold range */
+  if (bt->dp_onset_threshold < 0.1) {
+    bt->dp_onset_threshold = 0.1;
+  }
+  if (bt->dp_onset_threshold > 1.0) {
+    bt->dp_onset_threshold = 1.0;
+  }
+  
+  /* Peak detection: onset must be:
+   * 1. Significantly above threshold (2x mean to catch strong beats)
+   * 2. Greater than previous value (rising edge for precision)
+   * 3. Not in cooldown period (prevent double-detection)
+   */
+  smpl_t peak_threshold = bt->dp_onset_threshold * 2.0;
+  smpl_t peak_value = 0.0;  /* Default: no peak */
+  
+  if (bt->dp_cooldown > 0) {
+    /* In cooldown - no new peaks */
+    bt->dp_cooldown--;
+  } else if (onset_value > peak_threshold && onset_value > bt->dp_last_onset) {
+    /* Peak detected! Return strong marker like synthetic tests use */
+    peak_value = 1.0;
+    
+    /* Set cooldown based on minimum expected beat interval
+     * At 200 BPM (fastest typical): 60/200 = 0.3s = 0.3 * 44100/256 ≈ 52 frames
+     * Use conservative 15 frames (0.09s) to allow fast tempos while preventing doubles */
+    bt->dp_cooldown = 15;
+  } else if (onset_value > peak_threshold * 0.7) {
+    /* Moderate onset - mark as weaker beat possibility */
+    peak_value = 0.5;
+  }
+  
+  /* Update last onset for next comparison */
+  bt->dp_last_onset = onset_value;
+  
+  return peak_value;
+}
+
 void
 aubio_beattracking_feed_tempogram(aubio_beattracking_t * bt, smpl_t onset_value)
 {
@@ -1155,13 +1221,26 @@ aubio_beattracking_feed_tempogram(aubio_beattracking_t * bt, smpl_t onset_value)
   
   /* Feed DP tracker if enabled (Phase 3D) */
   if (bt->use_dp && bt->dptracker_obj) {
-    /* Apply onset enhancement if enabled for better DP beat tracking */
-    smpl_t enhanced_onset = bt->onset_enhancement ? 
-      aubio_beattracking_enhance_onset(bt, onset_value) : onset_value;
-    aubio_dptracker_do(bt->dptracker_obj, enhanced_onset);
+    /* Session +3 FIX: Quantize onset to discrete 0/1 values
+     * DP tracker was designed for clear beat/silence patterns.
+     * Thresholded onset values vary continuously, but DP works best
+     * with discrete markers like in synthetic tests (0.0 or 1.0).
+     * 
+     * Use adaptive threshold to convert continuous onset stream
+     * into discrete beat markers that DP can track properly.
+     */
     
-    /* Session +2 FIX: Count frames for periodic extraction
-     * Extract beats every 'step' frames to prevent detecting extraction frequency */
+    /* Adaptive threshold */
+    smpl_t alpha = 0.02;
+    bt->dp_onset_threshold = (1.0 - alpha) * bt->dp_onset_threshold + alpha * onset_value;
+    if (bt->dp_onset_threshold < 0.1) bt->dp_onset_threshold = 0.1;
+    
+    /* Quantize: If significantly above threshold, it's a beat (1.0), else not (0.0) */
+    smpl_t quantized_onset = (onset_value > bt->dp_onset_threshold * 1.5) ? 1.0 : 0.0;
+    
+    aubio_dptracker_do(bt->dptracker_obj, quantized_onset);
+    
+    /* Count frames for periodic extraction */
     bt->dp_frames_since_extract++;
   }
   
