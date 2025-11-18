@@ -20,7 +20,10 @@
 
 #define _GNU_SOURCE
 #include "aubio_priv.h"
+
+#ifndef HAVE_WIN_HACKS
 #include <strings.h>
+#endif
 
 #ifdef HAVE_WIN_HACKS
 #define strncasecmp _strnicmp
