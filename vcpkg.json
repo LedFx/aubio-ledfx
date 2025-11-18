@@ -5,6 +5,7 @@
   "description": "aubio is a library for audio and music analysis, synthesis, and effects",
   "dependencies": [
     "pkgconf",
+    "nanobind",
     {
       "name": "libsndfile",
       "default-features": false,
