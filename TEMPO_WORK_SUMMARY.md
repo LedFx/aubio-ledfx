@@ -11,18 +11,24 @@
 
 ## ⚠️ CRITICAL UPDATE (2025-11-18)
 
-**Major Discovery**: Phase 3D DP tracker integration bug found during validation.
+**Major Discovery**: Phase 3D DP tracker integration fundamentally flawed.
 
 **Issue**: DP tracker was **never actually running** despite being marked "complete". All performance claims (83% detection, matches autocorr) were measuring autocorrelation fallback, not the DP tracker itself.
 
-**Root Cause**: `aubio_dptracker_get_beats()` was never called, so `num_beats` stayed at 0, causing `get_bpm()` to always return 0.0 and fall back to autocorrelation.
+**Investigation Results** (Sessions +1 through +4):
+- Session +1: Created diagnostic tests, identified "stuck at ~72 BPM" pattern
+- Session +2: Attempted 5 extraction strategy fixes - ALL FAILED
+- Session +3: Attempted 3 onset preprocessing fixes - ALL FAILED
+- Session +4: Confirmed fundamental design incompatibility
 
-**Status**: 
-- ✅ Bug identified and partially fixed (commit 56dcb19)
-- ⚠️ DP now runs but underperforms: 17% detection vs 83% autocorr
-- 🔄 Sessions +1, +2, +3 planned to properly fix DP tracker
+**Root Cause (Final)**: Ellis (2007) DP algorithm designed for batch processing with single extraction. Our real-time streaming integration with continuous feeding + periodic extraction is incompatible. Would require complete redesign (10+ sessions).
 
-**Impact on Documentation**: All Phase 3D performance claims in this document prior to this update were incorrect. See updated Phase 3D section below for accurate status.
+**Decision**: 
+- ❌ DP tracker integration is NOT VIABLE for this project
+- ✅ Removing ALL DP-related code (Sessions +5A/B/C/D)
+- ✅ Focus on proven methods (autocorrelation, tempogram, PLP)
+
+**Impact on Documentation**: All Phase 3D performance claims were incorrect (measured autocorrelation fallback). Phase 3D marked as REMOVED. See Session +5 Removal Plan below.
 
 ---
 
@@ -3333,10 +3339,354 @@ uint_t window = aubio_tempogram_get_plp_smoothing_window(tempogram);
 
 ---
 
-**Document Version**: 1.2  
+## Session +5: DP Removal Plan (CURRENT)
+
+### Decision: Remove All DP Tracker Code
+
+**Rationale**: After 4 investigation sessions and 15+ fix attempts, DP tracker integration cannot work without complete redesign. Batch processing algorithm is incompatible with real-time streaming paradigm.
+
+**Scope**: Complete removal of all DP-related code added in Phase 3D.
+
+---
+
+### File Inventory
+
+**Source Files to Modify (8 files):**
+1. `src/tempo/beattracking.c` - Remove DP integration, state fields, API functions
+2. `src/tempo/beattracking.h` - Remove DP API declarations
+3. `src/tempo/tempo.c` - Remove `aubio_tempo_set_use_dp()` wrapper
+4. `src/tempo/tempo.h` - Remove DP public API
+5. `src/tempo/dptracker.c` - **DELETE entire file** (1089 lines)
+6. `src/tempo/dptracker.h` - **DELETE entire file** (168 lines)
+7. `src/meson.build` - Remove dptracker from build
+8. `tests/meson.build` - Remove all DP tests
+
+**Test Files to Delete (9 files):**
+1. `tests/src/tempo/test-dptracker-basic.c` - Basic DP functionality tests
+2. `tests/src/tempo/test-dptracker-debug.c` - Diagnostic tool (Session +1)
+3. `tests/src/tempo/test-dptracker-internal.c` - Internal logging test (Session +4)
+4. `tests/src/tempo/test-dptracker-performance.c` - Performance profiling (Session 4)
+5. `tests/src/tempo/test-dptracker-unit.c` - Component unit tests (Session +1)
+6. `tests/src/tempo/test-tempo-dp.c` - DP integration tests
+7. `tests/src/tempo/test-tempo-dp-benchmark.c` - DP benchmarking
+8. `tests/src/tempo/test-tempo-dp-gradual.c` - Gradual tempo testing (Session 4)
+9. `tests/src/tempo/test-onset-peak-analysis.c` - DP-specific diagnostic (Session +3)
+
+**Documentation to Update:**
+- `TEMPO_WORK_SUMMARY.md` - Mark Phase 3D as REMOVED, update statistics
+
+**Total Lines to Remove**: ~3,500+ lines of DP-related code
+
+---
+
+### Removal Plan: 4 Sessions
+
+#### Session +5A: Delete Test Files ✅ (Next)
+
+**Tasks:**
+1. Delete 9 DP test files listed above
+2. Update `tests/meson.build`:
+   - Remove all DP test declarations
+   - Remove from test lists
+3. Build and verify non-DP tests still work
+4. Run test suite
+
+**Expected Results:**
+- Test count: 73 → 64 tests (-9 DP tests)
+- Tempo tests: 25 → 16 (-9 DP tests)
+- All remaining tests PASS
+
+**Validation:**
+```bash
+meson setup builddir -Dtests=true
+meson test -C builddir
+# Expect: 64/64 tests passing
+```
+
+---
+
+#### Session +5B: Remove DP from beattracking.c/h
+
+**Tasks in beattracking.c:**
+1. Remove `#include "tempo/dptracker.h"`
+2. Remove from struct aubio_beattracking_t:
+   - `uint_t use_dp`
+   - `aubio_dptracker_t *dptracker_obj`
+   - `uint_t dp_frame_count`
+   - `uint_t dp_frames_since_extract`
+   - `smpl_t dp_cached_bpm`
+   - `smpl_t dp_last_onset`
+   - `smpl_t dp_onset_threshold`
+   - `uint_t dp_cooldown`
+3. Remove initialization in `new_aubio_beattracking()`:
+   - `p->use_dp = 0`
+   - `p->dptracker_obj = NULL`
+   - All dp_* field initializations
+4. Remove from `del_aubio_beattracking()`:
+   - DP tracker cleanup code
+5. Remove function `aubio_beattracking_set_use_dp()`
+6. Remove function `aubio_beattracking_detect_onset_peak()` (if exists)
+7. Remove all DP logic from `aubio_beattracking_feed_tempogram()`:
+   - DP feeding calls
+   - Beat extraction calls
+   - Onset preprocessing for DP
+8. Remove all DP logic from `aubio_beattracking_get_bpm()`:
+   - DP BPM retrieval
+   - Fallback logic that uses DP
+
+**Tasks in beattracking.h:**
+1. Remove `aubio_beattracking_set_use_dp()` declaration
+
+**Validation:**
+```bash
+meson compile -C builddir
+meson test -C builddir test-beattracking
+# Expect: test-beattracking PASS
+```
+
+---
+
+#### Session +5C: Remove DP from tempo.c/h and Delete Core Files
+
+**Tasks in tempo.c:**
+1. Remove `aubio_tempo_set_use_dp()` function
+2. Remove any DP-related wrapper calls
+
+**Tasks in tempo.h:**
+1. Remove `aubio_tempo_set_use_dp()` declaration
+
+**Tasks in src/meson.build:**
+1. Remove `'tempo/dptracker.c'` from aubio_sources
+2. Verify build configuration
+
+**Delete Files:**
+1. `src/tempo/dptracker.c`
+2. `src/tempo/dptracker.h`
+
+**Validation:**
+```bash
+meson setup builddir --wipe -Dtests=true
+meson compile -C builddir
+meson test -C builddir
+# Expect: All 64 tests PASS, clean build
+```
+
+---
+
+#### Session +5D: Documentation Cleanup and Final Validation
+
+**Update TEMPO_WORK_SUMMARY.md:**
+
+1. **Phase 3D Section**: Mark as "REMOVED - NOT VIABLE"
+   - Document why DP was removed
+   - Keep investigation summary (Sessions +1-+4)
+   - Remove all code examples using DP
+   
+2. **Executive Summary**: Update statistics
+   - File count: 41 → 33 files (-8 DP files)
+   - Test count: 73 → 64 tests (-9 DP tests)
+   - Remove DP from achievements list
+
+3. **Source Files Section**: Update inventory
+   - Remove dptracker.c/h from listings
+   - Update file counts
+
+4. **Code Examples Section**: Remove DP examples
+   - Example 2: DP tracker for optimal beat sequences (DELETE)
+   - Example 4: Hybrid approach variant using DP (MODIFY - remove DP part)
+   - Example 5: DP + Tempogram (DELETE)
+   - Example 6: Genre-specific using DP (MODIFY - remove DP)
+
+5. **API Quick Reference**: Remove DP API
+   - Remove `aubio_tempo_set_use_dp()` from examples
+   - Update decision matrix (remove DP row)
+
+6. **Performance Characteristics Table**: Remove DP row
+   - Remove "DP Tracker" entry
+   - Remove "DP + Tempogram" entry
+
+7. **Add New Section**: "Phase 3D: DP Tracker (REMOVED)"
+   - Summary of investigation (Sessions +1-+4)
+   - Why it was removed
+   - Lessons learned
+   - Final recommendation: Use autocorrelation
+
+8. **References Section**: 
+   - Keep Ellis (2007) reference with note: "Investigated but not viable for streaming integration"
+
+**Final Validation:**
+```bash
+# Full clean rebuild
+rm -rf builddir
+meson setup builddir -Dtests=true
+meson compile -C builddir
+meson test -C builddir
+
+# Verify no DP references remain
+grep -r "dptracker\|dp_tracker\|use_dp" src/ tests/ --include="*.c" --include="*.h"
+# Expect: No matches
+
+# Check test count
+meson test -C builddir --list | wc -l
+# Expect: 64 tests
+```
+
+**Final Documentation State:**
+- TEMPO_WORK_SUMMARY.md: ~3000 lines (reduced from ~3400)
+- Honest history of DP investigation preserved
+- Clear documentation of removal rationale
+- Production-ready focus on working methods
+
+---
+
+### Success Criteria (All 4 Sessions)
+
+**Code Removal:**
+- ✅ Zero DP code in src/ (verified by grep)
+- ✅ Zero DP tests in tests/ (verified by grep)  
+- ✅ Clean build with no DP references
+- ✅ No linker errors or undefined symbols
+
+**Test Suite:**
+- ✅ 64/64 tests passing (autocorr, tempogram, PLP)
+- ✅ No test failures or regressions
+- ✅ Test count reduced from 73 to 64
+
+**Documentation:**
+- ✅ TEMPO_WORK_SUMMARY.md accurately reflects removed status
+- ✅ Phase 3D marked as REMOVED with investigation summary
+- ✅ All DP code examples removed or modified
+- ✅ Production recommendations focus on working methods
+
+**Production Readiness:**
+- ✅ Autocorrelation: 83% detection, proven reliable
+- ✅ Multi-Scale Tempogram: 50% detection, documented limitations
+- ✅ PLP: Smooth tempo curves, working
+- ✅ Hybrid: Best overall approach, documented
+- ✅ Clear deployment guide for production use
+
+---
+
+### Expected Test Counts
+
+**Before Removal:**
+- Total tests: 73
+- Tempo-related: 25
+  - Core tempo: 6
+  - Tempogram: 8
+  - DP-specific: 9
+  - PLP: 2
+
+**After Removal:**
+- Total tests: 64
+- Tempo-related: 16
+  - Core tempo: 6
+  - Tempogram: 8
+  - DP-specific: 0 (removed)
+  - PLP: 2
+
+---
+
+### Risk Assessment
+
+**Low Risk:**
+- DP code was isolated (separate files)
+- Integration hooks are minimal (3-4 API calls)
+- Non-DP tests already passing independently
+- Clear separation between DP and other tempo methods
+
+**Mitigation:**
+- Execute in discrete sessions (+5A → +5B → +5C → +5D)
+- Validate after each session
+- Keep git history for potential future reference
+- Document removal rationale thoroughly
+
+---
+
+### Timeline
+
+**Session +5A**: ~1 hour (test file deletion, straightforward)
+**Session +5B**: ~2 hours (integration removal, moderate complexity)
+**Session +5C**: ~1 hour (API removal + file deletion, straightforward)
+**Session +5D**: ~2-3 hours (documentation update, thorough review)
+
+**Total**: ~6-7 hours across 4 sessions
+
+---
+
+### Lessons Learned from DP Investigation
+
+**What We Discovered:**
+1. Batch processing algorithms ≠ Streaming algorithms
+2. Synthetic tests can hide integration problems
+3. 4 sessions of attempted fixes is a clear signal to stop
+4. Honest documentation of failures is valuable
+
+**What Worked:**
+- Autocorrelation: Simple, reliable, proven
+- Tempogram: Works within documented limitations
+- PLP: Smooth tempo curves as designed
+- Incremental testing and validation
+
+**What Didn't Work:**
+- Adapting batch DP algorithm to streaming (fundamental incompatibility)
+- Multiple extraction strategies (15+ attempts)
+- Onset preprocessing (3 different approaches)
+- Parameter tuning alone
+
+**Key Takeaway**: When multiple sophisticated fix attempts all fail, the problem is often architectural, not parametric. Better to acknowledge limitations and focus on proven methods than force a square peg into a round hole.
+
+---
+
+## Phase 3D: DP Tracker (REMOVED - NOT VIABLE)
+
+### Investigation Summary (Sessions +1 through +4)
+
+**Status**: REMOVED after 4 investigation sessions confirmed fundamental design incompatibility.
+
+**Timeline**:
+- **Original Sessions 1-5**: DP tracker implementation and integration (later found to be non-functional)
+- **Session +1**: Diagnostic tests created, identified "stuck at ~72 BPM" issue
+- **Session +2**: Attempted 5 extraction strategy fixes - ALL FAILED
+- **Session +3**: Attempted 3 onset preprocessing fixes - ALL FAILED  
+- **Session +4**: Deep investigation confirmed fundamental incompatibility
+- **Session +5**: Comprehensive removal plan created
+- **Sessions +5A-D**: Complete removal of all DP code (IN PROGRESS)
+
+**Root Cause**: Ellis (2007) DP beat tracking algorithm designed for:
+- Batch processing of complete audio files
+- Post-processed onset detection with clear peaks
+- Single beat extraction after full analysis
+
+Our integration provided:
+- Real-time streaming with continuous feeding
+- Live onset detection with varying strengths
+- Periodic beat extraction during ongoing processing
+
+**These paradigms are fundamentally incompatible.**
+
+**Evidence**:
+- Basic synthetic test: 138-140 BPM ✅ (proves algorithm works)
+- Real audio integration: 72-83 BPM ❌ (proves integration fails)
+- 15+ different fix attempts across 4 sessions: ALL FAILED
+- Detection rate: 17% (1/6 sections) - NO IMPROVEMENT after any fixes
+
+**Final Decision**: 
+- DP tracker integration is NOT VIABLE for this project
+- Would require complete redesign (10+ sessions, high risk, low benefit)
+- Better to focus on proven methods (autocorrelation already works excellently)
+
+**Removal Status**: Sessions +5A-D will remove ALL DP code (planned above).
+
+**Recommendation**: Use autocorrelation (83% detection, <1 BPM error, proven reliable) for production. DP tracker can be revisited in future if a proper streaming-compatible design is developed, but current implementation is removed.
+
+---
+
+**Document Version**: 1.3  
 **Created**: 2025-11-17  
-**Updated**: 2025-11-18 (Test fixes for tempogram-real-audio and regression-check)  
+**Updated**: 2025-11-18 (Session +5: DP removal plan added)  
 **Scope**: Tempo-related files only  
-**Files Covered**: 41 files  
+**Files Covered**: 41 files → 33 files (after DP removal)  
+**Test Count**: 73 tests → 64 tests (after DP removal)  
 **Supersedes**: 4 doc/ tempo files  
 **Complements**: 2 implementation references
