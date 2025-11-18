@@ -72,6 +72,8 @@ test_sources = files(
   'src/tempo/test-beattracking.c',
   'src/tempo/test-dptracker-basic.c',
   'src/tempo/test-dptracker-performance.c',
+  'src/tempo/test-dptracker-debug.c',
+  'src/tempo/test-dptracker-unit.c',
   'src/tempo/test-tempo-dp.c',
   'src/tempo/test-tempo-dp-benchmark.c',
   'src/tempo/test-tempo-dp-gradual.c',
