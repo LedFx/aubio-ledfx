@@ -13,13 +13,20 @@
 
 #define VERBOSE 1
 
+// Helper: Create path to test file
+#ifdef AUBIO_TEMPO_TEST_DIR
+#define TEMPO_TEST_FILE(filename) AUBIO_TEMPO_TEST_DIR "/" filename
+#else
+#define TEMPO_TEST_FILE(filename) "tests/" filename
+#endif
+
 int main(int argc, char **argv)
 {
   fprintf(stderr, "\n╔══════════════════════════════════════════════════════════════╗\n");
   fprintf(stderr, "║   TEMPOGRAM REAL AUDIO INTEGRATION TEST                      ║\n");
   fprintf(stderr, "╚══════════════════════════════════════════════════════════════╝\n\n");
 
-  const char *test_file = "test_bpm_changes.wav";
+  const char *test_file = TEMPO_TEST_FILE("test_bpm_changes.wav");
   
   if (argc > 1) {
     test_file = argv[1];
@@ -31,7 +38,7 @@ int main(int argc, char **argv)
   aubio_source_t *source = new_aubio_source(test_file, 44100, 256);
   if (!source) {
     fprintf(stderr, "✗ Failed to open %s\n", test_file);
-    fprintf(stderr, "   Make sure to run from tests/ directory\n");
+    fprintf(stderr, "   Make sure test audio files are available\n");
     return 1;
   }
   
