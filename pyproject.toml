@@ -49,7 +49,8 @@ build = ["cp310-*", "cp311-*", "cp312-*", "cp313-*","cp314-*"]
 before-build = "pip install \"meson>=1.9.0\" meson-python ninja \"numpy>=1.26.4\""
 # Skip 32-bit builds and musllinux wheels
 skip = ["*-win32", "*-manylinux_i686", "*-musllinux*"]
-
+manylinux-x86_64-image = "manylinux-x86_64-vcpkg-aubio:latest"
+manylinux-aarch64-image = "manylinux-aarch64-vcpkg-aubio:latest"
 # Test the wheels - ensure they're portable by verifying imports work
 test-requires = ["pytest", "numpy>=1.26.4"]
 # First test: Verify aubio can be imported (ensures DLLs are bundled on Windows)
@@ -77,42 +78,46 @@ build-frontend = { name = "pip", args = ["--no-build-isolation"] }
 #          These are transitive dependencies of libsndfile[external-libs] that must be installed
 #          to avoid undefined symbol errors during static linking
 before-all = """
-    yum install -y git zip unzip tar curl make nasm && \
-    if [ ! -d /tmp/vcpkg ]; then
-        git clone https://github.com/microsoft/vcpkg.git /tmp/vcpkg && \
-        cd /tmp/vcpkg && ./bootstrap-vcpkg.sh -disableMetrics
-    fi && \
-    if [ "$AUDITWHEEL_ARCH" = "x86_64" ]; then
-        VCPKG_TRIPLET=x64-linux-pic
-    elif [ "$AUDITWHEEL_ARCH" = "aarch64" ]; then
-        VCPKG_TRIPLET=arm64-linux-pic
-    else
-        echo "ERROR: Unknown architecture: $AUDITWHEEL_ARCH"
-        exit 1
-    fi && \
-    echo "=== Installing vcpkg dependencies for $AUDITWHEEL_ARCH (triplet: $VCPKG_TRIPLET) ===" && \
-    cd {project} && \
-    CC=/opt/rh/gcc-toolset-14/root/usr/bin/gcc \
-    CXX=/opt/rh/gcc-toolset-14/root/usr/bin/g++ \
-    VCPKG_BUILD_TYPE=release \
-    /tmp/vcpkg/vcpkg install --triplet=$VCPKG_TRIPLET --overlay-triplets=./vcpkg-triplets --allow-unsupported && \
-    echo "=== Vcpkg installation complete ===" && \
-    echo "Installed packages in vcpkg_installed/$VCPKG_TRIPLET/:" && \
-    ls -la {project}/vcpkg_installed/$VCPKG_TRIPLET/lib/pkgconfig/ 2>/dev/null || echo "No pkgconfig directory found" && \
-    echo "Static libraries:" && \
-    ls -la {project}/vcpkg_installed/$VCPKG_TRIPLET/lib/*.a 2>/dev/null | head -20 || echo "No static libraries found"
+    dnf install -y git zip unzip tar curl make nasm
+    # if [ ! -d /tmp/vcpkg ]; then
+    #     git clone https://github.com/microsoft/vcpkg.git /tmp/vcpkg && \
+    #     cd /tmp/vcpkg && ./bootstrap-vcpkg.sh -disableMetrics
+    # fi && \
+    # if [ "$AUDITWHEEL_ARCH" = "x86_64" ]; then
+    #     VCPKG_TRIPLET=x64-linux-pic
+    # elif [ "$AUDITWHEEL_ARCH" = "aarch64" ]; then
+    #     VCPKG_TRIPLET=arm64-linux-pic
+    # else
+    #     echo "ERROR: Unknown architecture: $AUDITWHEEL_ARCH"
+    #     exit 1
+    # fi && \
+    # echo "=== Installing vcpkg dependencies for $AUDITWHEEL_ARCH (triplet: $VCPKG_TRIPLET) ===" && \
+    # cd {project} && \
+    # CC=/opt/rh/gcc-toolset-14/root/usr/bin/gcc \
+    # CXX=/opt/rh/gcc-toolset-14/root/usr/bin/g++ \
+    # VCPKG_BUILD_TYPE=release \
+    # /tmp/vcpkg/vcpkg install --triplet=$VCPKG_TRIPLET --overlay-triplets=./vcpkg-triplets --allow-unsupported && \
+    # echo "=== Vcpkg installation complete ===" && \
+    # echo "Installed packages in vcpkg_installed/$VCPKG_TRIPLET/:" && \
+    # ls -la {project}/vcpkg_installed/$VCPKG_TRIPLET/lib/pkgconfig/ 2>/dev/null || echo "No pkgconfig directory found" && \
+    # echo "Static libraries:" && \
+    # ls -la {project}/vcpkg_installed/$VCPKG_TRIPLET/lib/*.a 2>/dev/null | head -20 || echo "No static libraries found"
 """
 
 [tool.cibuildwheel.linux.environment]
 # Set paths for both architectures - Meson will detect and use the correct one based on host_machine.cpu_family()
 # This works because only one triplet directory will exist (installed in before-all based on AUDITWHEEL_ARCH)
-CMAKE_PREFIX_PATH = "{project}/vcpkg_installed/x64-linux-pic:{project}/vcpkg_installed/arm64-linux-pic"
-PKG_CONFIG_PATH = "{project}/vcpkg_installed/x64-linux-pic/lib/pkgconfig:{project}/vcpkg_installed/x64-linux-pic/share/pkgconfig:{project}/vcpkg_installed/arm64-linux-pic/lib/pkgconfig:{project}/vcpkg_installed/arm64-linux-pic/share/pkgconfig"
-# Use gcc-toolset-14 for C++17 support (required by rubberband)
-CC = "/opt/rh/gcc-toolset-14/root/usr/bin/gcc"
-CXX = "/opt/rh/gcc-toolset-14/root/usr/bin/g++"
+# CMAKE_PREFIX_PATH = "{project}/vcpkg_installed/x64-linux-pic:{project}/vcpkg_installed/arm64-linux-pic"
+# PKG_CONFIG_PATH = "{project}/vcpkg_installed/x64-linux-pic/lib/pkgconfig:{project}/vcpkg_installed/x64-linux-pic/share/pkgconfig:{project}/vcpkg_installed/arm64-linux-pic/lib/pkgconfig:{project}/vcpkg_installed/arm64-linux-pic/share/pkgconfig"
+# # Use gcc-toolset-14 for C++17 support (required by rubberband)
+# CC = "/opt/rh/gcc-toolset-14/root/usr/bin/gcc"
+# CXX = "/opt/rh/gcc-toolset-14/root/usr/bin/g++"
+VCPKG_INSTALL = "$VCPKG_INSTALLATION_ROOT/installed/$VCPKG_DEFAULT_TRIPLET"
+PKG_CONFIG_PATH = "$VCPKG_INSTALL/lib/pkgconfig:$VCPKG_INSTALL/share/pkgconfig:$VCPKG_INSTALL/lib/pkgconfig:$VCPKG_INSTALLATION_ROOT/installed/x64-linux-release/lib/pkgconfig:$VCPKG_INSTALLATION_ROOT/installed/x64-linux-release/share/pkgconfig"
 
-
+[[tool.cibuildwheel.overrides]]
+select = "*-manylinux_aarch64*"
+environment = { PKG_CONFIG_PATH = "$VCPKG_INSTALL/lib/pkgconfig:$VCPKG_INSTALL/share/pkgconfig:$VCPKG_INSTALL/lib/pkgconfig:$VCPKG_INSTALLATION_ROOT/installed/arm64-linux-release/lib/pkgconfig:$VCPKG_INSTALLATION_ROOT/installed/arm64-linux-release/share/pkgconfig" }
 [tool.cibuildwheel.windows]
 # Windows: Use vcpkg to install dependencies before building
 # GitHub Actions runners have vcpkg pre-installed at VCPKG_INSTALLATION_ROOT
@@ -120,7 +125,7 @@ CXX = "/opt/rh/gcc-toolset-14/root/usr/bin/g++"
 # Use built-in triplet x64-windows-release for release-only builds with dynamic libs
 # (rubberband requires dynamic linking on Windows)
 before-all = [
-    "cd {project} && if not exist vcpkg_installed %VCPKG_INSTALLATION_ROOT%\\vcpkg.exe install --triplet=x64-windows-release",
+    # "cd {project} && if not exist vcpkg_installed %VCPKG_INSTALLATION_ROOT%\\vcpkg.exe install --triplet=x64-windows-release",
     "dir {project}\\vcpkg_installed\\x64-windows-release\\lib\\pkgconfig",
 ]
 

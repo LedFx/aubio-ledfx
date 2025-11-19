@@ -7,44 +7,21 @@
     "pkgconf",
     {
       "name": "libsndfile",
-      "default-features": false,
-      "features": ["external-libs"]
+      "default-features": false
     },
     "libsamplerate",
     "fftw3",
-    {
-      "name": "mpg123",
-      "platform": "linux"
-    },
-    {
-      "name": "mp3lame",
-      "platform": "linux"
-    },
-    {
-      "name": "opus",
-      "platform": "linux"
-    },
-    {
-      "name": "libogg",
-      "platform": "linux"
-    },
-    {
-      "name": "libvorbis",
-      "platform": "linux"
-    },
-    {
-      "name": "libflac",
-      "platform": "linux"
-    },
-    {
-      "name": "rubberband",
-      "platform": "!linux"
-    },
+    "libvorbis",
+    "rubberband",
+    "mp3lame",
+    "liblzma",
+    "opus",
+    "libogg",
+    "libflac",
     {
       "name": "ffmpeg",
       "default-features": false,
-      "features": ["avcodec", "avformat", "swresample"],
-      "platform": "!linux"
+      "features": ["avcodec", "avformat", "swresample"]
     }
   ]
 }
