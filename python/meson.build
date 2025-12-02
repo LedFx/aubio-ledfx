@@ -122,15 +122,9 @@ elif host_system == 'windows'
     dependencies += [lib_dep]
   endforeach
   
-  # C++ standard library needed for rubberband (C++ code)
-  cpp_stdlib = c_compiler.find_library('c++', required: false)
-  if not cpp_stdlib.found()
-    # MSVC uses different naming
-    cpp_stdlib = c_compiler.find_library('msvcprt', required: false)
-  endif
-  if cpp_stdlib.found()
-    dependencies += [cpp_stdlib]
-  endif
+  # Note: C++ runtime is automatically linked by MSVC when linking C++ static libraries
+  # rubberband.lib was built with /MT (static runtime), so the linker will use libcpmt.lib
+  # We don't need to (and shouldn't) explicitly request it to avoid conflicts
   
   pyaubio_link_args = []
 else
@@ -140,10 +134,10 @@ endif
 # Build Python extension module
 # For portable wheels, always link against the static library
 # This bundles all aubio code into the Python extension
-pyaubio_link_with = libaubio_static
-pyaubio_deps = [py.dependency()]
-# Add aubio's dependencies directly since we're linking statically
-pyaubio_deps += dependencies
+# Use libaubio_static_dep instead of libaubio_static to get transitive dependencies
+pyaubio_deps = [py.dependency(), libaubio_static_dep]
+# Note: libaubio_static_dep already includes all of aubio's dependencies
+# No need to add them again here
 
 py.extension_module('_aubio',
   pyaubio_sources,
@@ -151,7 +145,6 @@ py.extension_module('_aubio',
   dependencies: pyaubio_deps,
   c_args: pyaubio_c_args,
   link_args: pyaubio_link_args,
-  link_with: pyaubio_link_with,
   install: true,
   subdir: 'aubio',
 )
