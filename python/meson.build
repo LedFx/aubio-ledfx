@@ -99,6 +99,10 @@ elif host_system == 'linux'
   dependencies += [cpp_stdlib]
   
   pyaubio_link_args = []
+elif host_system == 'windows'
+  # On Windows, when linking C++ static libraries (rubberband), we need the C++ stdlib
+  # MSVC automatically links the C++ runtime, but we need to ensure it's available
+  pyaubio_link_args = []
 else
   pyaubio_link_args = []
 endif

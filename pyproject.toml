@@ -119,8 +119,10 @@ CXX = "/opt/rh/gcc-toolset-14/root/usr/bin/g++"
 # Install to project directory (omit --vcpkg-root) so packages go to vcpkg_installed
 # Use custom x64-windows-static-release triplet for static linking and release-only builds
 # All dependencies (libsndfile, fftw3, ffmpeg, rubberband, etc.) are statically embedded in _aubio.pyd
+# --allow-unsupported: Required for rubberband which officially doesn't support windows static builds
+#                      but works fine in practice with proper C++ stdlib linking
 before-all = [
-    "cd {project} && if not exist vcpkg_installed %VCPKG_INSTALLATION_ROOT%\\vcpkg.exe install --triplet=x64-windows-static-release --overlay-triplets=vcpkg-triplets",
+    "cd {project} && if not exist vcpkg_installed %VCPKG_INSTALLATION_ROOT%\\vcpkg.exe install --triplet=x64-windows-static-release --overlay-triplets=vcpkg-triplets --allow-unsupported",
     "dir {project}\\vcpkg_installed\\x64-windows-static-release\\lib\\pkgconfig",
 ]
 
