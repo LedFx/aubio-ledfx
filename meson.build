@@ -130,16 +130,18 @@ vcpkg_install_root = meson.project_source_root() / 'vcpkg_installed'
 # Must match the triplet used in CI/CD (see pyproject.toml [tool.cibuildwheel] sections)
 vcpkg_triplet = 'unknown'
 if host_system == 'windows'
-  # Windows: Use x64-windows-release triplet (release-only, dynamic linking)
+  # Windows: Use custom static-release triplet for static linking and release-only builds
+  # This creates fully portable wheels with no external DLL dependencies
+  # All dependencies (libsndfile, fftw3, ffmpeg, etc.) are embedded in _aubio.pyd
   # This matches pyproject.toml [tool.cibuildwheel.windows] before-all step
   if host_machine.cpu_family() == 'x86_64'
-    vcpkg_triplet = 'x64-windows-release'
+    vcpkg_triplet = 'x64-windows-static-release'
   elif host_machine.cpu_family() == 'x86'
-    vcpkg_triplet = 'x86-windows-release'
+    vcpkg_triplet = 'x86-windows-static-release'
   elif host_machine.cpu_family() == 'aarch64'
-    vcpkg_triplet = 'arm64-windows-release'
+    vcpkg_triplet = 'arm64-windows-static-release'
   else
-    vcpkg_triplet = 'x64-windows-release'
+    vcpkg_triplet = 'x64-windows-static-release'
   endif
 elif host_system == 'darwin'
   if host_machine.cpu_family() == 'aarch64'

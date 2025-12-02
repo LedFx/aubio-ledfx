@@ -10,3 +10,6 @@ set(VCPKG_CMAKE_SYSTEM_NAME Linux)
 # This is critical for linking into shared objects (.so files)
 set(VCPKG_C_FLAGS "-fPIC")
 set(VCPKG_CXX_FLAGS "-fPIC")
+
+# Release-only builds - no debug libraries
+set(VCPKG_BUILD_TYPE release)
