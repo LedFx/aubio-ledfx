@@ -12,7 +12,9 @@ numpy_inc_result = run_command(py,
 )
 
 if numpy_inc_result.returncode() == 0
-  numpy_inc = include_directories(numpy_inc_result.stdout().strip())
+  # Store as string path - will be passed as compiler argument, not include_directories
+  # This avoids Meson error about absolute paths in source tree
+  numpy_inc_path = numpy_inc_result.stdout().strip()
 else
   error('NumPy is required for building Python bindings. Please install numpy: pip install numpy')
 endif
@@ -77,6 +79,7 @@ pyaubio_c_args = [
   '-DHAVE_CONFIG_H',
   '-DUSE_LOCAL_AUBIO',
   '-DAUBIO_VERSION=' + aubio_version,
+  '-I' + numpy_inc_path,  # Pass numpy include as compiler argument
 ]
 
 # Platform-specific args and dependencies
@@ -117,7 +120,7 @@ pyaubio_deps += dependencies
 
 py.extension_module('_aubio',
   pyaubio_sources,
-  include_directories: [pyaubio_inc, numpy_inc, config_inc],
+  include_directories: pyaubio_inc,  # numpy_inc now passed via c_args
   dependencies: pyaubio_deps,
   c_args: pyaubio_c_args,
   link_args: pyaubio_link_args,

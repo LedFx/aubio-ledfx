@@ -28,7 +28,7 @@ classifiers = [
     "Programming Language :: Python",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.26.4; platform_system != 'Darwin' and platform_machine != 'aarch64'",
     "numpy>=2.0.0; platform_system == 'Darwin' and platform_machine == 'aarch64'",
@@ -114,16 +114,16 @@ CXX = "/opt/rh/gcc-toolset-14/root/usr/bin/g++"
 
 
 [tool.cibuildwheel.windows]
-# Windows: Use vcpkg to install dependencies before building
+# Windows: Use vcpkg with MinGW toolchain to install dependencies before building
 # GitHub Actions runners have vcpkg pre-installed at VCPKG_INSTALLATION_ROOT
 # Install to project directory (omit --vcpkg-root) so packages go to vcpkg_installed
-# Use custom x64-windows-static-release triplet for static linking and release-only builds
+# Use custom x64-mingw-static-release triplet for MinGW compatibility (cibuildwheel uses MinGW, not MSVC)
 # All dependencies (libsndfile, fftw3, ffmpeg, rubberband, etc.) are statically embedded in _aubio.pyd
 # --allow-unsupported: Required for rubberband which officially doesn't support windows static builds
 #                      but works fine in practice with proper C++ stdlib linking
 before-all = [
-    "cd {project} && if not exist vcpkg_installed %VCPKG_INSTALLATION_ROOT%\\vcpkg.exe install --triplet=x64-windows-static-release --overlay-triplets=vcpkg-triplets --allow-unsupported",
-    "dir {project}\\vcpkg_installed\\x64-windows-static-release\\lib\\pkgconfig",
+    "cd {project} && if not exist vcpkg_installed %VCPKG_INSTALLATION_ROOT%\\vcpkg.exe install --triplet=x64-mingw-static-release --overlay-triplets=vcpkg-triplets --allow-unsupported",
+    "dir {project}\\vcpkg_installed\\x64-mingw-static-release\\lib\\pkgconfig",
 ]
 
 # Standard build dependencies (no delvewheel needed with static linking)
@@ -134,8 +134,8 @@ before-build = "pip install \"meson>=1.9.0\" meson-python ninja \"numpy>=1.26.4\
 
 [tool.cibuildwheel.windows.environment]
 # Set paths so Meson can find vcpkg packages via CMake and pkg-config
-CMAKE_PREFIX_PATH = "{project}\\vcpkg_installed\\x64-windows-static-release"
-PKG_CONFIG_PATH = "{project}\\vcpkg_installed\\x64-windows-static-release\\lib\\pkgconfig;{project}\\vcpkg_installed\\x64-windows-static-release\\share\\pkgconfig"
+CMAKE_PREFIX_PATH = "{project}\\vcpkg_installed\\x64-mingw-static-release"
+PKG_CONFIG_PATH = "{project}\\vcpkg_installed\\x64-mingw-static-release\\lib\\pkgconfig;{project}\\vcpkg_installed\\x64-mingw-static-release\\share\\pkgconfig"
 
 
 
@@ -147,3 +147,13 @@ PKG_CONFIG_PATH = "{project}\\vcpkg_installed\\x64-windows-static-release\\lib\\
 # Note: This has nothing to do with external dependencies - even with static linking,
 # the Python extension itself is always a shared library on Windows
 allow-windows-internal-shared-libs = true
+
+[dependency-groups]
+dev = [
+    "meson>=1.9.0",
+    "meson-python>=0.18.0",
+    "ninja>=1.13.0",
+]
+test = [
+    "pytest>=8.4.2",
+]

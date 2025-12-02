@@ -8,7 +8,7 @@ aubio-ledfx
 >
 > **Why this fork exists:**
 > - The original aubio project is no longer actively maintained and released
-> - We need Python 3.13 support with pre-built wheels on PyPI
+> - We need Python 3.14 support with pre-built wheels on PyPI
 > - We require the latest fixes and improvements from the main branch of aubio
 > - LedFx depends on aubio and needs a reliable, up-to-date release
 >
@@ -88,12 +88,27 @@ aubio uses the [Meson build system](https://mesonbuild.com/) and [vcpkg](https:/
 
 ### Prerequisites
 
-- **Meson** >= 1.9.0: `pip install "meson>=1.9.0"` or `apt install meson`
-- **Ninja**: `pip install ninja` or `apt install ninja-build`
+- **uv** (recommended): `pip install uv` or see [uv installation](https://docs.astral.sh/uv/getting-started/installation/)
 - **C compiler**: GCC, Clang, or MSVC
-- **Python** >= 3.8 (for Python bindings)
-- **NumPy** (for Python bindings): `pip install numpy`
+- **Python** >= 3.10 (for Python bindings)
 - **vcpkg** (optional, for automatic dependency management): See [vcpkg installation](https://vcpkg.io/en/getting-started.html)
+
+Install development dependencies using uv:
+```bash
+# Install build dependencies (meson, ninja, meson-python)
+uv sync --group dev
+
+# Install test dependencies (pytest)
+uv sync --group test
+
+# Install all dependency groups
+uv sync --all-groups
+```
+
+Alternatively, use pip:
+```bash
+pip install meson>=1.9.0 ninja numpy>=1.26.4
+```
 
 ### Dependency Management with vcpkg
 
