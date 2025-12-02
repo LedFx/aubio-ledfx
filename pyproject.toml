@@ -104,13 +104,17 @@ before-all = """
 """
 
 [tool.cibuildwheel.linux.environment]
-# Set paths for both architectures - Meson will detect and use the correct one based on host_machine.cpu_family()
-# This works because only one triplet directory will exist (installed in before-all based on AUDITWHEEL_ARCH)
+# Tell Meson which vcpkg triplet to use - defaults to x64, overridden for ARM64
+AUBIO_VCPKG_TRIPLET = "x64-linux-pic"
+# Set paths for both architectures - Meson will detect and use the correct one
 CMAKE_PREFIX_PATH = "{project}/vcpkg_installed/x64-linux-pic:{project}/vcpkg_installed/arm64-linux-pic"
 PKG_CONFIG_PATH = "{project}/vcpkg_installed/x64-linux-pic/lib/pkgconfig:{project}/vcpkg_installed/x64-linux-pic/share/pkgconfig:{project}/vcpkg_installed/arm64-linux-pic/lib/pkgconfig:{project}/vcpkg_installed/arm64-linux-pic/share/pkgconfig"
-# Use gcc-toolset-14 for C++17 support (required by rubberband)
 CC = "/opt/rh/gcc-toolset-14/root/usr/bin/gcc"
 CXX = "/opt/rh/gcc-toolset-14/root/usr/bin/g++"
+
+[[tool.cibuildwheel.overrides]]
+select = "*-manylinux_aarch64"
+environment = { AUBIO_VCPKG_TRIPLET = "arm64-linux-pic" }
 
 
 [tool.cibuildwheel.windows]
@@ -123,10 +127,11 @@ CXX = "/opt/rh/gcc-toolset-14/root/usr/bin/g++"
 # --allow-unsupported: Required for rubberband which officially doesn't support windows static builds
 #                      but works fine in practice with proper C++ stdlib linking
 # Conditional vcpkg installation:
-# - On CI (GITHUB_ACTIONS set): Fail if vcpkg errors occur  
+# - On aubio-ledfx CI (GITHUB_REPOSITORY=LedFx/aubio-ledfx): Fail if vcpkg errors occur  
 # - On local machines (no VCPKG_INSTALLATION_ROOT): Skip gracefully
+# - On other projects building aubio-ledfx: Skip gracefully (they use their own build env)
 # - Validates cached vcpkg_installed by checking for vcpkg status file
-before-all = "cd {project} && if not exist vcpkg_installed\\x64-windows-static-msvc-release\\vcpkg\\status (if defined GITHUB_ACTIONS (echo === CI detected - installing vcpkg dependencies === && %VCPKG_INSTALLATION_ROOT%\\vcpkg.exe install --triplet=x64-windows-static-msvc-release --overlay-triplets=vcpkg-triplets --allow-unsupported || (echo VCPKG INSTALL FAILED && exit /b 1)) else if defined VCPKG_INSTALLATION_ROOT (echo === Local build with vcpkg available === && %VCPKG_INSTALLATION_ROOT%\\vcpkg.exe install --triplet=x64-windows-static-msvc-release --overlay-triplets=vcpkg-triplets --allow-unsupported || (echo VCPKG INSTALL FAILED && exit /b 1)) else (echo === Local build without vcpkg - dependencies will not be installed ===)) else (echo === Using cached vcpkg dependencies ===)"
+before-all = "cd {project} && if not exist vcpkg_installed\\x64-windows-static-msvc-release\\vcpkg\\status (if \"%GITHUB_REPOSITORY%\"==\"LedFx/aubio-ledfx\" (echo === aubio-ledfx CI detected - installing vcpkg dependencies === && %VCPKG_INSTALLATION_ROOT%\\vcpkg.exe install --triplet=x64-windows-static-msvc-release --overlay-triplets=vcpkg-triplets --allow-unsupported || (echo VCPKG INSTALL FAILED && exit /b 1)) else if defined VCPKG_INSTALLATION_ROOT (echo === Local build with vcpkg available === && %VCPKG_INSTALLATION_ROOT%\\vcpkg.exe install --triplet=x64-windows-static-msvc-release --overlay-triplets=vcpkg-triplets --allow-unsupported || (echo VCPKG INSTALL FAILED && exit /b 1)) else (echo === Local build without vcpkg - dependencies will not be installed ===)) else (echo === Using cached vcpkg dependencies ===)"
 
 # No repair-wheel-command needed - static linking means no external DLLs to bundle
 # The _aubio.pyd extension is fully self-contained and portable
@@ -135,6 +140,8 @@ before-all = "cd {project} && if not exist vcpkg_installed\\x64-windows-static-m
 test-command = "python -c \"import aubio; print('aubio version:', aubio.version); print('Portable wheel test: PASS')\" && if defined GITHUB_ACTIONS (pytest {project}/python/tests || (echo TESTS FAILED IN CI && exit /b 0)) else (pytest {project}/python/tests || echo Local build - test failures ignored)"
 
 [tool.cibuildwheel.windows.environment]
+# Tell Meson which vcpkg triplet to use (eliminates auto-detection logic)
+AUBIO_VCPKG_TRIPLET = "x64-windows-static-msvc-release"
 # Set paths so Meson can find vcpkg packages via CMake and pkg-config
 CMAKE_PREFIX_PATH = "{project}\\vcpkg_installed\\x64-windows-static-msvc-release"
 PKG_CONFIG_PATH = "{project}\\vcpkg_installed\\x64-windows-static-msvc-release\\lib\\pkgconfig;{project}\\vcpkg_installed\\x64-windows-static-msvc-release\\share\\pkgconfig"

@@ -122,86 +122,32 @@ endif
 # We don't add -pie here as it will be applied at link time for executables only
 
 # vcpkg integration for cross-platform dependency management
-# Note: In CI/CD, vcpkg dependencies are pre-installed by cibuildwheel before-all step
-# Check if dependencies are already installed before running vcpkg
+# CI/CD sets AUBIO_VCPKG_TRIPLET to use specific custom triplets and pre-installs dependencies
+# Local builds: Use system dependencies unless user manually set up vcpkg
+
 vcpkg_install_root = meson.project_source_root() / 'vcpkg_installed'
+vcpkg_found = false
+vcpkg_installed_dir = ''
 
-# Determine vcpkg triplet based on host system and architecture
-# Must match the triplet used in CI/CD (see pyproject.toml [tool.cibuildwheel] sections)
-vcpkg_triplet = 'unknown'
-if host_system == 'windows'
-  # Windows: Use custom static-release triplet for static linking and release-only builds
-  # This creates fully portable wheels with no external DLL dependencies
-  # All required dependencies (e.g., libsndfile, fftw3, etc.) are statically embedded in _aubio.pyd.
-  # Note: The exact set of embedded dependencies (such as ffmpeg) may vary by platform and vcpkg.json configuration.
-  # See vcpkg.json for the authoritative list of dependencies for each platform.
-  # This matches pyproject.toml [tool.cibuildwheel.windows] before-all step
-  if host_machine.cpu_family() == 'x86_64'
-    vcpkg_triplet = 'x64-windows-static-release'
-  elif host_machine.cpu_family() == 'x86'
-    vcpkg_triplet = 'x86-windows-static-release'
-  elif host_machine.cpu_family() == 'aarch64'
-    vcpkg_triplet = 'arm64-windows-static-release'
+# Check if CI specified a vcpkg triplet
+vcpkg_triplet_env = run_command('python', '-c', 'import os; print(os.getenv("AUBIO_VCPKG_TRIPLET", ""))', check: false, capture: true).stdout().strip()
+
+if vcpkg_triplet_env != ''
+  # CI/CD build: Use custom triplet, dependencies should be pre-installed by cibuildwheel before-all
+  vcpkg_triplet = vcpkg_triplet_env
+  vcpkg_installed_dir = vcpkg_install_root / vcpkg_triplet
+  
+  if fs.is_dir(vcpkg_installed_dir)
+    message('Using vcpkg dependencies from CI: ' + vcpkg_triplet)
+    vcpkg_found = true
   else
-    vcpkg_triplet = 'x64-windows-static-release'
+    error('CI build expects vcpkg dependencies at ' + vcpkg_installed_dir + ' but not found!')
   endif
-elif host_system == 'darwin'
-  # macOS: Use custom release-only triplets to avoid building debug libraries
-  # This matches CI/CD workflow which uses x64-osx-release and arm64-osx-release
-  if host_machine.cpu_family() == 'aarch64'
-    vcpkg_triplet = 'arm64-osx-release'
-  else
-    vcpkg_triplet = 'x64-osx-release'
-  endif
-elif host_system == 'linux'
-  # Linux: Use custom triplets with -fPIC for all architectures
-  # This matches pyproject.toml [tool.cibuildwheel.linux] before-all step
-  if host_machine.cpu_family() == 'aarch64'
-    vcpkg_triplet = 'arm64-linux-pic'
-  else
-    vcpkg_triplet = 'x64-linux-pic'
-  endif
-endif
-
-message('Using vcpkg triplet: ' + vcpkg_triplet)
-
-# Check if vcpkg dependencies are already installed (e.g., by CI/CD before-all step)
-vcpkg_installed_dir = vcpkg_install_root / vcpkg_triplet
-vcpkg_already_installed = fs.is_dir(vcpkg_installed_dir)
-
-if vcpkg_already_installed
-  message('vcpkg dependencies already installed at: ' + vcpkg_installed_dir)
-  vcpkg_found = true
 else
-  # Dependencies not pre-installed, try to install them now
-  vcpkg_exe = find_program('vcpkg', required: false)
-  if vcpkg_exe.found()
-    message('vcpkg found, installing dependencies from vcpkg.json manifest...')
-    
-    # Install vcpkg dependencies with custom triplets for PIC support
-    vcpkg_result = run_command(
-      vcpkg_exe,
-      'install',
-      '--triplet=' + vcpkg_triplet,
-      '--overlay-triplets=' + meson.project_source_root() / 'vcpkg-triplets',
-      '--x-wait-for-lock',
-      '--x-manifest-root=' + meson.project_source_root(),
-      '--x-install-root=' + vcpkg_install_root,
-      check: false
-    )
-    
-    if vcpkg_result.returncode() == 0
-      message('vcpkg dependencies installed successfully')
-      vcpkg_found = true
-    else
-      warning('vcpkg install failed, falling back to system dependencies')
-      message(vcpkg_result.stderr())
-      vcpkg_found = false
-    endif
-  else
-    message('vcpkg not found, using system dependencies')
-    vcpkg_found = false
-  endif
+  # Local build: User must set up vcpkg dependencies manually if desired
+  # We don't prescribe any specific triplet - that's the user's choice
+  message('Local build: Using system dependencies (set AUBIO_VCPKG_TRIPLET to use vcpkg)')
+  vcpkg_found = false
 endif
 
 # If vcpkg dependencies are available (either pre-installed or just installed), set up paths
