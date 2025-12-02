@@ -3,7 +3,11 @@
 # Creates fully portable Python extensions with no external DLL dependencies
 
 set(VCPKG_TARGET_ARCHITECTURE x64)
-set(VCPKG_CRT_LINKAGE dynamic)
+# CRITICAL: Use static CRT (/MT) when linking with MSVC-built static libraries
+# See https://www.ffmpeg.org/platform.html#Linking-to-FFmpeg-with-Microsoft-Visual-C_002b_002b
+# "If you plan to link with MSVC-built static libraries, you will need to make sure
+# you have Runtime Library set to Multi-threaded (/MT) in your project's settings."
+set(VCPKG_CRT_LINKAGE static)
 set(VCPKG_LIBRARY_LINKAGE static)
 
 # Use Windows (MSVC) - not MinGW
