@@ -60,9 +60,10 @@ build-frontend = "build[uv]"
 # First test: Verify aubio can be imported (ensures libraries are linked correctly)
 # Second test: Run pytest suite (allowed to fail with || true for now)
 test-command = "python -c \"import aubio; print('aubio version:', aubio.version); print('Portable wheel test: PASS')\" && pytest {project}/python/tests || true"
-# Linux: vcpkg dependencies are installed inside the manylinux Docker container via before-all
+# Linux: vcpkg dependencies MUST be installed inside the manylinux Docker container via before-all
+# Unlike macOS/Windows which install in GitHub Actions runner, Linux uses Docker so cache cannot capture deps
 # Use static libraries for true portability (no external .so dependencies)
-# Architecture-specific triplet is selected based on AUDITWHEEL_ARCH
+# Architecture-specific triplet (x64-linux-pic or arm64-linux-pic) is selected based on AUDITWHEEL_ARCH
 #
 # OPTIMIZATION NOTES:
 # - before-all runs once per job (not per Python version), so dependencies are built once

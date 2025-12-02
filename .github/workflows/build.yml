@@ -60,14 +60,17 @@ jobs:
           # Linux x86_64
           - os: ubuntu-latest
             arch: x86_64
+            triplet: x64-linux-pic
             cibw_archs: "x86_64"
           # Linux ARM64 (native, no QEMU)
           - os: ubuntu-24.04-arm
             arch: aarch64
+            triplet: arm64-linux-pic
             cibw_archs: "aarch64"
           # Windows AMD64
           - os: windows-latest
             arch: AMD64
+            triplet: x64-windows-static-msvc-release
             cibw_archs: "AMD64"
           # macOS x86_64 (Intel)
           - os: macos-15-intel
@@ -112,7 +115,7 @@ jobs:
 
       # macOS vcpkg setup - build dependencies from source with correct deployment target
       # Uses custom release-only triplets (x64-osx-release, arm64-osx-release) to avoid building debug libraries
-      - name: Install vcpkg dependencies ${{ matrix.os }} ${{ matrix.arch }}
+      - name: Install vcpkg dependencies (MacOS) ${{ matrix.arch }}
         if: runner.os == 'macOS'
         run: |
           echo "Building vcpkg dependencies for ${{ matrix.os }} ${{ matrix.arch }} with deployment target ${{ matrix.macoosx_deployment_target }}"
@@ -123,19 +126,19 @@ jobs:
 
       # Windows vcpkg setup - build dependencies with MSVC static linking
       # Uses custom x64-windows-static-msvc-release triplet for static libraries
-      - name: Install vcpkg dependencies ${{ matrix.os }} ${{ matrix.arch }}
+      - name: Install vcpkg dependencies (Windows) ${{ matrix.arch }}
         if: runner.os == 'Windows'
         shell: cmd
         run: |
           echo === Building vcpkg dependencies for ${{ matrix.os }} ${{ matrix.arch }} ===
-          %VCPKG_INSTALLATION_ROOT%\vcpkg.exe install --triplet=x64-windows-static-msvc-release --overlay-triplets=vcpkg-triplets --allow-unsupported
+          %VCPKG_INSTALLATION_ROOT%\vcpkg.exe install --triplet=${{ matrix.triplet }} --overlay-triplets=vcpkg-triplets --allow-unsupported
           if errorlevel 1 (
             echo VCPKG INSTALL FAILED
             exit /b 1
           )
           echo === Vcpkg installation complete ===
-          echo CMAKE_PREFIX_PATH=${{ github.workspace }}\vcpkg_installed\x64-windows-static-msvc-release>> %GITHUB_ENV%
-          echo PKG_CONFIG_PATH=${{ github.workspace }}\vcpkg_installed\x64-windows-static-msvc-release\lib\pkgconfig;${{ github.workspace }}\vcpkg_installed\x64-windows-static-msvc-release\share\pkgconfig>> %GITHUB_ENV%
+          echo CMAKE_PREFIX_PATH=${{ github.workspace }}\vcpkg_installed\${{ matrix.triplet }}>> %GITHUB_ENV%
+          echo PKG_CONFIG_PATH=${{ github.workspace }}\vcpkg_installed\${{ matrix.triplet }}\lib\pkgconfig;${{ github.workspace }}\vcpkg_installed\${{ matrix.triplet }}\share\pkgconfig>> %GITHUB_ENV%
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.0
