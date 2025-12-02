@@ -146,10 +146,12 @@ if host_system == 'windows'
     vcpkg_triplet = 'x64-windows-static-release'
   endif
 elif host_system == 'darwin'
+  # macOS: Use custom release-only triplets to avoid building debug libraries
+  # This matches CI/CD workflow which uses x64-osx-release and arm64-osx-release
   if host_machine.cpu_family() == 'aarch64'
-    vcpkg_triplet = 'arm64-osx'
+    vcpkg_triplet = 'arm64-osx-release'
   else
-    vcpkg_triplet = 'x64-osx'
+    vcpkg_triplet = 'x64-osx-release'
   endif
 elif host_system == 'linux'
   # Linux: Use custom triplets with -fPIC for all architectures

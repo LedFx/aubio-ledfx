@@ -72,13 +72,13 @@ jobs:
           # macOS x86_64 (Intel)
           - os: macos-15-intel
             macoosx_deployment_target: "10.15"
-            triplet: x64-osx
+            triplet: x64-osx-release
             arch: x86_64
             cibw_archs: "x86_64"
           # macOS ARM64 (Apple Silicon)
           - os: macos-latest
             macoosx_deployment_target: "11.0"
-            triplet: arm64-osx
+            triplet: arm64-osx-release
             arch: arm64
             cibw_archs: "arm64"
 
@@ -105,13 +105,12 @@ jobs:
           brew install nasm
 
       # macOS vcpkg setup - build dependencies from source with correct deployment target
+      # Uses custom release-only triplets (x64-osx-release, arm64-osx-release) to avoid building debug libraries
       - name: Install vcpkg dependencies ${{ matrix.os }} ${{ matrix.arch }}
         if: runner.os == 'macOS'
-        env:
-          VCPKG_BUILD_TYPE: "release"
         run: |
           echo "Building vcpkg dependencies for ${{ matrix.os }} ${{ matrix.arch }} with deployment target ${{ matrix.macoosx_deployment_target }}"
-          $VCPKG_INSTALLATION_ROOT/vcpkg install --triplet=${{ matrix.triplet }}
+          $VCPKG_INSTALLATION_ROOT/vcpkg install --triplet=${{ matrix.triplet }} --overlay-triplets=vcpkg-triplets
           echo "MACOSX_DEPLOYMENT_TARGET=${{ matrix.macoosx_deployment_target }}" >> $GITHUB_ENV
           echo "CMAKE_PREFIX_PATH=${{ github.workspace }}/vcpkg_installed/${{ matrix.triplet }}" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=${{ github.workspace }}/vcpkg_installed/${{ matrix.triplet }}/lib/pkgconfig:${{ github.workspace }}/vcpkg_installed/${{ matrix.triplet }}/share/pkgconfig" >> $GITHUB_ENV
