@@ -474,15 +474,20 @@ if not rubberband_opt.disabled()
   if rubberband_dep.found()
     conf_data.set('HAVE_RUBBERBAND', 1)
     dependencies += rubberband_dep
+    
+    # Rubberband uses SLEEF for SIMD FFT operations
+    sleef_dep = dependency('sleef', required: false, disabler: true)
+    if not sleef_dep.found() and vcpkg_found
+      sleef_dep = cc.find_library('sleef', dirs: vcpkg_library_dirs, required: false)
+    endif
+    if sleef_dep.found()
+      dependencies += sleef_dep
+      message('SLEEF library: enabled (for rubberband FFT)')
+    endif
+    
+    # Link C++ standard library
     if host_system == 'darwin'
       add_project_link_arguments('-lc++', language: 'c')
-      sleef_dep = dependency('sleef', required: false, disabler: true)
-      if not sleef_dep.found() and vcpkg_found
-        sleef_dep = cc.find_library('sleef', dirs: vcpkg_library_dirs, required: false)
-      endif
-      if sleef_dep.found()
-        dependencies += sleef_dep
-      endif
     endif
   elif rubberband_opt.enabled()
     error('rubberband support was requested but the dependency could not be found')

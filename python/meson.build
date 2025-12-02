@@ -103,8 +103,35 @@ elif host_system == 'linux'
   
   pyaubio_link_args = []
 elif host_system == 'windows'
-  # On Windows, when linking C++ static libraries (rubberband), we need the C++ stdlib
-  # MSVC automatically links the C++ runtime, but we need to ensure it's available
+  # On Windows, vcpkg static libraries require Windows system libraries:
+  # Network (ffmpeg): ws2_32 (Winsock2)
+  # Security (ffmpeg): secur32 (SSPI/TLS), bcrypt (crypto)
+  # Media Foundation (ffmpeg): mfuuid, strmiids (GUIDs), ole32 (COM)
+  # When statically linking, we must explicitly provide these system dependencies
+  c_compiler = meson.get_compiler('c')
+  win_libs = [
+    'ws2_32',    # Winsock2 - socket(), bind(), connect(), etc.
+    'secur32',   # Security Support Provider - SSPI, TLS
+    'bcrypt',    # Cryptography API - BCryptGenRandom, etc.
+    'mfuuid',    # Media Foundation - interface UUIDs
+    'strmiids',  # Streaming Media - additional GUIDs
+    'ole32',     # Component Object Model - COM base
+  ]
+  foreach lib_name : win_libs
+    lib_dep = c_compiler.find_library(lib_name, required: true)
+    dependencies += [lib_dep]
+  endforeach
+  
+  # C++ standard library needed for rubberband (C++ code)
+  cpp_stdlib = c_compiler.find_library('c++', required: false)
+  if not cpp_stdlib.found()
+    # MSVC uses different naming
+    cpp_stdlib = c_compiler.find_library('msvcprt', required: false)
+  endif
+  if cpp_stdlib.found()
+    dependencies += [cpp_stdlib]
+  endif
+  
   pyaubio_link_args = []
 else
   pyaubio_link_args = []
