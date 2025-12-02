@@ -118,20 +118,9 @@ environment = { AUBIO_VCPKG_TRIPLET = "arm64-linux-pic" }
 
 
 [tool.cibuildwheel.windows]
-# Windows: Use vcpkg with MSVC to install dependencies before building
-# GitHub Actions runners have vcpkg pre-installed at VCPKG_INSTALLATION_ROOT
-# Install to project directory (omit --vcpkg-root) so packages go to vcpkg_installed
-# Use custom x64-windows-static-msvc-release triplet with MSVC compiler (not MinGW)
-# MSVC is required for ffmpeg and rubberband which don't build properly with MinGW
-# All dependencies (libsndfile, fftw3, ffmpeg, rubberband, etc.) are statically embedded in _aubio.pyd
-# --allow-unsupported: Required for rubberband which officially doesn't support windows static builds
-#                      but works fine in practice with proper C++ stdlib linking
-# Conditional vcpkg installation:
-# - On aubio-ledfx CI (GITHUB_REPOSITORY=LedFx/aubio-ledfx): Fail if vcpkg errors occur  
-# - On local machines (no VCPKG_INSTALLATION_ROOT): Skip gracefully
-# - On other projects building aubio-ledfx: Skip gracefully (they use their own build env)
-# - Validates cached vcpkg_installed by checking for vcpkg status file
-before-all = "cd {project} && if not exist vcpkg_installed\\x64-windows-static-msvc-release\\vcpkg\\status (if \"%GITHUB_REPOSITORY%\"==\"LedFx/aubio-ledfx\" (echo === aubio-ledfx CI detected - installing vcpkg dependencies === && %VCPKG_INSTALLATION_ROOT%\\vcpkg.exe install --triplet=x64-windows-static-msvc-release --overlay-triplets=vcpkg-triplets --allow-unsupported || (echo VCPKG INSTALL FAILED && exit /b 1)) else if defined VCPKG_INSTALLATION_ROOT (echo === Local build with vcpkg available === && %VCPKG_INSTALLATION_ROOT%\\vcpkg.exe install --triplet=x64-windows-static-msvc-release --overlay-triplets=vcpkg-triplets --allow-unsupported || (echo VCPKG INSTALL FAILED && exit /b 1)) else (echo === Local build without vcpkg - dependencies will not be installed ===)) else (echo === Using cached vcpkg dependencies ===)"
+# Windows: Dependencies are pre-installed in GitHub Actions runner environment (see build.yml)
+# This differs from Linux which uses before-all because Linux runs in a manylinux container
+# The vcpkg_installed directory is cached across builds for faster CI runs
 
 # No repair-wheel-command needed - static linking means no external DLLs to bundle
 # The _aubio.pyd extension is fully self-contained and portable

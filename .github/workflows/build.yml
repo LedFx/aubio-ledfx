@@ -104,6 +104,12 @@ jobs:
           # Install nasm (required by vcpkg for ffmpeg assembly optimizations)
           brew install nasm
 
+      - name: Install build tools (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Install nasm (required by vcpkg for ffmpeg assembly optimizations)
+          choco install nasm -y
+
       # macOS vcpkg setup - build dependencies from source with correct deployment target
       # Uses custom release-only triplets (x64-osx-release, arm64-osx-release) to avoid building debug libraries
       - name: Install vcpkg dependencies ${{ matrix.os }} ${{ matrix.arch }}
@@ -114,6 +120,22 @@ jobs:
           echo "MACOSX_DEPLOYMENT_TARGET=${{ matrix.macoosx_deployment_target }}" >> $GITHUB_ENV
           echo "CMAKE_PREFIX_PATH=${{ github.workspace }}/vcpkg_installed/${{ matrix.triplet }}" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=${{ github.workspace }}/vcpkg_installed/${{ matrix.triplet }}/lib/pkgconfig:${{ github.workspace }}/vcpkg_installed/${{ matrix.triplet }}/share/pkgconfig" >> $GITHUB_ENV
+
+      # Windows vcpkg setup - build dependencies with MSVC static linking
+      # Uses custom x64-windows-static-msvc-release triplet for static libraries
+      - name: Install vcpkg dependencies ${{ matrix.os }} ${{ matrix.arch }}
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          echo === Building vcpkg dependencies for ${{ matrix.os }} ${{ matrix.arch }} ===
+          %VCPKG_INSTALLATION_ROOT%\vcpkg.exe install --triplet=x64-windows-static-msvc-release --overlay-triplets=vcpkg-triplets --allow-unsupported
+          if errorlevel 1 (
+            echo VCPKG INSTALL FAILED
+            exit /b 1
+          )
+          echo === Vcpkg installation complete ===
+          echo CMAKE_PREFIX_PATH=${{ github.workspace }}\vcpkg_installed\x64-windows-static-msvc-release>> %GITHUB_ENV%
+          echo PKG_CONFIG_PATH=${{ github.workspace }}\vcpkg_installed\x64-windows-static-msvc-release\lib\pkgconfig;${{ github.workspace }}\vcpkg_installed\x64-windows-static-msvc-release\share\pkgconfig>> %GITHUB_ENV%
 
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.3.0
