@@ -94,7 +94,7 @@ before-all = """
     cd {project} && \
     CC=/opt/rh/gcc-toolset-14/root/usr/bin/gcc \
     CXX=/opt/rh/gcc-toolset-14/root/usr/bin/g++ \
-    VCPKG_BUILD_TYPE=release \
+
     /tmp/vcpkg/vcpkg install --triplet=$VCPKG_TRIPLET --overlay-triplets=./vcpkg-triplets --allow-unsupported && \
     echo "=== Vcpkg installation complete ===" && \
     echo "Installed packages in vcpkg_installed/$VCPKG_TRIPLET/:" && \

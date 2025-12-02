@@ -132,7 +132,9 @@ vcpkg_triplet = 'unknown'
 if host_system == 'windows'
   # Windows: Use custom static-release triplet for static linking and release-only builds
   # This creates fully portable wheels with no external DLL dependencies
-  # All dependencies (libsndfile, fftw3, ffmpeg, etc.) are embedded in _aubio.pyd
+  # All required dependencies (e.g., libsndfile, fftw3, etc.) are statically embedded in _aubio.pyd.
+  # Note: The exact set of embedded dependencies (such as ffmpeg) may vary by platform and vcpkg.json configuration.
+  # See vcpkg.json for the authoritative list of dependencies for each platform.
   # This matches pyproject.toml [tool.cibuildwheel.windows] before-all step
   if host_machine.cpu_family() == 'x86_64'
     vcpkg_triplet = 'x64-windows-static-release'
