@@ -10,9 +10,9 @@ set(VCPKG_TARGET_ARCHITECTURE x64)
 set(VCPKG_CRT_LINKAGE static)
 set(VCPKG_LIBRARY_LINKAGE static)
 
-# Use Windows (MSVC) - not MinGW
-# This ensures vcpkg uses MSVC compiler which has better support for ffmpeg and rubberband
-set(VCPKG_CMAKE_SYSTEM_NAME Windows)
+# Do NOT set VCPKG_CMAKE_SYSTEM_NAME for native Windows/MSVC builds
+# Leaving it unset tells vcpkg to use the native Windows toolchain (MSVC)
+# Only set VCPKG_CMAKE_SYSTEM_NAME for cross-compilation (e.g., "MinGW" for MinGW builds)
 
 # Release-only builds - no debug libraries
 set(VCPKG_BUILD_TYPE release)
