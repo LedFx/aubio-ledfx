@@ -149,7 +149,7 @@ jobs:
           echo PKG_CONFIG_PATH=${{ github.workspace }}\vcpkg_installed\${{ matrix.triplet }}\lib\pkgconfig;${{ github.workspace }}\vcpkg_installed\${{ matrix.triplet }}\share\pkgconfig>> %GITHUB_ENV%
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.3.0
+        uses: pypa/cibuildwheel@henryiii/fix/simpleraction
         with:
           extras: uv  
         env:
