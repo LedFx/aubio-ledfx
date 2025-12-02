@@ -147,14 +147,19 @@ jobs:
           echo === Vcpkg installation complete ===
           echo CMAKE_PREFIX_PATH=${{ github.workspace }}\vcpkg_installed\${{ matrix.triplet }}>> %GITHUB_ENV%
           echo PKG_CONFIG_PATH=${{ github.workspace }}\vcpkg_installed\${{ matrix.triplet }}\lib\pkgconfig;${{ github.workspace }}\vcpkg_installed\${{ matrix.triplet }}\share\pkgconfig>> %GITHUB_ENV%
-
+      - name: Install uv
+        if: runner.os != 'linux'
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
       - name: Build wheels
         uses: pypa/cibuildwheel@henryiii/fix/simpleraction
-        with:
-          extras: uv  
+        # with:
+        #   extras: uv  
         env:
           # Build only for the native architecture (no cross-compilation)
           CIBW_ARCHS: ${{ matrix.cibw_archs }}
+
 
           # All other configuration is in pyproject.toml
 

@@ -51,7 +51,6 @@ skip = ["*-win32", "*-manylinux_i686", "*-musllinux*"]
 
 # Test the wheels - ensure they're portable by verifying imports work
 test-requires = ["pytest", "numpy>=1.26.4"]
-
 # Use uv as the build frontend for faster dependency resolution
 # Environment variables (CMAKE_PREFIX_PATH, PKG_CONFIG_PATH) are passed through even with build isolation
 build-frontend = "build[uv]"
@@ -60,6 +59,9 @@ build-frontend = "build[uv]"
 # First test: Verify aubio can be imported (ensures libraries are linked correctly)
 # Second test: Run pytest suite (allowed to fail with || true for now)
 test-command = "python -c \"import aubio; print('aubio version:', aubio.version); print('Portable wheel test: PASS')\" && pytest {project}/python/tests || true"
+# Added to address issues with 3.3.0 cibuildwheel and Meson builds
+before-build = "pip install auditwheel uv" # Require uv for build frontend
+
 # Linux: vcpkg dependencies MUST be installed inside the manylinux Docker container via before-all
 # Unlike macOS/Windows which install in GitHub Actions runner, Linux uses Docker so cache cannot capture deps
 # Use static libraries for true portability (no external .so dependencies)
