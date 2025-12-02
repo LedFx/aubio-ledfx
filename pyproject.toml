@@ -140,5 +140,8 @@ PKG_CONFIG_PATH = "{project}\\vcpkg_installed\\x64-windows-static-release\\lib\\
 
 
 [tool.meson-python]
-# Note: allow-windows-internal-shared-libs not needed with static linking
-# All dependencies are statically embedded in _aubio.pyd via x64-windows-static-release triplet
+# Required on Windows because Python extension modules (.pyd files) are DLLs
+# This setting allows meson-python to package the _aubio.pyd extension module
+# Note: This has nothing to do with external dependencies - even with static linking,
+# the Python extension itself is always a shared library on Windows
+allow-windows-internal-shared-libs = true
