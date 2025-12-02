@@ -91,6 +91,14 @@ jobs:
         with:
           submodules: 'recursive'
 
+      # Activate MSVC environment on Windows before cibuildwheel
+      # This ensures cl.exe is in PATH and takes precedence over MinGW
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       # Cache vcpkg_installed directory to avoid rebuilding dependencies
       # This caches the installed packages directory which is reused across builds
       - name: Cache vcpkg installed packages ${{ matrix.os }} ${{ matrix.arch }}

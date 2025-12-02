@@ -123,8 +123,7 @@ environment = { AUBIO_VCPKG_TRIPLET = "arm64-linux-pic" }
 # This differs from Linux which uses before-all because Linux runs in a manylinux container
 # The vcpkg_installed directory is cached across builds for faster CI runs
 
-# Ensure MSVC Build Tools are used (not MinGW)
-# cibuildwheel may have MinGW in PATH which Meson would use if MSVC isn't properly configured
+# Install delvewheel for DLL bundling (though not needed with static linking)
 before-build = "pip install delvewheel"
 
 # No repair-wheel-command needed - static linking means no external DLLs to bundle
@@ -139,10 +138,6 @@ AUBIO_VCPKG_TRIPLET = "x64-windows-static-msvc-release"
 # Set paths so Meson can find vcpkg packages via CMake and pkg-config
 CMAKE_PREFIX_PATH = "{project}\\vcpkg_installed\\x64-windows-static-msvc-release"
 PKG_CONFIG_PATH = "{project}\\vcpkg_installed\\x64-windows-static-msvc-release\\lib\\pkgconfig;{project}\\vcpkg_installed\\x64-windows-static-msvc-release\\share\\pkgconfig"
-# Force MSVC compiler (cibuildwheel may have MinGW in PATH which takes precedence)
-# The bare "cl" and "cl++" work because cibuildwheel activates MSVC environment
-CC = "cl"
-CXX = "cl"
 
 
 
