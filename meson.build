@@ -483,7 +483,6 @@ if not rubberband_opt.disabled()
     
     # Rubberband uses SLEEF for SIMD FFT operations
     # vcpkg builds rubberband with sleef on Windows/macOS
-    # SLEEF consists of two libraries: sleef (math) and sleefdft (FFT)
     sleef_required = vcpkg_found and host_system in ['windows', 'darwin']
     sleef_dep = dependency('sleef', required: false, disabler: true)
     if not sleef_dep.found() and vcpkg_found
@@ -494,19 +493,6 @@ if not rubberband_opt.disabled()
       message('SLEEF library: enabled (for rubberband FFT)')
     elif sleef_required
       warning('Rubberband from vcpkg requires SLEEF but it was not found')
-    endif
-    
-    # SLEEF DFT library - required for rubberband FFT operations
-    # This is separate from the main sleef library
-    sleefdft_dep = dependency('sleefdft', required: false, disabler: true)
-    if not sleefdft_dep.found() and vcpkg_found
-      sleefdft_dep = cc.find_library('sleefdft', dirs: vcpkg_library_dirs, required: sleef_required)
-    endif
-    if sleefdft_dep.found()
-      dependencies += sleefdft_dep
-      message('SLEEF DFT library: enabled (for rubberband FFT)')
-    elif sleef_required
-      warning('Rubberband from vcpkg requires SLEEF DFT but it was not found')
     endif
     
     # Link C++ standard library
