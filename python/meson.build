@@ -83,6 +83,8 @@ pyaubio_c_args = [
 ]
 
 # Platform-specific args and dependencies
+pyaubio_extra_deps = []
+
 if host_system == 'darwin'
   pyaubio_link_args = [
     '-framework', 'CoreFoundation',
@@ -93,13 +95,13 @@ elif host_system == 'linux'
   # libraries (FFmpeg) into a shared Python extension, we must add these as
   # dependencies (not just link flags) to ensure proper link order
   thread_dep = dependency('threads', required: true)
-  dependencies += [thread_dep]
+  pyaubio_extra_deps += [thread_dep]
   
   # Add C++ standard library as a dependency
   # Use the C compiler to find libstdc++ (no need for C++ compiler in project)
   c_compiler = meson.get_compiler('c')
   cpp_stdlib = c_compiler.find_library('stdc++', required: true)
-  dependencies += [cpp_stdlib]
+  pyaubio_extra_deps += [cpp_stdlib]
   
   pyaubio_link_args = []
 elif host_system == 'windows'
@@ -119,7 +121,7 @@ elif host_system == 'windows'
   ]
   foreach lib_name : win_libs
     lib_dep = c_compiler.find_library(lib_name, required: true)
-    dependencies += [lib_dep]
+    pyaubio_extra_deps += [lib_dep]
   endforeach
   
   # Note: C++ runtime is automatically linked by MSVC when linking C++ static libraries
@@ -135,9 +137,9 @@ endif
 # For portable wheels, always link against the static library
 # This bundles all aubio code into the Python extension
 # Use libaubio_static_dep instead of libaubio_static to get transitive dependencies
-pyaubio_deps = [py.dependency(), libaubio_static_dep]
+pyaubio_deps = [py.dependency(), libaubio_static_dep] + pyaubio_extra_deps
 # Note: libaubio_static_dep already includes all of aubio's dependencies
-# No need to add them again here
+# pyaubio_extra_deps adds platform-specific system libraries (Windows: ws2_32, secur32, etc.; Linux: pthread, stdc++)
 
 py.extension_module('_aubio',
   pyaubio_sources,
