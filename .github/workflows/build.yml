@@ -60,25 +60,28 @@ jobs:
           # Linux x86_64
           - os: ubuntu-latest
             arch: x86_64
+            triplet: x64-linux-pic
             cibw_archs: "x86_64"
           # Linux ARM64 (native, no QEMU)
           - os: ubuntu-24.04-arm
             arch: aarch64
+            triplet: arm64-linux-pic
             cibw_archs: "aarch64"
           # Windows AMD64
           - os: windows-latest
             arch: AMD64
+            triplet: x64-windows-static-msvc-release
             cibw_archs: "AMD64"
           # macOS x86_64 (Intel)
           - os: macos-15-intel
             macoosx_deployment_target: "10.15"
-            triplet: x64-osx
+            triplet: x64-osx-release
             arch: x86_64
             cibw_archs: "x86_64"
           # macOS ARM64 (Apple Silicon)
           - os: macos-latest
             macoosx_deployment_target: "11.0"
-            triplet: arm64-osx
+            triplet: arm64-osx-release
             arch: arm64
             cibw_archs: "arm64"
 
@@ -87,6 +90,14 @@ jobs:
         uses: actions/checkout@v5
         with:
           submodules: 'recursive'
+
+      # Activate MSVC environment on Windows before cibuildwheel
+      # This ensures cl.exe is in PATH and takes precedence over MinGW
+      - name: Set up MSVC (Windows)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
 
       # Cache vcpkg_installed directory to avoid rebuilding dependencies
       # This caches the installed packages directory which is reused across builds
@@ -104,24 +115,52 @@ jobs:
           # Install nasm (required by vcpkg for ffmpeg assembly optimizations)
           brew install nasm
 
+      - name: Install build tools (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Install nasm (required by vcpkg for ffmpeg assembly optimizations)
+          choco install nasm -y
+
       # macOS vcpkg setup - build dependencies from source with correct deployment target
-      - name: Install vcpkg dependencies ${{ matrix.os }} ${{ matrix.arch }}
+      # Uses custom release-only triplets (x64-osx-release, arm64-osx-release) to avoid building debug libraries
+      - name: Install vcpkg dependencies (MacOS) ${{ matrix.arch }}
         if: runner.os == 'macOS'
-        env:
-          VCPKG_BUILD_TYPE: "release"
         run: |
           echo "Building vcpkg dependencies for ${{ matrix.os }} ${{ matrix.arch }} with deployment target ${{ matrix.macoosx_deployment_target }}"
-          $VCPKG_INSTALLATION_ROOT/vcpkg install --triplet=${{ matrix.triplet }}
+          $VCPKG_INSTALLATION_ROOT/vcpkg install --triplet=${{ matrix.triplet }} --overlay-triplets=vcpkg-triplets
           echo "MACOSX_DEPLOYMENT_TARGET=${{ matrix.macoosx_deployment_target }}" >> $GITHUB_ENV
           echo "CMAKE_PREFIX_PATH=${{ github.workspace }}/vcpkg_installed/${{ matrix.triplet }}" >> $GITHUB_ENV
           echo "PKG_CONFIG_PATH=${{ github.workspace }}/vcpkg_installed/${{ matrix.triplet }}/lib/pkgconfig:${{ github.workspace }}/vcpkg_installed/${{ matrix.triplet }}/share/pkgconfig" >> $GITHUB_ENV
 
+      # Windows vcpkg setup - build dependencies with MSVC static linking
+      # Uses custom x64-windows-static-msvc-release triplet for static libraries
+      - name: Install vcpkg dependencies (Windows) ${{ matrix.arch }}
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          echo === Building vcpkg dependencies for ${{ matrix.os }} ${{ matrix.arch }} ===
+          %VCPKG_INSTALLATION_ROOT%\vcpkg.exe install --triplet=${{ matrix.triplet }} --overlay-triplets=vcpkg-triplets --allow-unsupported
+          if errorlevel 1 (
+            echo VCPKG INSTALL FAILED
+            exit /b 1
+          )
+          echo === Vcpkg installation complete ===
+          echo CMAKE_PREFIX_PATH=${{ github.workspace }}\vcpkg_installed\${{ matrix.triplet }}>> %GITHUB_ENV%
+          echo PKG_CONFIG_PATH=${{ github.workspace }}\vcpkg_installed\${{ matrix.triplet }}\lib\pkgconfig;${{ github.workspace }}\vcpkg_installed\${{ matrix.triplet }}\share\pkgconfig>> %GITHUB_ENV%
+      - name: Install uv
+        if: runner.os != 'linux'
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
       - name: Build wheels
-        uses: pypa/cibuildwheel@9c00cb4f6b517705a3794b22395aedc36257242c # 3.2.1
+        uses: pypa/cibuildwheel@henryiii/fix/simpleraction
+        # with:
+        #   extras: uv  
         env:
           # Build only for the native architecture (no cross-compilation)
           CIBW_ARCHS: ${{ matrix.cibw_archs }}
-          
+
+
           # All other configuration is in pyproject.toml
 
       - name: Upload wheels

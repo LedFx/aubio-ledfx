@@ -33,7 +33,7 @@
 #define MAX_STRETCH_RATIO 40.
 
 #define HAVE_THREADS 1
-#if 0
+#if defined(_WIN32) || defined(_WIN64)
 #undef HAVE_THREADS
 #endif
 

@@ -122,13 +122,13 @@ The core of aubio is written in C for portability and speed. The **pre-built whe
 - [libsndfile] for reading/writing uncompressed audio (WAV, AIFF, etc.)
 - [fftw3] for fast Fourier transforms
 - [libsamplerate] for high-quality audio resampling
-- Audio codec support: FLAC, Vorbis/Ogg
+- Audio codec support: FLAC, Vorbis/Ogg, Opus
 - Built-in WAV reader/writer
 
 **Platform-specific features:**
 - **macOS:** [Accelerate] framework (optimized FFT), [CoreAudio] (native media reading), [ffmpeg], [rubberband] (time-stretching)
-- **Windows:** [ffmpeg], [rubberband] (time-stretching) - all DLLs bundled in wheel
-- **Linux:** MP3 support (mpg123, lame), Opus codec - static linking for portability
+- **Windows:** [ffmpeg] - all dependencies statically linked into wheel
+- **Linux:** MP3 support (mpg123, lame) - all dependencies statically linked for portability
 
 **Not included:** JACK audio, Intel IPP, BLAS/Atlas (for custom builds, see [building from source][doc_building])
 
@@ -144,6 +144,7 @@ For a detailed breakdown of features by platform, see the [Pre-built Wheel Featu
 [fftw3]: http://fftw.org
 [Accelerate]: https://developer.apple.com/reference/accelerate
 [Intel IPP]: https://software.intel.com/en-us/intel-ipp
+[rubberband]: https://breakfastquay.com/rubberband/
 
 [demos_dir]:https://github.com/aubio/aubio/tree/master/python/demos
 [pyaudio]:https://people.csail.mit.edu/hubert/pyaudio/
@@ -169,13 +170,13 @@ This appendix provides a complete breakdown of which optional features are inclu
 | **Audio Codecs** | | | | |
 | FLAC | ✅ | ✅ | ✅ | FLAC lossless audio codec |
 | Vorbis/Ogg | ✅ | ✅ | ✅ | Ogg Vorbis lossy audio codec |
+| Opus | ✅ | ✅ | ✅ | Opus low-latency codec |
 | MP3 (mpg123) | ✅ | ❌ | ❌ | MP3 decoding (Linux only) |
 | MP3 (lame) | ✅ | ❌ | ❌ | MP3 encoding (Linux only) |
-| Opus | ✅ | ❌ | ❌ | Opus low-latency codec (Linux only) |
 | **Sample Rate Conversion** | | | | |
 | libsamplerate | ✅ | ✅ | ✅ | High-quality audio resampling (SRC) |
 | **Time Stretching** | | | | |
-| rubberband | ❌ | ✅ | ✅ | Audio time-stretching and pitch-shifting |
+| rubberband | ❌ | ✅ | ❌ | Audio time-stretching and pitch-shifting |
 | **FFT Implementation** | | | | |
 | fftw3f | ✅ | ✅ | ✅ | Fast Fourier Transform (single precision, recommended) |
 | Accelerate | — | ✅ | — | Apple's optimized FFT and DSP framework |
@@ -187,19 +188,20 @@ This appendix provides a complete breakdown of which optional features are inclu
 - All dependencies are **statically linked** for maximum portability
 - No external `.so` files required - works on any manylinux-compatible system
 - Excludes rubberband and ffmpeg due to static linking constraints
-- Includes MP3 and Opus codecs as transitive dependencies of libsndfile
+- Includes MP3 codecs (mpg123, lame) and Opus as direct dependencies
 
 **macOS (Intel x86_64, Apple Silicon ARM64):**
 - Uses native **Accelerate framework** for optimized FFT operations
 - Uses **CoreAudio** for reading all macOS-supported media formats
-- Includes rubberband and ffmpeg for maximum format compatibility
+- Includes rubberband and ffmpeg for maximum format compatibility and time-stretching
 - Separate wheel builds for Intel and Apple Silicon architectures
 - Minimum deployment target: macOS 10.15 (Intel), macOS 11.0 (Apple Silicon)
 
 **Windows (AMD64):**
-- All dependency DLLs are **bundled inside the wheel** via delvewheel
-- Fully portable - no separate installation of dependencies required
-- Includes rubberband and ffmpeg
+- All dependencies are **statically linked** into the Python extension for portability
+- No external DLL dependencies - fully self-contained wheel
+- Includes ffmpeg for media format support
+- Excludes rubberband (incompatible with static linking on Windows MSVC)
 - Works on Windows 10+ (x64)
 
 ### Features NOT Included in Wheels

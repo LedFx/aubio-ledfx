@@ -179,6 +179,14 @@ if build_static
     install: false,  # Never install static library
   )
   
+  # Create a dependency object that properly propagates dependencies when linking
+  # This is critical for Python extension on Windows - static libs don't auto-propagate deps
+  libaubio_static_dep = declare_dependency(
+    link_with: libaubio_static,
+    dependencies: dependencies,
+    include_directories: [aubio_inc, config_inc],
+  )
+  
   # If we didn't build a shared library, make libaubio point to static
   if not build_shared
     libaubio = libaubio_static

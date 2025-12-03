@@ -12,6 +12,10 @@
     },
     "libsamplerate",
     "fftw3",
+    "opus",
+    "libogg",
+    "libvorbis",
+    "libflac",
     {
       "name": "mpg123",
       "platform": "linux"
@@ -21,24 +25,12 @@
       "platform": "linux"
     },
     {
-      "name": "opus",
-      "platform": "linux"
-    },
-    {
-      "name": "libogg",
-      "platform": "linux"
-    },
-    {
-      "name": "libvorbis",
-      "platform": "linux"
-    },
-    {
-      "name": "libflac",
-      "platform": "linux"
+      "name": "sleef",
+      "platform": "osx"
     },
     {
       "name": "rubberband",
-      "platform": "!linux"
+      "platform": "osx"
     },
     {
       "name": "ffmpeg",

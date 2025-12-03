@@ -122,80 +122,32 @@ endif
 # We don't add -pie here as it will be applied at link time for executables only
 
 # vcpkg integration for cross-platform dependency management
-# Note: In CI/CD, vcpkg dependencies are pre-installed by cibuildwheel before-all step
-# Check if dependencies are already installed before running vcpkg
+# CI/CD sets AUBIO_VCPKG_TRIPLET to use specific custom triplets and pre-installs dependencies
+# Local builds: Use system dependencies unless user manually set up vcpkg
+
 vcpkg_install_root = meson.project_source_root() / 'vcpkg_installed'
+vcpkg_found = false
+vcpkg_installed_dir = ''
 
-# Determine vcpkg triplet based on host system and architecture
-# Must match the triplet used in CI/CD (see pyproject.toml [tool.cibuildwheel] sections)
-vcpkg_triplet = 'unknown'
-if host_system == 'windows'
-  # Windows: Use x64-windows-release triplet (release-only, dynamic linking)
-  # This matches pyproject.toml [tool.cibuildwheel.windows] before-all step
-  if host_machine.cpu_family() == 'x86_64'
-    vcpkg_triplet = 'x64-windows-release'
-  elif host_machine.cpu_family() == 'x86'
-    vcpkg_triplet = 'x86-windows-release'
-  elif host_machine.cpu_family() == 'aarch64'
-    vcpkg_triplet = 'arm64-windows-release'
+# Check if CI specified a vcpkg triplet
+vcpkg_triplet_env = run_command('python', '-c', 'import os; print(os.getenv("AUBIO_VCPKG_TRIPLET", ""))', check: false, capture: true).stdout().strip()
+
+if vcpkg_triplet_env != ''
+  # CI/CD build: Use custom triplet, dependencies should be pre-installed by cibuildwheel before-all
+  vcpkg_triplet = vcpkg_triplet_env
+  vcpkg_installed_dir = vcpkg_install_root / vcpkg_triplet
+  
+  if fs.is_dir(vcpkg_installed_dir)
+    message('Using vcpkg dependencies from CI: ' + vcpkg_triplet)
+    vcpkg_found = true
   else
-    vcpkg_triplet = 'x64-windows-release'
+    error('CI build expects vcpkg dependencies at ' + vcpkg_installed_dir + ' but not found!')
   endif
-elif host_system == 'darwin'
-  if host_machine.cpu_family() == 'aarch64'
-    vcpkg_triplet = 'arm64-osx'
-  else
-    vcpkg_triplet = 'x64-osx'
-  endif
-elif host_system == 'linux'
-  # Linux: Use custom triplets with -fPIC for all architectures
-  # This matches pyproject.toml [tool.cibuildwheel.linux] before-all step
-  if host_machine.cpu_family() == 'aarch64'
-    vcpkg_triplet = 'arm64-linux-pic'
-  else
-    vcpkg_triplet = 'x64-linux-pic'
-  endif
-endif
-
-message('Using vcpkg triplet: ' + vcpkg_triplet)
-
-# Check if vcpkg dependencies are already installed (e.g., by CI/CD before-all step)
-vcpkg_installed_dir = vcpkg_install_root / vcpkg_triplet
-vcpkg_already_installed = fs.is_dir(vcpkg_installed_dir)
-
-if vcpkg_already_installed
-  message('vcpkg dependencies already installed at: ' + vcpkg_installed_dir)
-  vcpkg_found = true
 else
-  # Dependencies not pre-installed, try to install them now
-  vcpkg_exe = find_program('vcpkg', required: false)
-  if vcpkg_exe.found()
-    message('vcpkg found, installing dependencies from vcpkg.json manifest...')
-    
-    # Install vcpkg dependencies with custom triplets for PIC support
-    vcpkg_result = run_command(
-      vcpkg_exe,
-      'install',
-      '--triplet=' + vcpkg_triplet,
-      '--overlay-triplets=' + meson.project_source_root() / 'vcpkg-triplets',
-      '--x-wait-for-lock',
-      '--x-manifest-root=' + meson.project_source_root(),
-      '--x-install-root=' + vcpkg_install_root,
-      check: false
-    )
-    
-    if vcpkg_result.returncode() == 0
-      message('vcpkg dependencies installed successfully')
-      vcpkg_found = true
-    else
-      warning('vcpkg install failed, falling back to system dependencies')
-      message(vcpkg_result.stderr())
-      vcpkg_found = false
-    endif
-  else
-    message('vcpkg not found, using system dependencies')
-    vcpkg_found = false
-  endif
+  # Local build: User must set up vcpkg dependencies manually if desired
+  # We don't prescribe any specific triplet - that's the user's choice
+  message('Local build: Using system dependencies (set AUBIO_VCPKG_TRIPLET to use vcpkg)')
+  vcpkg_found = false
 endif
 
 # If vcpkg dependencies are available (either pre-installed or just installed), set up paths
@@ -423,22 +375,28 @@ single_feature_specs = [
   },
 ]
 
-# On Linux, when building shared library with static dependencies,
-# we must explicitly link transitive dependencies of libsndfile
+# When linking static libraries (vcpkg), we must explicitly link transitive dependencies
+# libsndfile depends on opus, vorbis, ogg, flac, and on Linux also mp3lame/mpg123
 # (see https://stackoverflow.com/questions/8140494)
-if host_system == 'linux'
-  linux_transitive_specs = [
+if vcpkg_found
+  transitive_specs = [
     {'pkg': 'opus', 'fallback_libs': ['opus']},
-    {'pkg': 'mp3lame', 'fallback_libs': ['mp3lame']},
-    {'pkg': 'mpg123', 'fallback_libs': ['mpg123']},
     {'pkg': 'vorbis', 'fallback_libs': ['vorbis']},
     {'pkg': 'vorbisenc', 'fallback_libs': ['vorbisenc']},
     {'pkg': 'ogg', 'fallback_libs': ['ogg']},
   ]
   
-  foreach spec : linux_transitive_specs
+  # mp3lame and mpg123 only on Linux (not in vcpkg for Windows/macOS)
+  if host_system == 'linux'
+    transitive_specs += [
+      {'pkg': 'mp3lame', 'fallback_libs': ['mp3lame']},
+      {'pkg': 'mpg123', 'fallback_libs': ['mpg123']},
+    ]
+  endif
+  
+  foreach spec : transitive_specs
     dep = dependency(spec['pkg'], required: false, disabler: true)
-    if not dep.found() and vcpkg_found and spec.has_key('fallback_libs')
+    if not dep.found()
       foreach lib_name : spec['fallback_libs']
         dep = cc.find_library(lib_name, dirs: vcpkg_library_dirs, required: false)
         if dep.found()
@@ -522,15 +480,24 @@ if not rubberband_opt.disabled()
   if rubberband_dep.found()
     conf_data.set('HAVE_RUBBERBAND', 1)
     dependencies += rubberband_dep
+    
+    # Rubberband uses SLEEF for SIMD FFT operations
+    # vcpkg builds rubberband with sleef on Windows/macOS
+    sleef_required = vcpkg_found and host_system in ['windows', 'darwin']
+    sleef_dep = dependency('sleef', required: false, disabler: true)
+    if not sleef_dep.found() and vcpkg_found
+      sleef_dep = cc.find_library('sleef', dirs: vcpkg_library_dirs, required: sleef_required)
+    endif
+    if sleef_dep.found()
+      dependencies += sleef_dep
+      message('SLEEF library: enabled (for rubberband FFT)')
+    elif sleef_required
+      warning('Rubberband from vcpkg requires SLEEF but it was not found')
+    endif
+    
+    # Link C++ standard library
     if host_system == 'darwin'
       add_project_link_arguments('-lc++', language: 'c')
-      sleef_dep = dependency('sleef', required: false, disabler: true)
-      if not sleef_dep.found() and vcpkg_found
-        sleef_dep = cc.find_library('sleef', dirs: vcpkg_library_dirs, required: false)
-      endif
-      if sleef_dep.found()
-        dependencies += sleef_dep
-      endif
     endif
   elif rubberband_opt.enabled()
     error('rubberband support was requested but the dependency could not be found')

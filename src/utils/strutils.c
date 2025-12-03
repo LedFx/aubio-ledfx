@@ -20,10 +20,12 @@
 
 #define _GNU_SOURCE
 #include "aubio_priv.h"
-#include <strings.h>
 
 #ifdef HAVE_WIN_HACKS
+#include <string.h>
 #define strncasecmp _strnicmp
+#else
+#include <strings.h>
 #endif
 
 const char_t *aubio_str_get_extension(const char_t *filename)

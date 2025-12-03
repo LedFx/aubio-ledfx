@@ -12,7 +12,9 @@ numpy_inc_result = run_command(py,
 )
 
 if numpy_inc_result.returncode() == 0
-  numpy_inc = include_directories(numpy_inc_result.stdout().strip())
+  # Store as string path - will be passed as compiler argument, not include_directories
+  # This avoids Meson error about absolute paths in source tree
+  numpy_inc_path = numpy_inc_result.stdout().strip()
 else
   error('NumPy is required for building Python bindings. Please install numpy: pip install numpy')
 endif
@@ -77,9 +79,12 @@ pyaubio_c_args = [
   '-DHAVE_CONFIG_H',
   '-DUSE_LOCAL_AUBIO',
   '-DAUBIO_VERSION=' + aubio_version,
+  '-I' + numpy_inc_path,  # Pass numpy include as compiler argument
 ]
 
 # Platform-specific args and dependencies
+pyaubio_extra_deps = []
+
 if host_system == 'darwin'
   pyaubio_link_args = [
     '-framework', 'CoreFoundation',
@@ -90,13 +95,38 @@ elif host_system == 'linux'
   # libraries (FFmpeg) into a shared Python extension, we must add these as
   # dependencies (not just link flags) to ensure proper link order
   thread_dep = dependency('threads', required: true)
-  dependencies += [thread_dep]
+  pyaubio_extra_deps += [thread_dep]
   
   # Add C++ standard library as a dependency
   # Use the C compiler to find libstdc++ (no need for C++ compiler in project)
   c_compiler = meson.get_compiler('c')
   cpp_stdlib = c_compiler.find_library('stdc++', required: true)
-  dependencies += [cpp_stdlib]
+  pyaubio_extra_deps += [cpp_stdlib]
+  
+  pyaubio_link_args = []
+elif host_system == 'windows'
+  # On Windows, vcpkg static libraries require Windows system libraries:
+  # Network (ffmpeg): ws2_32 (Winsock2)
+  # Security (ffmpeg): secur32 (SSPI/TLS), bcrypt (crypto)
+  # Media Foundation (ffmpeg): mfuuid, strmiids (GUIDs), ole32 (COM)
+  # When statically linking, we must explicitly provide these system dependencies
+  c_compiler = meson.get_compiler('c')
+  win_libs = [
+    'ws2_32',    # Winsock2 - socket(), bind(), connect(), etc.
+    'secur32',   # Security Support Provider - SSPI, TLS
+    'bcrypt',    # Cryptography API - BCryptGenRandom, etc.
+    'mfuuid',    # Media Foundation - interface UUIDs
+    'strmiids',  # Streaming Media - additional GUIDs
+    'ole32',     # Component Object Model - COM base
+  ]
+  foreach lib_name : win_libs
+    lib_dep = c_compiler.find_library(lib_name, required: true)
+    pyaubio_extra_deps += [lib_dep]
+  endforeach
+  
+  # Note: C++ runtime is automatically linked by MSVC when linking C++ static libraries
+  # rubberband.lib was built with /MT (static runtime), so the linker will use libcpmt.lib
+  # We don't need to (and shouldn't) explicitly request it to avoid conflicts
   
   pyaubio_link_args = []
 else
@@ -106,18 +136,17 @@ endif
 # Build Python extension module
 # For portable wheels, always link against the static library
 # This bundles all aubio code into the Python extension
-pyaubio_link_with = libaubio_static
-pyaubio_deps = [py.dependency()]
-# Add aubio's dependencies directly since we're linking statically
-pyaubio_deps += dependencies
+# Use libaubio_static_dep instead of libaubio_static to get transitive dependencies
+pyaubio_deps = [py.dependency(), libaubio_static_dep] + pyaubio_extra_deps
+# Note: libaubio_static_dep already includes all of aubio's dependencies
+# pyaubio_extra_deps adds platform-specific system libraries (Windows: ws2_32, secur32, etc.; Linux: pthread, stdc++)
 
 py.extension_module('_aubio',
   pyaubio_sources,
-  include_directories: [pyaubio_inc, numpy_inc, config_inc],
+  include_directories: pyaubio_inc,  # numpy_inc now passed via c_args
   dependencies: pyaubio_deps,
   c_args: pyaubio_c_args,
   link_args: pyaubio_link_args,
-  link_with: pyaubio_link_with,
   install: true,
   subdir: 'aubio',
 )
