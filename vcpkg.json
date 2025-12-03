@@ -26,11 +26,11 @@
     },
     {
       "name": "sleef",
-      "platform": "!linux"
+      "platform": "osx"
     },
     {
       "name": "rubberband",
-      "platform": "!linux"
+      "platform": "osx"
     },
     {
       "name": "ffmpeg",
