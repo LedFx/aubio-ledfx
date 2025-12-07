@@ -6,13 +6,18 @@ py = import('python').find_installation('python3', modules: ['numpy'], required:
 cc = meson.get_compiler('c')
 
 # Get numpy include directory
+# Note: We use declare_dependency() instead of include_directories() because
+# Meson 1.9+ rejects absolute paths in include_directories() for directories
+# outside the source tree. NumPy's includes are in site-packages, not the source tree.
 numpy_inc_result = run_command(py, 
   ['-c', 'import numpy; print(numpy.get_include())'],
   check: false
 )
 
 if numpy_inc_result.returncode() == 0
-  numpy_inc = include_directories(numpy_inc_result.stdout().strip())
+  numpy_inc_path = numpy_inc_result.stdout().strip()
+  # Use declare_dependency with compile_args for external include paths
+  numpy_inc = declare_dependency(compile_args: ['-I' + numpy_inc_path])
 else
   error('NumPy is required for building Python bindings. Please install numpy: pip install numpy')
 endif
@@ -113,8 +118,8 @@ pyaubio_deps += dependencies
 
 py.extension_module('_aubio',
   pyaubio_sources,
-  include_directories: [pyaubio_inc, numpy_inc, config_inc],
-  dependencies: pyaubio_deps,
+  include_directories: [pyaubio_inc, config_inc],
+  dependencies: pyaubio_deps + [numpy_inc],
   c_args: pyaubio_c_args,
   link_args: pyaubio_link_args,
   link_with: pyaubio_link_with,

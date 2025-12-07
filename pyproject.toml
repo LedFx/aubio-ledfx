@@ -28,7 +28,7 @@ classifiers = [
     "Programming Language :: Python",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
 ]
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
     "numpy>=1.26.4; platform_system != 'Darwin' and platform_machine != 'aarch64'",
     "numpy>=2.0.0; platform_system == 'Darwin' and platform_machine == 'aarch64'",
@@ -151,3 +151,8 @@ PKG_CONFIG_PATH = "{project}\\vcpkg_installed\\x64-windows-release\\lib\\pkgconf
 # Allow bundling shared libraries on Windows
 # Required since we use dynamic linking (x64-windows-release) due to rubberband not supporting static
 allow-windows-internal-shared-libs = true
+
+[dependency-groups]
+dev = [
+    "aubio-beatcheck>=0.1.0 ; python_full_version >= '3.12'",
+]
