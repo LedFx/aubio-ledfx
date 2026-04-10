@@ -352,7 +352,8 @@ Py_{shortname}_init (Py_{shortname} * self, PyObject * args, PyObject * kwds)
         out += """
   // return -1 and set error string on failure
   if (self->o == NULL) {{
-    PyErr_Format (PyExc_RuntimeError, "failed creating {shortname}");
+    if (PyErr_Occurred() == NULL)
+      PyErr_Format (PyExc_RuntimeError, "failed creating {shortname}");
     return -1;
   }}
 """.format(paramchars = paramchars, paramvals = paramvals, **self.__dict__)
