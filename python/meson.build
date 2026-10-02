@@ -6,7 +6,7 @@ py = import('python').find_installation('python3', modules: ['numpy'], required:
 cc = meson.get_compiler('c')
 
 # Get numpy include directory
-numpy_inc_result = run_command(py, 
+numpy_inc_result = run_command(py,
   ['-c', 'import numpy; print(numpy.get_include())'],
   check: false
 )
@@ -91,13 +91,13 @@ elif host_system == 'linux'
   # dependencies (not just link flags) to ensure proper link order
   thread_dep = dependency('threads', required: true)
   dependencies += [thread_dep]
-  
+
   # Add C++ standard library as a dependency
   # Use the C compiler to find libstdc++ (no need for C++ compiler in project)
   c_compiler = meson.get_compiler('c')
   cpp_stdlib = c_compiler.find_library('stdc++', required: true)
   dependencies += [cpp_stdlib]
-  
+
   pyaubio_link_args = []
 else
   pyaubio_link_args = []

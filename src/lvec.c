@@ -84,4 +84,3 @@ void lvec_zeros(lvec_t *s) {
 void lvec_ones(lvec_t *s) {
   lvec_set_all (s, 1.);
 }
-

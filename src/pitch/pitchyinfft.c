@@ -60,7 +60,7 @@ new_aubio_pitchyinfft (uint_t samplerate, uint_t bufsize)
   uint_t i = 0, j = 1;
   smpl_t freq = 0, a0 = 0, a1 = 0, f0 = 0, f1 = 0;
   aubio_pitchyinfft_t *p = AUBIO_NEW (aubio_pitchyinfft_t);
-  
+
   if (!p) {
     return NULL;
   }

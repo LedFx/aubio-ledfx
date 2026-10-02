@@ -11,8 +11,8 @@ aubio-ledfx
 >
 > **All credit for aubio goes to the original author Paul Brossier and contributors.**
 >
-> **Original project:** https://github.com/aubio/aubio  
-> **This fork:** https://github.com/LedFx/aubio-ledfx  
+> **Original project:** https://github.com/aubio/aubio
+> **This fork:** https://github.com/LedFx/aubio-ledfx
 > **PyPI package:** https://pypi.org/project/aubio-ledfx/
 
 ---

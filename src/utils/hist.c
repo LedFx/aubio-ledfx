@@ -40,7 +40,7 @@ struct _aubio_hist_t {
  */
 aubio_hist_t * new_aubio_hist (smpl_t flow, smpl_t fhig, uint_t nelems){
   aubio_hist_t * s = AUBIO_NEW(aubio_hist_t);
-  
+
   if (!s) {
     return NULL;
   }
@@ -152,4 +152,3 @@ smpl_t aubio_hist_mean (const aubio_hist_t *s) {
     tmp += s->hist->data[j];
   return tmp/(smpl_t)(s->nelems);
 }
-

@@ -232,7 +232,7 @@ aubio_onset_t * new_aubio_onset (const char_t * onset_mode,
     uint_t buf_size, uint_t hop_size, uint_t samplerate)
 {
   aubio_onset_t * o = AUBIO_NEW(aubio_onset_t);
-  
+
   if (!o) {
     return NULL;
   }

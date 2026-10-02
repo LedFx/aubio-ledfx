@@ -32,4 +32,3 @@ int main (void)
   assert (new_aubio_window("\0", length) == NULL);
   return 0;
 }
-

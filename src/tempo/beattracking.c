@@ -60,7 +60,7 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
 {
 
   aubio_beattracking_t *p = AUBIO_NEW (aubio_beattracking_t);
-  
+
   if (!p) {
     return NULL;
   }

@@ -55,7 +55,7 @@ aubio_spectral_whitening_t *
 new_aubio_spectral_whitening (uint_t buf_size, uint_t hop_size, uint_t samplerate)
 {
   aubio_spectral_whitening_t *o = AUBIO_NEW (aubio_spectral_whitening_t);
-  
+
   if (!o) {
     return NULL;
   }

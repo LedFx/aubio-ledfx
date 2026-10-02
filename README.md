@@ -14,7 +14,7 @@ aubio-ledfx
 >
 > All credit for aubio goes to the original authors. This fork exists solely to provide maintained releases for projects that depend on aubio.
 >
-> **Original project:** https://github.com/aubio/aubio  
+> **Original project:** https://github.com/aubio/aubio
 > **This fork:** https://github.com/LedFx/aubio-ledfx
 
 ---
@@ -173,7 +173,7 @@ meson test -C builddir
 
 **Linux:** Install optional dependencies for additional features:
 - `libsndfile-dev` - For audio file I/O
-- `libsamplerate-dev` - For sample rate conversion  
+- `libsamplerate-dev` - For sample rate conversion
 - `libfftw3-dev` - For FFTW3 FFT implementation
 - `libjack-dev` - For JACK audio support
 
@@ -194,7 +194,7 @@ manual](https://aubio.org/manual/latest/).
 Homepage
 --------
 
-**Original aubio project:** https://aubio.org/  
+**Original aubio project:** https://aubio.org/
 **This fork (aubio-ledfx):** https://github.com/LedFx/aubio-ledfx
 
 License

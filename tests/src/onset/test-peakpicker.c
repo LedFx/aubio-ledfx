@@ -20,4 +20,3 @@ int main (void)
   del_fvec(in);
   return 0;
 }
-

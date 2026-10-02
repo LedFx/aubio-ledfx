@@ -177,7 +177,7 @@ struct _aubio_fft_t {
 
 aubio_fft_t * new_aubio_fft (uint_t winsize) {
   aubio_fft_t * s = AUBIO_NEW(aubio_fft_t);
-  
+
   if (!s) {
     return NULL;
   }

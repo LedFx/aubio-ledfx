@@ -1,8 +1,8 @@
 # Defensive Programming in aubio-ledfx
 
-> **Document Type**: Developer Guide (REQUIRED READING)  
-> **Last Updated**: 2025-11-16  
-> **Audience**: All C developers  
+> **Document Type**: Developer Guide (REQUIRED READING)
+> **Last Updated**: 2025-11-16
+> **Audience**: All C developers
 > **Purpose**: Memory safety and defensive coding patterns
 
 ## Quick Reference Card
@@ -14,7 +14,7 @@ void my_function(fvec_t *vec, uint_t index, smpl_t value) {
   AUBIO_ASSERT_NOT_NULL(vec);
   AUBIO_ASSERT_BOUNDS(index, vec->length);
   AUBIO_ASSERT_RANGE(value, 0.0, 1.0);
-  
+
   // 2. Proceed safely
   vec->data[index] = value;
 }
@@ -153,17 +153,17 @@ void aubio_func(fvec_t *input, fvec_t *output) {
     AUBIO_ERR("aubio_func: null input\n");
     return;
   }
-  
+
   // 2. Validate buffer sizes
   if (input->length == 0 || output->length == 0) {
     AUBIO_WRN("aubio_func: empty buffer\n");
     return;
   }
-  
+
   // 3. In debug mode, use assertions for extra checking
   AUBIO_ASSERT_NOT_NULL(input);
   AUBIO_ASSERT_NOT_NULL(output);
-  
+
   // 4. Proceed with actual work
   // ...
 }
@@ -181,10 +181,10 @@ void safe_array_access(fvec_t *vec, uint_t index) {
     AUBIO_ERR("index out of bounds: %u >= %u\n", index, vec->length);
     return;
   }
-  
+
   // Debug assertion (only in debug builds)
   AUBIO_ASSERT_BOUNDS(index, vec->length);
-  
+
   // Safe to access now
   vec->data[index] = 0.0;
 }
@@ -199,7 +199,7 @@ void safe_array_access(fvec_t *vec, uint_t index) {
 void process_vector(fvec_t *vec) {
   uint_t i;
   AUBIO_ASSERT_NOT_NULL(vec);
-  
+
   for (i = 0; i < vec->length; i++) {
     // In debug builds, this adds extra validation
     AUBIO_ASSERT_BOUNDS(i, vec->length);
@@ -211,7 +211,7 @@ void process_vector(fvec_t *vec) {
 void process_with_lookahead(fvec_t *vec) {
   uint_t i;
   AUBIO_ASSERT_NOT_NULL(vec);
-  
+
   // Loop stops early to prevent out-of-bounds access
   for (i = 0; i < vec->length - 1; i++) {
     AUBIO_ASSERT_BOUNDS(i + 1, vec->length);
@@ -276,15 +276,15 @@ Include edge case tests that would trigger assertions:
 ```c
 int test_edge_cases(void) {
   fvec_t *vec = new_fvec(10);
-  
+
   // Test valid boundary
   fvec_set_sample(vec, 1.0, 9);  // OK: last valid index
   assert(fvec_get_sample(vec, 9) == 1.0);
-  
+
   // In release builds, this may cause undefined behavior
   // In debug builds, this will abort with assertion
   // Don't include in regular test suite!
-  
+
   del_fvec(vec);
   return 0;
 }
@@ -302,7 +302,7 @@ void process(fvec_t *in, fvec_t *out, uint_t length) {
   AUBIO_ASSERT_NOT_NULL(out);
   AUBIO_ASSERT_LENGTH(in, length);
   AUBIO_ASSERT_LENGTH(out, length);
-  
+
   // Proceed with confidence
   for (uint_t i = 0; i < length; i++) {
     out->data[i] = in->data[i] * 2.0;
@@ -316,7 +316,7 @@ void process(fvec_t *in, fvec_t *out, uint_t length) {
 // Good: Document and check preconditions
 /**
  * Process audio with FFT
- * 
+ *
  * @pre input must have length equal to fft->winsize
  * @pre output must have length equal to fft->winsize / 2 + 1
  */
@@ -339,11 +339,11 @@ void safe_function(fvec_t *vec, uint_t index) {
     AUBIO_ERR("invalid input\n");
     return;
   }
-  
+
   // Debug assertion (helps during development)
   AUBIO_ASSERT_NOT_NULL(vec);
   AUBIO_ASSERT_BOUNDS(index, vec->length);
-  
+
   // Safe to proceed
   vec->data[index] = 0.0;
 }
@@ -417,14 +417,14 @@ aubio_obj_t *new_aubio_obj(uint_t size) {
     AUBIO_ERR("failed to allocate object\n");
     return NULL;
   }
-  
+
   o->buffer = new_fvec(size);
   if (!o->buffer) {
     AUBIO_ERR("failed to allocate buffer\n");
     AUBIO_FREE(o);
     return NULL;
   }
-  
+
   AUBIO_ASSERT_NOT_NULL(o->buffer);
   return o;
 }
@@ -439,7 +439,7 @@ void aubio_process(aubio_obj_t *o, fvec_t *in, fvec_t *out) {
   AUBIO_ASSERT_NOT_NULL(out);
   AUBIO_ASSERT_LENGTH(in, o->input_size);
   AUBIO_ASSERT_LENGTH(out, o->output_size);
-  
+
   // Safe to process
   for (uint_t i = 0; i < in->length; i++) {
     out->data[i] = in->data[i] * o->gain;
@@ -474,5 +474,5 @@ Defensive programming works best when combined with:
 
 ---
 
-**Last Updated:** 2025-11-14  
+**Last Updated:** 2025-11-14
 **Version:** 0.5.0-alpha

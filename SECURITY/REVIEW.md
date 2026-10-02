@@ -1,8 +1,8 @@
 # Security Review and Vulnerability Fixes
 
-> **Document Type**: Historical Security Analysis  
-> **Last Updated**: 2025-11-16  
-> **Severity**: Contains HIGH severity fixes  
+> **Document Type**: Historical Security Analysis
+> **Last Updated**: 2025-11-16
+> **Severity**: Contains HIGH severity fixes
 > **Audience**: Developers, Security Reviewers, Auditors
 
 ## Table of Contents
@@ -22,8 +22,8 @@
 
 This document records all security vulnerabilities discovered and fixed in aubio-ledfx through comprehensive security reviews. All findings have been addressed, and the codebase has been validated with CodeQL (0 alerts) and sanitizers (45/45 tests passing).
 
-**Total Vulnerabilities Fixed**: 4 HIGH severity, 1 MEDIUM severity  
-**Status**: ✅ All fixed and validated  
+**Total Vulnerabilities Fixed**: 4 HIGH severity, 1 MEDIUM severity
+**Status**: ✅ All fixed and validated
 **Code Coverage**: 60+ source files reviewed (~15,000 lines)
 
 ---
@@ -180,9 +180,9 @@ This fix complements existing security measures:
 
 # Security Review: Out-of-Bounds Issues in aubio-ledfx
 
-**Review Date:** 2025-11-13 (Updated)  
-**Reviewer:** GitHub Copilot Security Analysis  
-**Scope:** Comprehensive code review for buffer over-read and out-of-bounds array access vulnerabilities  
+**Review Date:** 2025-11-13 (Updated)
+**Reviewer:** GitHub Copilot Security Analysis
+**Scope:** Comprehensive code review for buffer over-read and out-of-bounds array access vulnerabilities
 
 ---
 
@@ -205,10 +205,10 @@ Comprehensive security analysis identified and fixed **4 confirmed vulnerabiliti
 
 ### 0. Buffer Over-read in aubio_sampler_load (HIGH SEVERITY) ✅ FIXED
 
-**File:** `src/synth/sampler.c` (lines 62-63)  
-**Origin:** [aubio issue #421](https://github.com/aubio/aubio/issues/421)  
-**Status:** ✅ FIXED  
-**CVE:** Not assigned  
+**File:** `src/synth/sampler.c` (lines 62-63)
+**Origin:** [aubio issue #421](https://github.com/aubio/aubio/issues/421)
+**Status:** ✅ FIXED
+**CVE:** Not assigned
 
 #### Description
 The `aubio_sampler_load` function had improper string handling where memory allocation based on `strnlen` did not include space for the null terminator, and subsequent `strncpy` operation did not guarantee null-termination. This could lead to buffer over-read when the URI string is later used by other functions expecting a null-terminated string.
@@ -220,15 +220,15 @@ o->uri = AUBIO_ARRAY(char_t, strnlen(uri, PATH_MAX));
 strncpy(o->uri, uri, strnlen(uri, PATH_MAX));
 ```
 
-**Problem 1:** Memory allocated is exactly `strnlen(uri, PATH_MAX)` bytes (no +1 for null terminator)  
-**Problem 2:** `strncpy` with length `strnlen(uri, PATH_MAX)` won't add null terminator if string length equals PATH_MAX  
+**Problem 1:** Memory allocated is exactly `strnlen(uri, PATH_MAX)` bytes (no +1 for null terminator)
+**Problem 2:** `strncpy` with length `strnlen(uri, PATH_MAX)` won't add null terminator if string length equals PATH_MAX
 **Problem 3:** Subsequent use of `o->uri` expects a null-terminated string (e.g., in `new_aubio_source(uri, ...)`)
 
-**Trigger Condition:** 
+**Trigger Condition:**
 - URI string with length >= PATH_MAX (e.g., very long file path)
 - String without null terminator in first PATH_MAX bytes
 
-**Consequence:** 
+**Consequence:**
 - Buffer over-read when `o->uri` is later passed to functions expecting null-terminated strings
 - Potential information disclosure
 - Potential crash or undefined behavior
@@ -263,10 +263,10 @@ o->uri[strnlen(uri, PATH_MAX)] = '\0';
 
 ### 0a. Buffer Over-read in new_aubio_tempo (MEDIUM SEVERITY) ✅ FIXED
 
-**File:** `src/tempo/tempo.c` (line 205)  
-**Origin:** Discovered during codebase review for issue #421  
-**Status:** ✅ FIXED  
-**CVE:** Not assigned  
+**File:** `src/tempo/tempo.c` (line 205)
+**Origin:** Discovered during codebase review for issue #421
+**Status:** ✅ FIXED
+**CVE:** Not assigned
 
 #### Description
 The `new_aubio_tempo` function uses `strncpy` to copy the string "specflux" into a local buffer when the default tempo mode is used. The code was missing explicit null termination in the default branch, while the else branch (line 208) correctly added null termination. This inconsistency could lead to buffer over-read if the local buffer is used without being properly null-terminated.
@@ -285,12 +285,12 @@ if ( strcmp(tempo_mode, "default") == 0 ) {
 
 **Problem:** Inconsistent null termination - missing in the if branch, present in the else branch
 
-**Trigger Condition:** 
+**Trigger Condition:**
 - Using default tempo mode (most common case)
 - Stack buffer `specdesc_func` contains garbage data beyond "specflux" string
 - Subsequent use of `specdesc_func` in `new_aubio_specdesc()` expects null-terminated string
 
-**Consequence:** 
+**Consequence:**
 - Buffer over-read when `specdesc_func` is passed to `new_aubio_specdesc()`
 - In practice, severity is reduced because "specflux" is short (8 chars) and strncpy pads with zeros up to PATH_MAX-1
 - However, the inconsistency indicates a defensive programming issue
@@ -325,9 +325,9 @@ if ( strcmp(tempo_mode, "default") == 0 ) {
 
 ---
 
-**File:** `src/spectral/statistics.c` (lines 195-203)  
-**Origin:** [aubio PR #318](https://github.com/aubio/aubio/pull/318)  
-**Status:** ✅ FIXED  
+**File:** `src/spectral/statistics.c` (lines 195-203)
+**Origin:** [aubio PR #318](https://github.com/aubio/aubio/pull/318)
+**Status:** ✅ FIXED
 
 #### Description
 The `aubio_specdesc_rolloff` function calculates the frequency below which 95% of spectral energy is contained. The original implementation had an off-by-one error where the loop counter could equal the array length.
@@ -335,7 +335,7 @@ The `aubio_specdesc_rolloff` function calculates the frequency below which 95% o
 #### Vulnerability Details
 ```c
 // BUGGY CODE (original):
-while (rollsum < cumsum) { 
+while (rollsum < cumsum) {
   rollsum += SQR (spec->norm[j]);  // Access array at index j
   j++;                              // Then increment
 }
@@ -351,7 +351,7 @@ desc->data[0] = j;  // j can be == spec->length!
 // FIXED CODE:
 j = 0;
 rollsum += SQR (spec->norm[j]);  // Access first element before loop
-while (rollsum < cumsum) { 
+while (rollsum < cumsum) {
   j++;                            // Increment first
   rollsum += SQR (spec->norm[j]); // Then access next element
 }
@@ -374,9 +374,9 @@ desc->data[0] = j;  // j is always < spec->length
 
 ### 2. Pitch Schmitt Trigger Out-of-Bounds (HIGH SEVERITY) ✅ FIXED
 
-**File:** `src/pitch/pitchschmitt.c` (line 93)  
-**Origin:** Newly discovered during this review  
-**Status:** ✅ FIXED  
+**File:** `src/pitch/pitchschmitt.c` (line 93)
+**Origin:** Newly discovered during this review
+**Status:** ✅ FIXED
 
 #### Description
 The Schmitt trigger pitch detection algorithm searches for zero-crossings in the audio signal. The loop that detects trigger points had incorrect bounds checking.
@@ -438,7 +438,7 @@ Following the discovery of issue #421, a systematic review was performed to iden
 
 #### 1. strncpy Usage Analysis ✅ ALL SAFE
 
-**Total instances found:** 12  
+**Total instances found:** 12
 **Pattern checked:** Proper null termination after `strncpy` calls
 
 **Status Summary:**
@@ -468,7 +468,7 @@ Files verified:
 
 #### 2. Unsafe String Functions ✅ NONE FOUND
 
-**Functions searched:** `strcpy`, `sprintf`, `gets`, `strcat`  
+**Functions searched:** `strcpy`, `sprintf`, `gets`, `strcat`
 **Result:** Zero instances found in `src/` directory
 
 The codebase consistently uses safer alternatives:
@@ -530,9 +530,9 @@ During the comprehensive review, several code patterns were flagged as potential
 
 ### 1. Array Shifting Operations ✅ SAFE
 
-**Files:** 
+**Files:**
 - `src/mathutils.c:311` - `fvec_push()`
-- `src/notes/notes.c:178` - `note_append()`  
+- `src/notes/notes.c:178` - `note_append()`
 - `src/onset/peakpicker.c:114` - peek array shift
 
 **Pattern:**
@@ -604,15 +604,15 @@ for (fn = 0; fn < n_filters; fn++) {
 }
 ```
 
-**Analysis:** The code validates: `n_filters = freqs->length - 2` (lines 47-55).  
-Therefore: `max(fn) = n_filters - 1 = freqs->length - 3`  
+**Analysis:** The code validates: `n_filters = freqs->length - 2` (lines 47-55).
+Therefore: `max(fn) = n_filters - 1 = freqs->length - 3`
 Maximum access: `fn + 2 = freqs->length - 3 + 2 = freqs->length - 1` ✅
 
 ---
 
 ### 5. I/O Source Reading Loops ✅ SAFE
 
-**Files:** 
+**Files:**
 - `src/io/source_wavread.c:396`
 - `src/io/source_avcodec.c:559`
 
@@ -664,9 +664,9 @@ uint_t aubio_pitchyin_getpitch (const fvec_t * yin) {
 
 ### fvec_quadratic_peak_mag Bounds Check
 
-**File:** `src/mathutils.c:500-509`  
-**Severity:** LOW  
-**Status:** ⚠️ REQUIRES VERIFICATION  
+**File:** `src/mathutils.c:500-509`
+**Severity:** LOW
+**Status:** ⚠️ REQUIRES VERIFICATION
 
 #### Description
 ```c
@@ -716,10 +716,10 @@ if (index + 1 >= x->length) return x->data[index];
 
 ### Pattern Analysis Summary
 
-**Total Potential Issues Identified:** 12  
-**Confirmed Vulnerabilities:** 2 (16.7%)  
-**False Positives:** 9 (75%)  
-**Requires Further Review:** 1 (8.3%)  
+**Total Potential Issues Identified:** 12
+**Confirmed Vulnerabilities:** 2 (16.7%)
+**False Positives:** 9 (75%)
+**Requires Further Review:** 1 (8.3%)
 
 **Common Safe Patterns:**
 - Array shifting: `for(i=0; i<length-1; i++) arr[i]=arr[i+1]`
@@ -743,7 +743,7 @@ if (index + 1 >= x->length) return x->data[index];
    in->norm[in->length - 1] = 1.0;
    aubio_specdesc_do (o, in, out);
    if (out->data[0] >= in->length) {
-     fprintf(stderr, "rolloff out of bounds: %f >= %d\n", 
+     fprintf(stderr, "rolloff out of bounds: %f >= %d\n",
              out->data[0], in->length);
      return 1;
    }
@@ -873,6 +873,5 @@ The codebase is now significantly more secure against buffer over-read vulnerabi
 
 ---
 
-**Review Completed:** 2025-11-13  
+**Review Completed:** 2025-11-13
 **Next Review Recommended:** After 6 months or when adding new audio processing features
-

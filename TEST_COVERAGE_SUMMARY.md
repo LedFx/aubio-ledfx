@@ -24,63 +24,63 @@ Validates that all constructors with NULL pointer fixes:
 ## Test Coverage Details
 
 ### Core Vector Allocations (4 tests)
-✅ `new_fvec(16)` - Float vector allocation  
-✅ `new_lvec(16)` - Long sample vector allocation  
-✅ `new_cvec(32)` - Complex vector allocation  
-✅ `new_fmat(4, 16)` - Float matrix allocation  
+✅ `new_fvec(16)` - Float vector allocation
+✅ `new_lvec(16)` - Long sample vector allocation
+✅ `new_cvec(32)` - Complex vector allocation
+✅ `new_fmat(4, 16)` - Float matrix allocation
 
 **Files tested:** `fvec.c`, `lvec.c`, `cvec.c`, `fmat.c`
 
 ### Filter Constructors (4 tests)
-✅ `new_aubio_filter(5)` - Generic filter with order=5  
-✅ `new_aubio_filter_a_weighting(44100)` - A-weighting filter  
-✅ `new_aubio_filter_c_weighting(44100)` - C-weighting filter  
-✅ `new_aubio_filter_biquad(...)` - Biquad filter  
+✅ `new_aubio_filter(5)` - Generic filter with order=5
+✅ `new_aubio_filter_a_weighting(44100)` - A-weighting filter
+✅ `new_aubio_filter_c_weighting(44100)` - C-weighting filter
+✅ `new_aubio_filter_biquad(...)` - Biquad filter
 
 **Files tested:** `temporal/filter.c`, `temporal/a_weighting.c`, `temporal/c_weighting.c`, `temporal/biquad.c`
 
 ### Spectral Processing (8 tests)
-✅ `new_aubio_specdesc("energy", 512)` - Spectral descriptor  
-✅ `new_aubio_pvoc(512, 256)` - Phase vocoder  
-✅ `new_aubio_mfcc(512, 40, 13, 44100)` - MFCC  
-✅ `new_aubio_filterbank(40, 512)` - Filterbank  
-✅ `new_aubio_spectral_whitening(512, 256, 44100)` - Spectral whitening  
-✅ `new_aubio_fft(512)` - FFT  
-✅ `new_aubio_dct(40)` - DCT  
-✅ `new_aubio_tss(512, 256)` - Transient/steady-state separation  
+✅ `new_aubio_specdesc("energy", 512)` - Spectral descriptor
+✅ `new_aubio_pvoc(512, 256)` - Phase vocoder
+✅ `new_aubio_mfcc(512, 40, 13, 44100)` - MFCC
+✅ `new_aubio_filterbank(40, 512)` - Filterbank
+✅ `new_aubio_spectral_whitening(512, 256, 44100)` - Spectral whitening
+✅ `new_aubio_fft(512)` - FFT
+✅ `new_aubio_dct(40)` - DCT
+✅ `new_aubio_tss(512, 256)` - Transient/steady-state separation
 
 **Files tested:** `spectral/specdesc.c`, `spectral/phasevoc.c`, `spectral/mfcc.c`, `spectral/filterbank.c`, `spectral/awhitening.c`, `spectral/fft.c`, `spectral/dct.c`, `spectral/tss.c`
 
 **Note:** DCT test also validates the backend implementations (dct_ipp.c, dct_plain.c, dct_fftw.c, dct_ooura.c, dct_accelerate.c) through the wrapper.
 
 ### Pitch Detection (8 tests)
-✅ `new_aubio_pitch("default", 512, 256, 44100)` - Generic pitch detector  
-✅ `new_aubio_pitchyin(512)` - YIN algorithm  
-✅ `new_aubio_pitchyinfft(44100, 512)` - YIN FFT variant  
-✅ `new_aubio_pitchyinfast(512)` - Fast YIN  
-✅ `new_aubio_pitchmcomb(512, 256)` - Multi-comb filter  
-✅ `new_aubio_pitchfcomb(512, 256)` - Fast comb filter  
-✅ `new_aubio_pitchschmitt(512)` - Schmitt trigger  
-✅ `new_aubio_pitchspecacf(512)` - Spectral autocorrelation  
+✅ `new_aubio_pitch("default", 512, 256, 44100)` - Generic pitch detector
+✅ `new_aubio_pitchyin(512)` - YIN algorithm
+✅ `new_aubio_pitchyinfft(44100, 512)` - YIN FFT variant
+✅ `new_aubio_pitchyinfast(512)` - Fast YIN
+✅ `new_aubio_pitchmcomb(512, 256)` - Multi-comb filter
+✅ `new_aubio_pitchfcomb(512, 256)` - Fast comb filter
+✅ `new_aubio_pitchschmitt(512)` - Schmitt trigger
+✅ `new_aubio_pitchspecacf(512)` - Spectral autocorrelation
 
 **Files tested:** `pitch/pitch.c`, `pitch/pitchyin.c`, `pitch/pitchyinfft.c`, `pitch/pitchyinfast.c`, `pitch/pitchmcomb.c`, `pitch/pitchfcomb.c`, `pitch/pitchschmitt.c`, `pitch/pitchspecacf.c`
 
 ### Onset/Tempo Detection (4 tests)
-✅ `new_aubio_onset("default", 512, 256, 44100)` - Onset detector  
-✅ `new_aubio_tempo("default", 512, 256, 44100)` - Tempo tracker  
-✅ `new_aubio_peakpicker()` - Peak picker  
-✅ `new_aubio_beattracking(512, 256, 44100)` - Beat tracker  
+✅ `new_aubio_onset("default", 512, 256, 44100)` - Onset detector
+✅ `new_aubio_tempo("default", 512, 256, 44100)` - Tempo tracker
+✅ `new_aubio_peakpicker()` - Peak picker
+✅ `new_aubio_beattracking(512, 256, 44100)` - Beat tracker
 
 **Files tested:** `onset/onset.c`, `tempo/tempo.c`, `onset/peakpicker.c`, `tempo/beattracking.c`
 
 ### Notes Detection (1 test)
-✅ `new_aubio_notes("default", 512, 256, 44100)` - Note detector  
+✅ `new_aubio_notes("default", 512, 256, 44100)` - Note detector
 
 **Files tested:** `notes/notes.c`
 
 ### I/O Operations (2 tests)
-✅ `new_aubio_sink_wavwrite("/tmp/test.wav", 44100)` - WAV sink  
-✅ `new_aubio_source_wavread("sounds/woodblock.wav", 44100, 256)` - WAV source  
+✅ `new_aubio_sink_wavwrite("/tmp/test.wav", 44100)` - WAV sink
+✅ `new_aubio_source_wavread("sounds/woodblock.wav", 44100, 256)` - WAV source
 
 **Files tested:** `io/sink_wavwrite.c`, `io/source_wavread.c`
 
@@ -90,28 +90,28 @@ Validates that all constructors with NULL pointer fixes:
 - `io/audio_unit.c` (tested on macOS)
 
 ### Synthesis (2 tests)
-✅ `new_aubio_sampler(44100, 256)` - Audio sampler  
-✅ `new_aubio_wavetable(44100, 256)` - Wavetable synthesizer  
+✅ `new_aubio_sampler(44100, 256)` - Audio sampler
+✅ `new_aubio_wavetable(44100, 256)` - Wavetable synthesizer
 
 **Files tested:** `synth/sampler.c`, `synth/wavetable.c`
 
 ### Utilities (3 tests)
-✅ `new_aubio_hist(0.0, 1.0, 10)` - Histogram  
-✅ `new_aubio_scale(0.0, 1.0, 0.0, 1.0)` - Value scaler  
-✅ `new_aubio_parameter(0.5, 0.0, 1.0)` - Parameter manager  
+✅ `new_aubio_hist(0.0, 1.0, 10)` - Histogram
+✅ `new_aubio_scale(0.0, 1.0, 0.0, 1.0)` - Value scaler
+✅ `new_aubio_parameter(0.5, 0.0, 1.0)` - Parameter manager
 
 **Files tested:** `utils/hist.c`, `utils/scale.c`, `utils/parameter.c`
 
 ### Resampler (conditional test)
-✅ `new_aubio_resampler(0.5, 0)` - Sample rate converter  
+✅ `new_aubio_resampler(0.5, 0)` - Sample rate converter
 *(Only tested if HAVE_SAMPLERATE is defined)*
 
 **Files tested:** `temporal/resampler.c`
 
 ### Invalid Parameter Tests (3 tests)
-✅ `new_aubio_filter(0)` - Should return NULL (order too small)  
-✅ `new_aubio_filter(1024)` - Should return NULL (order > 512 limit)  
-✅ `new_fvec(0)` - Should return NULL (size too small)  
+✅ `new_aubio_filter(0)` - Should return NULL (order too small)
+✅ `new_aubio_filter(1024)` - Should return NULL (order > 512 limit)
+✅ `new_fvec(0)` - Should return NULL (size too small)
 
 **Validates:** Parameter validation logic works correctly
 
@@ -192,7 +192,7 @@ Total tests: 46/46 passing (100% pass rate)
 ### Files with NULL Checks: 51 total
 ### Files Explicitly Tested: 51 total (100%)
 
-**Direct tests:** 39 constructor functions tested in test-null-alloc.c  
+**Direct tests:** 39 constructor functions tested in test-null-alloc.c
 **Indirect tests:** DCT backends, I/O implementations, effects (tested through wrappers/integration)
 
 ### Test Categories
@@ -233,18 +233,18 @@ Existing 45 tests provide integration coverage:
 
 ## Conclusion
 
-✅ **100% coverage** of files with NULL pointer fixes  
-✅ **39 explicit tests** validating constructors  
-✅ **3 parameter validation tests** ensuring robustness  
-✅ **46/46 total tests passing** with zero regressions  
-✅ **Comprehensive protection** against NULL pointer dereference vulnerabilities  
+✅ **100% coverage** of files with NULL pointer fixes
+✅ **39 explicit tests** validating constructors
+✅ **3 parameter validation tests** ensuring robustness
+✅ **46/46 total tests passing** with zero regressions
+✅ **Comprehensive protection** against NULL pointer dereference vulnerabilities
 
 The test suite provides strong confidence that all NULL pointer allocation fixes work correctly and don't break existing functionality.
 
 ---
 
-**Test File:** `tests/src/test-null-alloc.c`  
-**Test Name:** `null-alloc`  
-**Run Command:** `meson test -C builddir null-alloc -v`  
-**Total Tests:** 39 constructor tests + 3 validation tests = 42 assertions  
+**Test File:** `tests/src/test-null-alloc.c`
+**Test Name:** `null-alloc`
+**Run Command:** `meson test -C builddir null-alloc -v`
+**Total Tests:** 39 constructor tests + 3 validation tests = 42 assertions
 **Status:** ✅ ALL PASSING

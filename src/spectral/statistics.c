@@ -65,7 +65,7 @@ cvec_centroid (const cvec_t * spec)
 {
   smpl_t sum = 0., sc = 0.;
   uint_t j;
-  sum = cvec_sum (spec); 
+  sum = cvec_sum (spec);
   if (sum == 0.) {
     return 0.;
   } else {
@@ -81,7 +81,7 @@ cvec_moment (const cvec_t * spec, uint_t order)
 {
   smpl_t sum = 0., centroid = 0., sc = 0.;
   uint_t j;
-  sum = cvec_sum (spec); 
+  sum = cvec_sum (spec);
   if (sum == 0.) {
     return 0.;
   } else {
@@ -97,7 +97,7 @@ void
 aubio_specdesc_centroid (aubio_specdesc_t * o UNUSED, const cvec_t * spec,
     fvec_t * desc)
 {
-  desc->data[0] = cvec_centroid (spec); 
+  desc->data[0] = cvec_centroid (spec);
 }
 
 void
@@ -140,7 +140,7 @@ aubio_specdesc_slope (aubio_specdesc_t * o UNUSED, const cvec_t * spec,
     fvec_t * desc)
 {
   uint_t j;
-  smpl_t norm = 0, sum = 0.; 
+  smpl_t norm = 0, sum = 0.;
   // compute N * sum(j**2) - sum(j)**2
   for (j = 0; j < spec->length; j++) {
     norm += j*j;
@@ -148,13 +148,13 @@ aubio_specdesc_slope (aubio_specdesc_t * o UNUSED, const cvec_t * spec,
   norm *= spec->length;
   // sum_0^N(j) = length * (length + 1) / 2
   norm -= SQR( (spec->length) * (spec->length - 1.) / 2. );
-  sum = cvec_sum (spec); 
+  sum = cvec_sum (spec);
   desc->data[0] = 0.;
   if (sum == 0.) {
-    return; 
+    return;
   } else {
     for (j = 0; j < spec->length; j++) {
-      desc->data[0] += j * spec->norm[j]; 
+      desc->data[0] += j * spec->norm[j];
     }
     desc->data[0] *= spec->length;
     desc->data[0] -= sum * spec->length * (spec->length - 1) / 2.;
@@ -168,7 +168,7 @@ aubio_specdesc_decrease (aubio_specdesc_t *o UNUSED, const cvec_t * spec,
     fvec_t * desc)
 {
   uint_t j; smpl_t sum;
-  sum = cvec_sum (spec); 
+  sum = cvec_sum (spec);
   desc->data[0] = 0;
   if (sum == 0.) {
     return;
@@ -196,7 +196,7 @@ aubio_specdesc_rolloff (aubio_specdesc_t *o UNUSED, const cvec_t * spec,
     cumsum *= 0.95;
     j = 0;
     rollsum += SQR (spec->norm[j]);
-    while (rollsum < cumsum) { 
+    while (rollsum < cumsum) {
       j++;
       rollsum += SQR (spec->norm[j]);
     }

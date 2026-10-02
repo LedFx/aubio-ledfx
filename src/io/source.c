@@ -44,7 +44,7 @@ typedef uint_t (*aubio_source_seek_t)(aubio_source_t * s, uint_t seek);
 typedef uint_t (*aubio_source_close_t)(aubio_source_t * s);
 typedef void (*del_aubio_source_t)(aubio_source_t * s);
 
-struct _aubio_source_t { 
+struct _aubio_source_t {
   void *source;
   aubio_source_do_t s_do;
   aubio_source_do_multi_t s_do_multi;
@@ -58,7 +58,7 @@ struct _aubio_source_t {
 
 aubio_source_t * new_aubio_source(const char_t * uri, uint_t samplerate, uint_t hop_size) {
   aubio_source_t * s = AUBIO_NEW(aubio_source_t);
-  
+
   if (!s) {
     return NULL;
   }

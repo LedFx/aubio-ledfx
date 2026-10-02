@@ -28,4 +28,3 @@ int main (void)
   if (new_aubio_hist(0, 1, 0)) return 1;
   return 0;
 }
-

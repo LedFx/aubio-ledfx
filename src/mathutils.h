@@ -280,7 +280,7 @@ smpl_t fvec_quadratic_peak_pos (const fvec_t * x, uint_t p);
   \param x vector to get the magnitude of the interpolated peak position from
   \param p position of the peak in vector `x` (can be fractional)
   \return magnitude of interpolated peak, or 0 if p is out of bounds
-  
+
   \note The function returns the value at index if p is at a boundary or
         interpolation is not possible. Input validation ensures no out-of-bounds access.
 

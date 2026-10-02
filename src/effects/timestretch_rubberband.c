@@ -62,7 +62,7 @@ new_aubio_timestretch (const char_t * mode, smpl_t stretchratio, uint_t hopsize,
     uint_t samplerate)
 {
   aubio_timestretch_t *p = AUBIO_NEW (aubio_timestretch_t);
-  
+
   if (!p) {
     return NULL;
   }

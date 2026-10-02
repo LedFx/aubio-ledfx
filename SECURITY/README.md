@@ -185,7 +185,7 @@ void my_new_function(fvec_t *vec, uint_t index) {
   // 1. Validate inputs
   AUBIO_ASSERT_NOT_NULL(vec);
   AUBIO_ASSERT_BOUNDS(index, vec->length);
-  
+
   // 2. Safe to proceed
   vec->data[index] = 0.0;
 }

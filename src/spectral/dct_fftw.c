@@ -63,7 +63,7 @@ struct _aubio_dct_fftw_t {
 
 aubio_dct_fftw_t * new_aubio_dct_fftw (uint_t size) {
   aubio_dct_fftw_t * s = AUBIO_NEW(aubio_dct_fftw_t);
-  
+
   if (!s) {
     return NULL;
   }

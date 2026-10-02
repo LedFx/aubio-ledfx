@@ -41,7 +41,7 @@ void del_aubio_dct_accelerate (aubio_dct_accelerate_t *s);
 
 aubio_dct_accelerate_t * new_aubio_dct_accelerate (uint_t size) {
   aubio_dct_accelerate_t * s = AUBIO_NEW(aubio_dct_accelerate_t);
-  
+
   if (!s) {
     return NULL;
   }

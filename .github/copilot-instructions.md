@@ -62,7 +62,7 @@ The Python package uses **meson-python** (PEP 517 backend) instead of setuptools
 
 **Windows**: Only static `libaubio.a` is built (no DLL) because aubio lacks `dllexport` declarations. Python extension links statically.
 
-**macOS**: 
+**macOS**:
 - Deployment targets: 10.15 (x86_64), 11.0 (ARM64)
 - Rubberband requires `libc++` linker flag (see `meson.build` line 342)
 
@@ -104,7 +104,7 @@ matrix:
 - `python/lib/gen_external.py`: Parses `src/aubio.h`, generates Python C API wrappers
   - **Removed distutils dependency** (PR #13): Now uses direct compiler detection
   - Generates `gen-onset.c`, `gen-pitch.c`, etc. at build time
-  
+
 ### Dependency Management
 - `vcpkg.json`: Manifest declaring all C library dependencies
 - `doc/vcpkg_integration.md`: Explains vcpkg workflow and troubleshooting
@@ -153,7 +153,7 @@ pytest python/tests/
 
 **Verify vcpkg**: `ls vcpkg_installed/<triplet>/lib/pkgconfig/` should list `.pc` files
 
-**Python build issues**: 
+**Python build issues**:
 - Use `--no-build-isolation` to see environment variables
 - Check NumPy is installed: `python -c "import numpy; print(numpy.get_include())"`
 
@@ -212,7 +212,7 @@ void example_function(fvec_t *vec, uint_t index) {
   // 1. Validate inputs with assertions
   AUBIO_ASSERT_NOT_NULL(vec);
   AUBIO_ASSERT_BOUNDS(index, vec->length);
-  
+
   // 2. Proceed safely
   vec->data[index] = 0.0;
 }
@@ -292,9 +292,9 @@ dest[len] = '\0';  // Explicit termination
 
 #### Prohibited Patterns
 
-❌ **Never use**: `strcpy`, `sprintf`, `gets`, `strcat`  
-❌ **Never**: Access arrays without bounds checking  
-❌ **Never**: Dereference pointers without NULL checks  
+❌ **Never use**: `strcpy`, `sprintf`, `gets`, `strcat`
+❌ **Never**: Access arrays without bounds checking
+❌ **Never**: Dereference pointers without NULL checks
 ❌ **Never**: Allocate `strnlen(...)` bytes - always add +1 for null terminator
 
 #### Testing Checklist

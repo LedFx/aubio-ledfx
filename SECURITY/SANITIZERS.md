@@ -1,8 +1,8 @@
 # Memory Safety Testing with Sanitizers
 
-> **Document Type**: Testing Guide (REQUIRED FOR ALL C CODE)  
-> **Last Updated**: 2025-11-16  
-> **Audience**: All Developers, CI/CD Engineers  
+> **Document Type**: Testing Guide (REQUIRED FOR ALL C CODE)
+> **Last Updated**: 2025-11-16
+> **Audience**: All Developers, CI/CD Engineers
 > **Purpose**: Runtime memory safety validation
 
 ## Quick Start (Required Before Commit)
@@ -223,29 +223,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y meson ninja-build python3-pip
           pip install numpy
-      
+
       - name: Setup build with sanitizers
         run: |
           meson setup builddir \
             -Db_sanitize=address,undefined \
             -Dbuildtype=debugoptimized \
             -Dtests=true
-      
+
       - name: Build
         run: meson compile -C builddir
-      
+
       - name: Run tests with sanitizers
         run: meson test -C builddir --print-errorlogs
         env:
           ASAN_OPTIONS: detect_leaks=1:symbolize=1:abort_on_error=1
           UBSAN_OPTIONS: print_stacktrace=1:halt_on_error=1
-      
+
       - name: Upload test logs on failure
         if: failure()
         uses: actions/upload-artifact@v3
@@ -322,7 +322,7 @@ meson test -C builddir-asan
 
 **Cause:** Sanitizers add significant overhead.
 
-**Solution:** 
+**Solution:**
 - Use sanitizers only during development/testing
 - Run subset of tests with sanitizers
 - Use UBSAN only (lowest overhead)
@@ -459,7 +459,7 @@ meson test -C builddir-valgrind --wrap="valgrind --leak-check=full --show-leak-k
 
 **Error:** `meson.build:1:0: ERROR: Compiler does not support sanitizer`
 
-**Solution:** 
+**Solution:**
 ```bash
 # Check compiler version
 gcc --version  # Need GCC 4.8+ for ASAN
@@ -495,5 +495,5 @@ LD_PRELOAD=$ASAN_LIB python -c "import aubio"
 
 ---
 
-**Last Updated:** 2025-11-14  
+**Last Updated:** 2025-11-14
 **Version:** 0.5.0-alpha

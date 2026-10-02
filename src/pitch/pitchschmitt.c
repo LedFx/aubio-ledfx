@@ -39,7 +39,7 @@ aubio_pitchschmitt_t *
 new_aubio_pitchschmitt (uint_t size)
 {
   aubio_pitchschmitt_t *p = AUBIO_NEW (aubio_pitchschmitt_t);
-  
+
   if (!p) {
     return NULL;
   }

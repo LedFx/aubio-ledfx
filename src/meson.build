@@ -82,7 +82,7 @@ if host_system == 'darwin'
       'io/utils_apple_audio.c',
     )
   endif
-  
+
   if conf_data.has('HAVE_AUDIO_UNIT')
     aubio_sources += files('io/audio_unit.c')
   endif
@@ -158,7 +158,7 @@ if build_shared
   # On Windows, don't install the shared library since we can't create
   # an import library without explicit dllexport declarations.
   install_shared = host_system != 'windows'
-  
+
   libaubio = shared_library('aubio',
     objects: aubio_lib_objects.extract_all_objects(recursive: true),
     include_directories: [aubio_inc, config_inc],
@@ -178,7 +178,7 @@ if build_static
     dependencies: dependencies,
     install: false,  # Never install static library
   )
-  
+
   # If we didn't build a shared library, make libaubio point to static
   if not build_shared
     libaubio = libaubio_static
@@ -255,7 +255,7 @@ foreach header : subdir_headers
       header_dir = parts[0]
     endif
   endif
-  
+
   if header_dir != ''
     install_headers(header, subdir: 'aubio' / header_dir)
   else
@@ -269,4 +269,3 @@ aubio_dep = declare_dependency(
   include_directories: aubio_inc,
   dependencies: dependencies,
 )
-

@@ -118,16 +118,16 @@ foreach test_src : test_sources
     parts = test_src_str.split('/')
     test_filename = parts[-1]
   elif test_src_str.contains('\\')
-    # Handle backslash path separator  
+    # Handle backslash path separator
     parts = test_src_str.split('\\')
     test_filename = parts[-1]
   else
     test_filename = test_src_str
   endif
-  
+
   test_name = test_filename.replace('.c', '').replace('test-', '')
   test_exe_name = test_filename.replace('.c', '')
-  
+
   test_exe = executable(test_exe_name,
     test_src,
     include_directories: [tests_inc, config_inc],
@@ -139,7 +139,7 @@ foreach test_src : test_sources
     ],
     install: false,
   )
-  
+
   # Test depends on the generated sound file
   test(test_name, test_exe, depends: test_sound_gen)
 endforeach

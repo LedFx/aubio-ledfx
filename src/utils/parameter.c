@@ -38,7 +38,7 @@ struct _aubio_parameter_t {
 aubio_parameter_t * new_aubio_parameter (smpl_t min_value, smpl_t max_value, uint_t steps )
 {
   aubio_parameter_t * param = AUBIO_NEW(aubio_parameter_t);
-  
+
   if (!param) {
     return NULL;
   }

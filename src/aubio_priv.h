@@ -422,7 +422,7 @@ uint_t aubio_log(sint_t level, const char_t *fmt, ...);
         abort(); \
       } \
     } while(0)
-  
+
   /* Null pointer check */
   #define AUBIO_ASSERT_NOT_NULL(ptr) \
     do { \
@@ -431,7 +431,7 @@ uint_t aubio_log(sint_t level, const char_t *fmt, ...);
         abort(); \
       } \
     } while(0)
-  
+
   /* Range check - validates value is within [min, max] */
   #define AUBIO_ASSERT_RANGE(val, min, max) \
     do { \
@@ -441,7 +441,7 @@ uint_t aubio_log(sint_t level, const char_t *fmt, ...);
         abort(); \
       } \
     } while(0)
-  
+
   /* Validate buffer has expected length */
   #define AUBIO_ASSERT_LENGTH(buf, expected) \
     do { \

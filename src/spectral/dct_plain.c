@@ -35,7 +35,7 @@ void del_aubio_dct_plain (aubio_dct_plain_t *s);
 
 aubio_dct_plain_t * new_aubio_dct_plain (uint_t size) {
   aubio_dct_plain_t * s = AUBIO_NEW(aubio_dct_plain_t);
-  
+
   if (!s) {
     return NULL;
   }

@@ -43,7 +43,7 @@ aubio_wavetable_t *new_aubio_wavetable(uint_t samplerate, uint_t blocksize)
 {
   uint_t i = 0;
   aubio_wavetable_t *s = AUBIO_NEW(aubio_wavetable_t);
-  
+
   if (!s) {
     return NULL;
   }

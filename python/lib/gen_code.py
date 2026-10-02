@@ -115,7 +115,7 @@ def get_return_type(proto):
     return outputs[0].replace(' ', '')
 
 def split_type(arg):
-    """ arg = 'foo *name' 
+    """ arg = 'foo *name'
         return ['foo*', 'name'] """
     l = arg.split()
     type_arg = {} #'type': l[0], 'name': l[1]}

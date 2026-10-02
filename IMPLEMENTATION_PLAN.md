@@ -1,8 +1,8 @@
 # Security & Stability Strengthening - Implementation Plan
 
-**Project:** aubio-ledfx  
-**Created:** 2025-11-14  
-**Based on:** SECURITY/REVIEW.md and FUTURE_ACTIONS.md  
+**Project:** aubio-ledfx
+**Created:** 2025-11-14
+**Based on:** SECURITY/REVIEW.md and FUTURE_ACTIONS.md
 **Goal:** Systematic security hardening and stability improvements for the aubio codebase
 
 ---
@@ -25,9 +25,9 @@ This plan addresses security and stability improvements identified in the compre
 
 ### 1.1 fvec_quadratic_peak_mag Bounds Validation
 
-**Status:** 🔄 IN PROGRESS  
-**Priority:** HIGH (security-related, low effort)  
-**Effort:** 2-4 hours  
+**Status:** 🔄 IN PROGRESS
+**Priority:** HIGH (security-related, low effort)
+**Effort:** 2-4 hours
 **Files:** `src/mathutils.c`, `src/tempo/beattracking.c`
 
 **Tasks:**
@@ -45,9 +45,9 @@ This plan addresses security and stability improvements identified in the compre
 
 ### 2.1 Add Security Compiler Flags
 
-**Status:** 🔄 IN PROGRESS  
-**Priority:** HIGH  
-**Effort:** 4 hours  
+**Status:** 🔄 IN PROGRESS
+**Priority:** HIGH
+**Effort:** 4 hours
 **Files:** `meson.build`
 
 **Tasks:**
@@ -76,9 +76,9 @@ endif
 
 ### 2.2 Debug Build Assertions
 
-**Status:** 🔄 IN PROGRESS  
-**Priority:** MEDIUM  
-**Effort:** 6 hours  
+**Status:** 🔄 IN PROGRESS
+**Priority:** MEDIUM
+**Effort:** 6 hours
 **Files:** `src/aubio_priv.h`, various source files
 
 **Tasks:**
@@ -108,9 +108,9 @@ endif
 
 ### 3.1 AddressSanitizer (ASAN) Integration
 
-**Status:** 🔄 IN PROGRESS  
-**Priority:** HIGH  
-**Effort:** 1 day  
+**Status:** 🔄 IN PROGRESS
+**Priority:** HIGH
+**Effort:** 1 day
 **Files:** `meson_options.txt`, `meson.build`, `.github/workflows/build.yml`
 
 **Tasks:**
@@ -134,9 +134,9 @@ option('sanitizers',
 
 ### 3.2 Valgrind Integration
 
-**Status:** 🔄 IN PROGRESS  
-**Priority:** MEDIUM  
-**Effort:** 4 hours  
+**Status:** 🔄 IN PROGRESS
+**Priority:** MEDIUM
+**Effort:** 4 hours
 **Files:** `meson.build`, test scripts
 
 **Tasks:**
@@ -157,9 +157,9 @@ valgrind --leak-check=full --show-leak-kinds=all \
 
 ### 3.3 UndefinedBehaviorSanitizer (UBSAN)
 
-**Status:** ⏸️ PLANNED  
-**Priority:** MEDIUM  
-**Effort:** 4 hours  
+**Status:** ⏸️ PLANNED
+**Priority:** MEDIUM
+**Effort:** 4 hours
 **Files:** `meson.build`, CI workflow
 
 **Tasks:**
@@ -174,9 +174,9 @@ valgrind --leak-check=full --show-leak-kinds=all \
 
 ### 4.1 Boundary Condition Tests
 
-**Status:** 🔄 IN PROGRESS  
-**Priority:** MEDIUM  
-**Effort:** 2-3 days  
+**Status:** 🔄 IN PROGRESS
+**Priority:** MEDIUM
+**Effort:** 2-3 days
 **Files:** `tests/src/spectral/`, `tests/src/pitch/`, `tests/src/tempo/`
 
 **Test Cases to Add:**
@@ -215,9 +215,9 @@ valgrind --leak-check=full --show-leak-kinds=all \
 
 ### 4.2 Fuzz Testing Infrastructure
 
-**Status:** ⏸️ PLANNED  
-**Priority:** MEDIUM  
-**Effort:** 1-2 days  
+**Status:** ⏸️ PLANNED
+**Priority:** MEDIUM
+**Effort:** 1-2 days
 **Files:** `fuzz/`, CI workflow
 
 **Tasks:**
@@ -235,21 +235,21 @@ valgrind --leak-check=full --show-leak-kinds=all \
 // fuzz/fuzz_specdesc.c
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < sizeof(uint_t) * 2) return 0;
-  
+
   uint_t win_s = *(uint_t*)data;
   if (win_s < 4 || win_s > 8192) return 0;
-  
+
   aubio_specdesc_t *o = new_aubio_specdesc("rolloff", win_s);
   cvec_t *in = new_cvec(win_s);
   fvec_t *out = new_fvec(1);
-  
+
   // Fuzz the input spectrum
   for (uint_t i = 0; i < in->length && i < size; i++) {
     in->norm[i] = ((smpl_t)data[i]) / 255.0;
   }
-  
+
   aubio_specdesc_do(o, in, out);
-  
+
   del_fvec(out);
   del_cvec(in);
   del_aubio_specdesc(o);
@@ -259,9 +259,9 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
 ### 4.3 Memory Leak Detection
 
-**Status:** 🔄 IN PROGRESS  
-**Priority:** HIGH  
-**Effort:** 1 day  
+**Status:** 🔄 IN PROGRESS
+**Priority:** HIGH
+**Effort:** 1 day
 **Files:** Test suite
 
 **Tasks:**
@@ -276,9 +276,9 @@ int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
 
 ### 5.1 Clang-Tidy Integration
 
-**Status:** 🔄 IN PROGRESS  
-**Priority:** MEDIUM  
-**Effort:** 2-3 days  
+**Status:** 🔄 IN PROGRESS
+**Priority:** MEDIUM
+**Effort:** 2-3 days
 **Files:** `.clang-tidy`, meson.build, CI workflow
 
 **Tasks:**
@@ -306,9 +306,9 @@ WarningsAsErrors: '*'
 
 ### 5.2 Additional Static Analysis Tools
 
-**Status:** ⏸️ PLANNED  
-**Priority:** LOW  
-**Effort:** 2-3 days per tool  
+**Status:** ⏸️ PLANNED
+**Priority:** LOW
+**Effort:** 2-3 days per tool
 
 **Tools to Add:**
 - [ ] **Cppcheck** - Add to pre-commit hooks
@@ -318,9 +318,9 @@ WarningsAsErrors: '*'
 
 ### 5.3 Defensive Programming Patterns
 
-**Status:** 🔄 IN PROGRESS  
-**Priority:** MEDIUM  
-**Effort:** 3-5 days  
+**Status:** 🔄 IN PROGRESS
+**Priority:** MEDIUM
+**Effort:** 3-5 days
 **Files:** Various source files
 
 **Tasks:**
@@ -363,9 +363,9 @@ void aubio_func(fvec_t *vec) {
 
 ### 6.1 Security Guidelines for Contributors
 
-**Status:** ⏸️ PLANNED  
-**Priority:** LOW  
-**Effort:** 1 day  
+**Status:** ⏸️ PLANNED
+**Priority:** LOW
+**Effort:** 1 day
 **Files:** `CONTRIBUTING_SECURITY.md`
 
 **Content to Create:**
@@ -379,9 +379,9 @@ void aubio_func(fvec_t *vec) {
 
 ### 6.2 Function Documentation Improvements
 
-**Status:** ⏸️ PLANNED  
-**Priority:** LOW  
-**Effort:** 2-3 days  
+**Status:** ⏸️ PLANNED
+**Priority:** LOW
+**Effort:** 2-3 days
 **Files:** Various header files
 
 **Functions Needing Better Docs:**
@@ -395,15 +395,15 @@ void aubio_func(fvec_t *vec) {
 ```c
 /**
  * Find peak magnitude using quadratic interpolation
- * 
+ *
  * @param x      Input vector
  * @param pos    Peak position (must be in range [1, x->length-2])
  * @return       Interpolated peak magnitude
- * 
+ *
  * @warning pos must allow access to pos-1 and pos+1
  * @pre     1 <= pos <= x->length - 2
  * @post    Returns 0 if preconditions not met
- * 
+ *
  * @note This function performs quadratic interpolation around the
  *       peak position to estimate the true peak magnitude.
  */
@@ -412,9 +412,9 @@ smpl_t fvec_quadratic_peak_mag (fvec_t *x, smpl_t pos);
 
 ### 6.3 Security Audit Documentation
 
-**Status:** ⏸️ PLANNED  
-**Priority:** LOW  
-**Effort:** 4 hours  
+**Status:** ⏸️ PLANNED
+**Priority:** LOW
+**Effort:** 4 hours
 **Files:** `SECURITY_AUDIT.md`
 
 **Tasks:**
@@ -430,9 +430,9 @@ smpl_t fvec_quadratic_peak_mag (fvec_t *x, smpl_t pos);
 
 ### 7.1 Sanitizer CI Jobs
 
-**Status:** 🔄 IN PROGRESS  
-**Priority:** HIGH  
-**Effort:** 1 day  
+**Status:** 🔄 IN PROGRESS
+**Priority:** HIGH
+**Effort:** 1 day
 **Files:** `.github/workflows/security.yml`
 
 **Tasks:**
@@ -468,9 +468,9 @@ jobs:
 
 ### 7.2 Static Analysis CI
 
-**Status:** 🔄 IN PROGRESS  
-**Priority:** MEDIUM  
-**Effort:** 4 hours  
+**Status:** 🔄 IN PROGRESS
+**Priority:** MEDIUM
+**Effort:** 4 hours
 **Files:** `.github/workflows/static-analysis.yml`
 
 **Tasks:**
@@ -482,9 +482,9 @@ jobs:
 
 ### 7.3 Pre-commit Hooks
 
-**Status:** ⏸️ PLANNED  
-**Priority:** LOW  
-**Effort:** 4 hours  
+**Status:** ⏸️ PLANNED
+**Priority:** LOW
+**Effort:** 4 hours
 **Files:** `.pre-commit-config.yaml`
 
 **Tasks:**
@@ -501,9 +501,9 @@ jobs:
 
 ### 8.1 Performance Benchmarking
 
-**Status:** ⏸️ PLANNED  
-**Priority:** LOW  
-**Effort:** 1-2 days  
+**Status:** ⏸️ PLANNED
+**Priority:** LOW
+**Effort:** 1-2 days
 **Files:** `benchmarks/`
 
 **Tasks:**
@@ -636,7 +636,7 @@ These items are documented in SECURITY/REVIEW.md as completed:
 
 1. ✅ **Buffer over-read in aubio_sampler_load** (HIGH) - Fixed memory allocation and null termination
 2. ✅ **Inconsistent null termination in new_aubio_tempo** (MEDIUM) - Fixed defensive programming
-3. ✅ **Spectral rolloff out-of-bounds** (HIGH) - Fixed off-by-one error  
+3. ✅ **Spectral rolloff out-of-bounds** (HIGH) - Fixed off-by-one error
 4. ✅ **Pitch Schmitt trigger out-of-bounds** (HIGH) - Fixed loop bounds
 
 All fixes validated with test suite (45/45 tests passing).
@@ -670,5 +670,5 @@ All fixes validated with test suite (45/45 tests passing).
 
 ---
 
-**Last Updated:** 2025-11-14  
+**Last Updated:** 2025-11-14
 **Next Review:** 2025-11-21 (Weekly during implementation)

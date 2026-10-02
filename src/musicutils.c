@@ -82,4 +82,3 @@ aubio_meltohz_htk (smpl_t mel)
   }
   return split_hz * ( EXP ( mel * log_space) - 1.);
 }
-

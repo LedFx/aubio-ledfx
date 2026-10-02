@@ -80,7 +80,7 @@ aubio_audio_unit_t * new_aubio_audio_unit(uint_t samplerate,
     uint_t blocksize)
 {
   aubio_audio_unit_t * o = AUBIO_NEW(aubio_audio_unit_t);
-  
+
   if (!o) {
     return NULL;
   }

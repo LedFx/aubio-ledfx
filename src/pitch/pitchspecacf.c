@@ -42,7 +42,7 @@ aubio_pitchspecacf_t *
 new_aubio_pitchspecacf (uint_t bufsize)
 {
   aubio_pitchspecacf_t *p = AUBIO_NEW (aubio_pitchspecacf_t);
-  
+
   if (!p) {
     return NULL;
   }

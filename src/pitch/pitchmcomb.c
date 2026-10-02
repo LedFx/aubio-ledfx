@@ -368,7 +368,7 @@ aubio_pitchmcomb_t *
 new_aubio_pitchmcomb (uint_t bufsize, uint_t hopsize)
 {
   aubio_pitchmcomb_t *p = AUBIO_NEW (aubio_pitchmcomb_t);
-  
+
   if (!p) {
     return NULL;
   }

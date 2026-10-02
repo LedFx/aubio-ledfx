@@ -59,7 +59,7 @@ const char_t *aubio_str_get_extension(const char_t *filename);
 
 aubio_sink_sndfile_t * new_aubio_sink_sndfile(const char_t * path, uint_t samplerate) {
   aubio_sink_sndfile_t * s = AUBIO_NEW(aubio_sink_sndfile_t);
-  
+
   if (!s) {
     return NULL;
   }
