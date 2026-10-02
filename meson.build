@@ -1,5 +1,5 @@
 project('aubio', 'c',
-  version: '0.5.0-alpha',
+  version: '0.4.11', # x-release-please-version
   license: 'GPL-3.0-or-later',
   default_options: [
     'warning_level=2',
@@ -56,6 +56,10 @@ lib_version = '@0@.@1@.@2@'.format(
   version_data.get('lt_rev'),
   version_data.get('lt_age')
 )
+
+if aubio_version != meson.project_version()
+  error('VERSION (' + aubio_version + ') and meson.build (' + meson.project_version() + ') disagree; release-please keeps them in step')
+endif
 
 message('Building aubio version: ' + aubio_version)
 message('Library version: ' + lib_version)
@@ -171,7 +175,7 @@ else
   vcpkg_exe = find_program('vcpkg', required: false)
   if vcpkg_exe.found()
     message('vcpkg found, installing dependencies from vcpkg.json manifest...')
-    
+
     # Install vcpkg dependencies with custom triplets for PIC support
     vcpkg_result = run_command(
       vcpkg_exe,
@@ -183,7 +187,7 @@ else
       '--x-install-root=' + vcpkg_install_root,
       check: false
     )
-    
+
     if vcpkg_result.returncode() == 0
       message('vcpkg dependencies installed successfully')
       vcpkg_found = true
@@ -207,27 +211,27 @@ if vcpkg_found
   vcpkg_pkgconfig_dir = vcpkg_lib_dir / 'pkgconfig'
   vcpkg_share_pkgconfig_dir = vcpkg_installed_dir / 'share' / 'pkgconfig'
   # Note: Debug libraries not used since VCPKG_BUILD_TYPE=release in CI
-  
+
   message('vcpkg pkg-config directories:')
   message('  - ' + vcpkg_pkgconfig_dir)
   message('  - ' + vcpkg_share_pkgconfig_dir)
-  
+
   # Add vcpkg include and lib paths as compiler/linker flags
   # This ensures that even if pkg-config fails, the compiler can find headers and libs
   add_project_arguments(
     '-I' + vcpkg_include_dir,
     language: 'c'
   )
-  
+
   # Add library search path (release-only since VCPKG_BUILD_TYPE=release)
   add_project_link_arguments(
     '-L' + vcpkg_lib_dir,
     language: 'c'
   )
-  
+
   # Store vcpkg dirs for dependency lookups
   vcpkg_cmake_prefix_path = vcpkg_installed_dir
-  
+
 else
   message('vcpkg dependencies not available, using system dependencies')
   vcpkg_found = false
@@ -350,17 +354,17 @@ if get_option('intelipp').enabled()
       has_ipp_headers = false
     endif
   endforeach
-  
+
   if has_ipp_headers
     ipp_dep = cc.find_library('ippcore', required: false)
     ippvm_dep = cc.find_library('ippvm', required: false)
     ipps_dep = cc.find_library('ipps', required: false)
-    
+
     if ipp_dep.found() and ippvm_dep.found() and ipps_dep.found()
       conf_data.set('HAVE_INTEL_IPP', 1)
       dependencies += [ipp_dep, ippvm_dep, ipps_dep]
       message('Intel IPP support: enabled')
-      
+
       if cc.get_id() == 'msvc'
         conf_data.set('_IPP_SEQUENTIAL_STATIC', 1)
       endif
@@ -384,7 +388,7 @@ apple_audio_deps = []
 if host_system == 'darwin' and get_option('apple-audio').auto()
   corefoundation_dep = dependency('CoreFoundation', required: false)
   audiotoolbox_dep = dependency('AudioToolbox', required: false)
-  
+
   if corefoundation_dep.found() and audiotoolbox_dep.found()
     conf_data.set('HAVE_SOURCE_APPLE_AUDIO', 1)
     conf_data.set('HAVE_SINK_APPLE_AUDIO', 1)
@@ -435,7 +439,7 @@ if host_system == 'linux'
     {'pkg': 'vorbisenc', 'fallback_libs': ['vorbisenc']},
     {'pkg': 'ogg', 'fallback_libs': ['ogg']},
   ]
-  
+
   foreach spec : linux_transitive_specs
     dep = dependency(spec['pkg'], required: false, disabler: true)
     if not dep.found() and vcpkg_found and spec.has_key('fallback_libs')
@@ -613,7 +617,7 @@ blas_dep = dependency('blas', required: get_option('blas'))
 if blas_dep.found()
   conf_data.set('HAVE_BLAS', 1)
   dependencies += blas_dep
-  
+
   # Check for BLAS headers
   blas_headers = ['cblas.h', 'atlas/cblas.h', 'openblas/cblas.h']
   foreach h : blas_headers
@@ -669,4 +673,3 @@ summary({
   'Vorbis': conf_data.has('HAVE_VORBISENC'),
   'FLAC': conf_data.has('HAVE_FLAC'),
 }, section: 'Optional dependencies')
-

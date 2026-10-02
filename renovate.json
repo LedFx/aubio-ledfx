@@ -1,0 +1,18 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>LedFx/renovate-config"
+  ],
+  "packageRules": [
+    {
+      "description": "Wheels are built for exactly these CPython versions (pyproject.toml [tool.cibuildwheel]); a new cibuildwheel major can change the default build set and manylinux images, so a person checks the wheel matrix.",
+      "matchPackageNames": [
+        "pypa/cibuildwheel"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false
+    }
+  ]
+}
