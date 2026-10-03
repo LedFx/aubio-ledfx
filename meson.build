@@ -610,6 +610,14 @@ if not avcodec_opt.disabled()
       conf_data.set(spec['define'], 1)
     endforeach
     dependencies += libav_deps
+    # A static FFmpeg's x86 assembly refers to its own constants directly
+    # (R_X86_64_PC32 against ff_pw_9 ...), which a shared object only allows
+    # when they bind locally. vcpkg's FFmpeg port says to link with
+    # -Bsymbolic, as FFmpeg's own shared libraries do. It also keeps the
+    # extension's copies of these libraries from being interposed.
+    if host_system == 'linux' and vcpkg_found
+      add_project_link_arguments('-Wl,-Bsymbolic', language: 'c')
+    endif
   elif avcodec_opt.enabled()
     error('libavcodec support was requested but the dependencies could not be found')
   elif avcodec_opt.auto()
