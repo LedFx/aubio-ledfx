@@ -5,7 +5,7 @@ aubio-ledfx
 >
 > **Why this fork exists:**
 > - The original aubio project is no longer actively maintained with regular releases
-> - We provide Python 3.10-3.14 support with pre-built wheels on PyPI
+> - We provide Python 3.11-3.15 support with pre-built wheels on PyPI
 > - This fork includes the latest fixes and improvements from aubio's main branch
 > - LedFx and other projects depend on aubio and need a reliable, up-to-date package
 >
@@ -31,7 +31,7 @@ efficient tools to process and analyse audio signals, including:
 - pitch tracking (fundamental frequency estimation)
 - beat detection and tempo tracking
 
-This fork supports **Python 3.8 through 3.14** on Linux (x86_64, ARM64), macOS (Intel, Apple Silicon), and Windows (AMD64).
+This fork supports **Python 3.11 through 3.15** on Linux (x86_64, ARM64), macOS (Intel, Apple Silicon), and Windows (AMD64).
 
 Installation
 ------------
@@ -115,24 +115,23 @@ For detailed build instructions, see the [main README](https://github.com/LedFx/
 Built with
 ----------
 
-The core of aubio is written in C for portability and speed. The **pre-built wheels on PyPI** include the following optional features:
+The core of aubio is written in C for portability and speed. The **pre-built
+wheels on PyPI** are built with every optional feature that works in a Python
+package, the same on every platform:
 
-**All platforms:**
 - [NumPy] integration for efficient array processing
-- [libsndfile] for reading/writing uncompressed audio (WAV, AIFF, etc.)
-- [fftw3] for fast Fourier transforms
-- [libsamplerate] for high-quality audio resampling
-- Audio codec support: FLAC, Vorbis/Ogg
-- Built-in WAV reader/writer
+- [ffmpeg] for reading almost any audio or video file (MP4/AAC, MKV, WebM, ...)
+- [libsndfile] for reading and writing WAV, AIFF, FLAC, Ogg Vorbis, Opus and MP3
+- FLAC and Ogg Vorbis sinks, and a built-in WAV reader and writer
+- [libsamplerate] for high-quality resampling
+- [rubberband] for time-stretching and pitch-shifting
+- on macOS, the [Accelerate] framework (FFT and vector maths) and [CoreAudio]
+  (every format macOS can read)
 
-**Platform-specific features:**
-- **macOS:** [Accelerate] framework (optimized FFT), [CoreAudio] (native media reading), [ffmpeg], [rubberband] (time-stretching)
-- **Windows:** [ffmpeg], [rubberband] (time-stretching) - all DLLs bundled in wheel
-- **Linux:** MP3 support (mpg123, lame), Opus codec - static linking for portability
+**Not included:** JACK (only aubio's command-line tools use it), Intel IPP
+and BLAS (see the appendix, and [building from source][doc_building]).
 
-**Not included:** JACK audio, Intel IPP, BLAS/Atlas (for custom builds, see [building from source][doc_building])
-
-For a detailed breakdown of features by platform, see the [Pre-built Wheel Features](#pre-built-wheel-features) appendix below.
+For a detailed breakdown, see the [Pre-built Wheel Features](#pre-built-wheel-features) appendix below.
 
 [ffmpeg]: https://ffmpeg.org
 [avcodec]: https://libav.org
@@ -142,6 +141,7 @@ For a detailed breakdown of features by platform, see the [Pre-built Wheel Featu
 [Atlas]: http://math-atlas.sourceforge.net/
 [Blas]: https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms
 [fftw3]: http://fftw.org
+[rubberband]: https://breakfastquay.com/rubberband/
 [Accelerate]: https://developer.apple.com/reference/accelerate
 [Intel IPP]: https://software.intel.com/en-us/intel-ipp
 
@@ -161,60 +161,57 @@ This appendix provides a complete breakdown of which optional features are inclu
 
 | Feature | Linux | macOS | Windows | Description |
 |---------|:-----:|:-----:|:-------:|-------------|
-| **Audio File I/O** | | | | |
-| libsndfile | ✅ | ✅ | ✅ | Read/write uncompressed audio (WAV, AIFF, AU, etc.) |
-| ffmpeg/libav | ❌ | ✅ | ✅ | Decode almost any media format (MP4, MKV, WebM, etc.) |
-| CoreAudio | — | ✅ | — | Native macOS/iOS audio file reading (all Apple formats) |
-| Built-in WAV | ✅ | ✅ | ✅ | Simple WAV support without external libraries |
-| **Audio Codecs** | | | | |
-| FLAC | ✅ | ✅ | ✅ | FLAC lossless audio codec |
-| Vorbis/Ogg | ✅ | ✅ | ✅ | Ogg Vorbis lossy audio codec |
-| MP3 (mpg123) | ✅ | ❌ | ❌ | MP3 decoding (Linux only) |
-| MP3 (lame) | ✅ | ❌ | ❌ | MP3 encoding (Linux only) |
-| Opus | ✅ | ❌ | ❌ | Opus low-latency codec (Linux only) |
-| **Sample Rate Conversion** | | | | |
-| libsamplerate | ✅ | ✅ | ✅ | High-quality audio resampling (SRC) |
-| **Time Stretching** | | | | |
-| rubberband | ❌ | ✅ | ✅ | Audio time-stretching and pitch-shifting |
-| **FFT Implementation** | | | | |
-| fftw3f | ✅ | ✅ | ✅ | Fast Fourier Transform (single precision, recommended) |
-| Accelerate | — | ✅ | — | Apple's optimized FFT and DSP framework |
-| ooura | ✅ | ✅ | ✅ | Fallback FFT implementation (always included) |
+| **Audio file input and output** | | | | |
+| ffmpeg/libav | ✅ | ✅ | ✅ | Decode almost any media format (MP4/AAC, MKV, WebM, ...) |
+| libsndfile | ✅ | ✅ | ✅ | WAV, AIFF, AU and more, with the codecs below |
+| CoreAudio | — | ✅ | — | Native macOS reading and writing (every Apple format) |
+| Built-in WAV | ✅ | ✅ | ✅ | WAV reader and writer without external libraries |
+| **Codecs (through libsndfile)** | | | | |
+| FLAC | ✅ | ✅ | ✅ | Read and write, plus aubio's own FLAC sink |
+| Ogg Vorbis | ✅ | ✅ | ✅ | Read and write, plus aubio's own Vorbis sink |
+| Opus | ✅ | ✅ | ✅ | Read and write |
+| MP3 (mpg123, LAME) | ✅ | ✅ | ✅ | Read and write |
+| **Resampling and effects** | | | | |
+| libsamplerate | ✅ | ✅ | ✅ | High-quality resampling |
+| rubberband | ✅ | ✅ | ✅ | Time-stretching and pitch-shifting |
+| **FFT** | | | | |
+| Accelerate (vDSP) | — | ✅ | — | Apple's FFT and vector maths |
+| ooura | ✅ | — | ✅ | aubio's built-in FFT (power-of-two sizes) |
+
+Each wheel build prints meson's feature summary in its CI log, so this table
+can be checked against any release's build.
 
 ### Platform-Specific Notes
 
-**Linux (x86_64, ARM64):**
-- All dependencies are **statically linked** for maximum portability
-- No external `.so` files required - works on any manylinux-compatible system
-- Excludes rubberband and ffmpeg due to static linking constraints
-- Includes MP3 and Opus codecs as transitive dependencies of libsndfile
+**Linux (x86_64, ARM64, manylinux_2_28):**
+- Every dependency is **statically linked** into the extension, so the wheel
+  needs no other `.so` files.
 
 **macOS (Intel x86_64, Apple Silicon ARM64):**
-- Uses native **Accelerate framework** for optimized FFT operations
-- Uses **CoreAudio** for reading all macOS-supported media formats
-- Includes rubberband and ffmpeg for maximum format compatibility
-- Separate wheel builds for Intel and Apple Silicon architectures
-- Minimum deployment target: macOS 10.15 (Intel), macOS 11.0 (Apple Silicon)
+- Dependencies are statically linked.
+- Minimum macOS: 10.15 (Intel), 11.0 (Apple Silicon).
 
 **Windows (AMD64):**
-- All dependency DLLs are **bundled inside the wheel** via delvewheel
-- Fully portable - no separate installation of dependencies required
-- Includes rubberband and ffmpeg
-- Works on Windows 10+ (x64)
+- Built with MSVC. The dependency DLLs, and the C++ runtime (`msvcp140.dll`)
+  rubberband was built against, are **bundled inside the wheel** by delvewheel.
 
 ### Features NOT Included in Wheels
 
-The following optional features are **not included** in pre-built wheels but can be enabled when [building from source][doc_building]:
+These can be enabled when [building from source][doc_building]:
 
-- **JACK audio server:** Real-time audio I/O (requires system JACK installation)
-- **Intel IPP:** Intel's performance primitives (commercial license required)
-- **BLAS/Atlas:** Linear algebra acceleration (minimal benefit for aubio's use cases)
-- **Double precision mode:** Single precision (float32) is used by default
+- **JACK:** only aubio's command-line tools use it, and the wheels don't ship
+  them. From Python, read live audio with `sounddevice` or PyAudio and pass the
+  blocks to aubio.
+- **FFTW:** `-Dfftw3f=enabled` adds non-power-of-two FFT sizes. aubio's own
+  ooura FFT measured as fast or faster at the usual power-of-two sizes.
+- **Intel IPP** (Intel's proprietary libraries) and **BLAS:** speed-ups only,
+  with no new features.
+- **Double precision:** the wheels use single precision (float32).
 
 ### Python Version Support
 
 Pre-built wheels are available for:
-- **Python 3.10, 3.11, 3.12, 3.13, 3.14**
+- **CPython 3.11, 3.12, 3.13, 3.14, 3.15**
 - All wheels include the same feature set per platform
 
 ---

@@ -146,10 +146,11 @@ if host_system == 'windows'
     vcpkg_triplet = 'x64-windows-release'
   endif
 elif host_system == 'darwin'
+  # Release-only static triplets, as built by the CI workflow
   if host_machine.cpu_family() == 'aarch64'
-    vcpkg_triplet = 'arm64-osx'
+    vcpkg_triplet = 'arm64-osx-release'
   else
-    vcpkg_triplet = 'x64-osx'
+    vcpkg_triplet = 'x64-osx-release'
   endif
 elif host_system == 'linux'
   # Linux: Use custom triplets with -fPIC for all architectures
@@ -558,6 +559,10 @@ if not rubberband_opt.disabled()
   if rubberband_dep.found()
     conf_data.set('HAVE_RUBBERBAND', 1)
     dependencies += rubberband_dep
+    # a static rubberband needs the C++ runtime the C extension doesn't link
+    if host_system == 'linux'
+      add_project_link_arguments('-lstdc++', language: 'c')
+    endif
     if host_system == 'darwin'
       add_project_link_arguments('-lc++', language: 'c')
       sleef_dep = dependency('sleef', required: false, disabler: true)

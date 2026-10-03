@@ -177,11 +177,11 @@ jobs:
           - os: macos-15-intel
             arch: x86_64
             macosx_deployment_target: "10.15"
-            triplet: x64-osx
+            triplet: x64-osx-release
           - os: macos-latest
             arch: arm64
             macosx_deployment_target: "11.0"
-            triplet: arm64-osx
+            triplet: arm64-osx-release
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -218,16 +218,38 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/vcpkg-cache
-          key: vcpkg-bin-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg-triplets/*.cmake') }}
+          key: vcpkg-bin-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg-triplets/*.cmake', 'vcpkg-ports/**') }}
           restore-keys: |
             vcpkg-bin-${{ matrix.os }}-${{ matrix.arch }}-
           lookup-only: ${{ github.ref_type == 'tag' }} # zizmor: ignore[cache-poisoning] release builds never restore
 
-      # macOS: build the vcpkg dependencies with the wheel's deployment target.
+      # Windows: meson finds the vcpkg DLLs through vcpkg's own pkgconf (the
+      # pkg-config on the image's PATH is Strawberry Perl's, which meson
+      # rejects), and delvewheel bundles msvcp140.dll from this Visual Studio,
+      # the toolset vcpkg builds rubberband and sleef with.
+      - name: Windows build environment
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $prefix = "$env:GITHUB_WORKSPACE\vcpkg_installed\x64-windows-release"
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $crt = Get-ChildItem "$vs\VC\Redist\MSVC" -Recurse -Filter msvcp140.dll |
+            Where-Object { $_.FullName -match '\\x64\\Microsoft\.VC\d+\.CRT\\' } |
+            Sort-Object { $_.VersionInfo.FileVersionRaw } | Select-Object -Last 1
+          if (-not $crt) { throw "No x64 msvcp140.dll in $vs\VC\Redist\MSVC" }
+          Write-Output "Bundling $($crt.FullName) ($($crt.VersionInfo.FileVersionRaw))"
+          @(
+            "PKG_CONFIG=$prefix\tools\pkgconf\pkgconf.exe"
+            "PKG_CONFIG_PATH=$prefix\lib\pkgconfig"
+            "CMAKE_PREFIX_PATH=$prefix"
+            "MSVC_CRT_DIR=$($crt.DirectoryName)"
+          ) | Add-Content $env:GITHUB_ENV
+
+      # macOS: build the vcpkg dependencies with the wheel's deployment target,
+      # with static release-only triplets.
       - name: Install vcpkg dependencies (macOS)
         if: runner.os == 'macOS'
         env:
-          VCPKG_BUILD_TYPE: release
           TRIPLET: ${{ matrix.triplet }}
           DEPLOYMENT_TARGET: ${{ matrix.macosx_deployment_target }}
         run: |
