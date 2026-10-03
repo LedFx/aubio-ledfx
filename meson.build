@@ -670,12 +670,47 @@ pkg.generate(
   extra_cflags: aubio_public_c_args,
 )
 
+# What this build actually uses. Wheel builds print it too (cibuildwheel
+# build-verbosity in pyproject.toml), so CI logs show each platform's
+# feature set.
+if conf_data.has('HAVE_FFTW3F')
+  fft_backend = 'fftw3f'
+elif conf_data.has('HAVE_FFTW3')
+  fft_backend = 'fftw3'
+elif conf_data.has('HAVE_ACCELERATE')
+  fft_backend = 'Accelerate (vDSP)'
+elif conf_data.has('HAVE_INTEL_IPP')
+  fft_backend = 'Intel IPP'
+else
+  fft_backend = 'ooura (power-of-two sizes only)'
+endif
+
+summary({
+  'Precision': enable_double ? 'double' : 'single',
+  'Security hardening': get_option('security_hardening'),
+  'Python bindings': get_option('python'),
+  'C tests': get_option('tests'),
+  'Examples / CLI tools': get_option('examples'),
+}, section: 'Configuration')
+
+summary({
+  'FFT': fft_backend,
+  'Accelerate (vector ops)': conf_data.has('HAVE_ACCELERATE'),
+  'Intel IPP': conf_data.has('HAVE_INTEL_IPP'),
+  'BLAS': conf_data.has('HAVE_BLAS'),
+}, section: 'Math')
+
 summary({
   'libsndfile': conf_data.has('HAVE_SNDFILE'),
+  'FFmpeg/libav': conf_data.has('HAVE_LIBAV'),
+  'Apple AudioToolbox': conf_data.has('HAVE_SOURCE_APPLE_AUDIO'),
+  'WAV reader / writer': '@0@ / @1@'.format(conf_data.has('HAVE_WAVREAD'), conf_data.has('HAVE_WAVWRITE')),
+  'Vorbis sink': conf_data.has('HAVE_VORBISENC'),
+  'FLAC sink': conf_data.has('HAVE_FLAC'),
+  'JACK (examples only)': conf_data.has('HAVE_JACK'),
+}, section: 'Audio I/O')
+
+summary({
   'libsamplerate': conf_data.has('HAVE_SAMPLERATE'),
   'rubberband': conf_data.has('HAVE_RUBBERBAND'),
-  'JACK': conf_data.has('HAVE_JACK'),
-  'FFmpeg/libav': conf_data.has('HAVE_LIBAV'),
-  'Vorbis': conf_data.has('HAVE_VORBISENC'),
-  'FLAC': conf_data.has('HAVE_FLAC'),
-}, section: 'Optional dependencies')
+}, section: 'Resampling and effects')

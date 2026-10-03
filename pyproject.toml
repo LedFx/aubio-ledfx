@@ -67,6 +67,9 @@ test-command = "python -c \"import aubio; print('aubio version:', aubio.version)
 
 # Disable build isolation so environment variables (like PKG_CONFIG_PATH) are passed through
 build-frontend = { name = "pip", args = ["--no-build-isolation"] }
+# Show meson's configure output, including its feature summary, in the CI
+# logs: pip hides the build backend's output by default.
+build-verbosity = 1
 
 [tool.cibuildwheel.linux]
 # Linux: vcpkg dependencies are installed inside the manylinux Docker container via before-all
