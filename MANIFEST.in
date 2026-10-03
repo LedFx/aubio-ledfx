@@ -41,4 +41,3 @@ exclude doc/full.cfg
 
 # Scripts
 include scripts/* scripts/apple/Info.plist scripts/apple/Modules/module.modulemap
-

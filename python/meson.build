@@ -6,7 +6,7 @@ py = import('python').find_installation('python3', modules: ['numpy'], required:
 cc = meson.get_compiler('c')
 
 # Get numpy include directory
-numpy_inc_result = run_command(py, 
+numpy_inc_result = run_command(py,
   ['-c', 'import numpy; print(numpy.get_include())'],
   check: false
 )
@@ -21,6 +21,8 @@ endif
 # This generates gen-*.c files for each aubio object (dct, mfcc, notes, etc.)
 # and aubio-generated.c/.h that ties them all together
 gen_external_script = files('lib/gen_external.py')
+# gen_external.py imports gen_code.py: a change to either regenerates
+gen_code_script = files('lib/gen_code.py')
 
 gen_wrapper_sources = custom_target('generate_python_wrappers',
   output: [
@@ -44,7 +46,7 @@ gen_wrapper_sources = custom_target('generate_python_wrappers',
     meson.project_source_root() / 'src' / 'aubio.h',
     '@OUTDIR@',
   ],
-  depend_files: gen_external_script,
+  depend_files: [gen_external_script, gen_code_script],
   # Set CC environment variable so gen_external.py can find the compiler
   env: {'CC': ' '.join(cc.cmd_array())},
 )
@@ -79,6 +81,13 @@ pyaubio_c_args = [
   '-DAUBIO_VERSION=' + aubio_version,
 ]
 
+# MSVC reads sources and writes string literals in the system code page
+# unless told otherwise, which mangles the non-ASCII note names (♯, ♭) and
+# paths the bindings pass around (upstream 6595ed6a, gh-293/316/371/385).
+if cc.get_id() == 'msvc'
+  pyaubio_c_args += ['/utf-8']
+endif
+
 # Platform-specific args and dependencies
 if host_system == 'darwin'
   pyaubio_link_args = [
@@ -91,13 +100,13 @@ elif host_system == 'linux'
   # dependencies (not just link flags) to ensure proper link order
   thread_dep = dependency('threads', required: true)
   dependencies += [thread_dep]
-  
+
   # Add C++ standard library as a dependency
   # Use the C compiler to find libstdc++ (no need for C++ compiler in project)
   c_compiler = meson.get_compiler('c')
   cpp_stdlib = c_compiler.find_library('stdc++', required: true)
   dependencies += [cpp_stdlib]
-  
+
   pyaubio_link_args = []
 else
   pyaubio_link_args = []

@@ -47,6 +47,43 @@
 #define PRINT_WRN(format, args...)   fprintf(stderr, "AUBIO-TESTS WARNING: " format, ##args)
 #endif
 
+// Tests that feed aubio bad input on purpose wrap each such call in
+// EXPECT_LOGGED: aubio's errors and warnings are counted instead of printed
+// while the statement runs, and the test fails if the statement logged
+// nothing. The rejection is checked, and the test log keeps only messages
+// that point at a real problem.
+static uint_t aubio_tests_logged = 0;
+
+static inline void
+aubio_tests_count_log (sint_t level, const char_t *message, void *data)
+{
+  (void)level; (void)message; (void)data;
+  aubio_tests_logged++;
+}
+
+static inline void
+aubio_tests_capture_log (void)
+{
+  aubio_log_set_level_function (AUBIO_LOG_ERR, aubio_tests_count_log, NULL);
+  aubio_log_set_level_function (AUBIO_LOG_WRN, aubio_tests_count_log, NULL);
+}
+
+// EXPECT_LOGGED_UNLESS(stmt, ok): for calls whose outcome depends on the
+// build (a non-power-of-two FFT fails with ooura, works with fftw): when ok
+// is false after stmt, it must have logged why.
+#define EXPECT_LOGGED_UNLESS(stmt, ok) do { \
+    uint_t logged_before_ = aubio_tests_logged; \
+    aubio_tests_capture_log (); \
+    stmt; \
+    aubio_log_reset (); \
+    if (!(ok) && aubio_tests_logged == logged_before_) { \
+      PRINT_ERR ("expected an error or warning from: %s\n", #stmt); \
+      return 1; \
+    } \
+  } while (0)
+
+#define EXPECT_LOGGED(stmt) EXPECT_LOGGED_UNLESS(stmt, 0)
+
 #ifndef M_PI
 #define M_PI         (3.14159265358979323846)
 #endif

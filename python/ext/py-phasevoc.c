@@ -141,13 +141,13 @@ Py_pvoc_del (Py_pvoc *self, PyObject *unused)
 static PyObject *
 Py_pvoc_do(Py_pvoc * self, PyObject * args)
 {
-  PyObject *input;
+  PyObject *input, *owner;
 
   if (!PyArg_ParseTuple (args, "O", &input)) {
     return NULL;
   }
 
-  if (!PyAubio_ArrayToCFvec (input, &(self->vecin) )) {
+  if (!PyAubio_ArrayToCFvecIn (input, &(self->vecin), &owner)) {
     return NULL;
   }
 
@@ -155,15 +155,18 @@ Py_pvoc_do(Py_pvoc * self, PyObject * args)
     PyErr_Format(PyExc_ValueError,
                  "input fvec has length %d, but pvoc expects length %d",
                  self->vecin.length, self->hop_s);
+    Py_DECREF(owner);
     return NULL;
   }
 
-  Py_INCREF(self->output);
   if (!PyAubio_PyCvecToCCvec (self->output, &(self->c_output))) {
+    Py_DECREF(owner);
     return NULL;
   }
   // compute the function
   aubio_pvoc_do (self->o, &(self->vecin), &(self->c_output));
+  Py_DECREF(owner);
+  Py_INCREF(self->output);
   return self->output;
 }
 

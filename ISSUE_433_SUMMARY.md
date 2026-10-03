@@ -1,9 +1,9 @@
 # Issue #433 Resolution Summary
 
 ## Upstream Issue
-**URL:** https://github.com/aubio/aubio/issues/433  
-**Title:** Potential NULL Pointer Dereference in new_aubio_filter  
-**Reporter:** University of Athens researchers  
+**URL:** https://github.com/aubio/aubio/issues/433
+**Title:** Potential NULL Pointer Dereference in new_aubio_filter
+**Reporter:** University of Athens researchers
 **Date Reported:** November 15, 2025
 
 ## Problem Statement
@@ -26,21 +26,21 @@ The `new_aubio_filter` function and multiple other constructors in aubio did not
 ### Comprehensive Fix (Beyond Issue Scope)
 
 #### Core Vector Allocations (4 files)
-✅ `src/fvec.c` - `new_fvec()`  
-✅ `src/lvec.c` - `new_lvec()`  
-✅ `src/cvec.c` - `new_cvec()`  
-✅ `src/fmat.c` - `new_fmat()`  
+✅ `src/fvec.c` - `new_fvec()`
+✅ `src/lvec.c` - `new_lvec()`
+✅ `src/cvec.c` - `new_cvec()`
+✅ `src/fmat.c` - `new_fmat()`
 
 #### Major Constructor Functions (10 files)
-✅ `src/spectral/specdesc.c` - `new_aubio_specdesc()`  
-✅ `src/tempo/tempo.c` - `new_aubio_tempo()`  
-✅ `src/pitch/pitch.c` - `new_aubio_pitch()`  
-✅ `src/onset/onset.c` - `new_aubio_onset()`  
-✅ `src/notes/notes.c` - `new_aubio_notes()`  
-✅ `src/spectral/phasevoc.c` - `new_aubio_pvoc()`  
-✅ `src/spectral/tss.c` - `new_aubio_tss()`  
-✅ `src/onset/peakpicker.c` - `new_aubio_peakpicker()`  
-✅ `src/tempo/beattracking.c` - `new_aubio_beattracking()`  
+✅ `src/spectral/specdesc.c` - `new_aubio_specdesc()`
+✅ `src/tempo/tempo.c` - `new_aubio_tempo()`
+✅ `src/pitch/pitch.c` - `new_aubio_pitch()`
+✅ `src/onset/onset.c` - `new_aubio_onset()`
+✅ `src/notes/notes.c` - `new_aubio_notes()`
+✅ `src/spectral/phasevoc.c` - `new_aubio_pvoc()`
+✅ `src/spectral/tss.c` - `new_aubio_tss()`
+✅ `src/onset/peakpicker.c` - `new_aubio_peakpicker()`
+✅ `src/tempo/beattracking.c` - `new_aubio_beattracking()`
 
 **Total:** 14 files fixed, covering all core allocations and major constructors
 
@@ -60,9 +60,9 @@ The `new_aubio_filter` function and multiple other constructors in aubio did not
 ## Security Impact
 
 ### Vulnerability Assessment
-**Type:** CWE-476 NULL Pointer Dereference  
-**Severity:** HIGH  
-**CVSS v3.1 Score:** ~7.5 (AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H)  
+**Type:** CWE-476 NULL Pointer Dereference
+**Severity:** HIGH
+**CVSS v3.1 Score:** ~7.5 (AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H)
 
 ### Mitigation
 - All critical code paths now check allocation results
@@ -76,7 +76,7 @@ From the original issue report:
 > "All memory allocation calls in `new_aubio_filter()` should have their return values checked. If any allocation fails (returns NULL), the function should:
 > - Clean up any previously allocated resources.
 > - Return NULL immediately to prevent undefined behavior.
-> 
+>
 > In addition, according to the official aubio documentation the order parameter typically takes the values 3, 5, or 7. As a result, adding a check on the order values, helps prevent unrealistic allocations."
 
 ### Implementation Status
@@ -100,7 +100,7 @@ aubio_filter_t * new_aubio_filter (uint_t order) {
   f->y = new_lvec (order);  // ❌ No NULL check
   f->a = new_lvec (order);  // ❌ No NULL check
   f->b = new_lvec (order);  // ❌ No NULL check
-  // ... 
+  // ...
   return f;
 }
 ```
@@ -109,7 +109,7 @@ aubio_filter_t * new_aubio_filter (uint_t order) {
 ```c
 aubio_filter_t * new_aubio_filter (uint_t order) {
   aubio_filter_t *f = AUBIO_NEW (aubio_filter_t);
-  
+
   /* validate order parameter */
   if ((sint_t)order < 1) {
     AUBIO_FREE(f);
@@ -120,11 +120,11 @@ aubio_filter_t * new_aubio_filter (uint_t order) {
     AUBIO_FREE(f);
     return NULL;
   }
-  
+
   if (!f) {  // ✅ NEW: Check AUBIO_NEW result
     return NULL;
   }
-  
+
   f->x = new_lvec (order);
   if (!f->x) goto beach;  // ✅ NEW: Check and cleanup
   f->y = new_lvec (order);
@@ -133,10 +133,10 @@ aubio_filter_t * new_aubio_filter (uint_t order) {
   if (!f->a) goto beach;  // ✅ NEW: Check and cleanup
   f->b = new_lvec (order);
   if (!f->b) goto beach;  // ✅ NEW: Check and cleanup
-  
+
   // ...
   return f;
-  
+
 beach:  // ✅ NEW: Cleanup handler
   if (f->a) del_lvec(f->a);
   if (f->b) del_lvec(f->b);
@@ -211,7 +211,7 @@ The NULL pointer dereference vulnerability in `new_aubio_filter` and related con
 
 ---
 
-**Fixed by:** GitHub Copilot (aubio-ledfx fork)  
-**Date:** 2025-11-16  
-**PR:** copilot/fix-security-issues  
+**Fixed by:** GitHub Copilot (aubio-ledfx fork)
+**Date:** 2025-11-16
+**PR:** copilot/fix-security-issues
 **Commits:** 3 commits (bc1f93d, cfbf1ac, 196d9b2)

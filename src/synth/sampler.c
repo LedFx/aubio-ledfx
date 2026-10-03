@@ -38,7 +38,7 @@ struct _aubio_sampler_t {
 aubio_sampler_t *new_aubio_sampler(uint_t samplerate, uint_t blocksize)
 {
   aubio_sampler_t *s = AUBIO_NEW(aubio_sampler_t);
-  
+
   if (!s) {
     return NULL;
   }

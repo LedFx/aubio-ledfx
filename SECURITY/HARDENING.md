@@ -1,8 +1,8 @@
 # Security Hardening in aubio-ledfx
 
-> **Document Type**: Build Configuration Guide  
-> **Last Updated**: 2025-11-16  
-> **Audience**: Build Engineers, DevOps, Developers  
+> **Document Type**: Build Configuration Guide
+> **Last Updated**: 2025-11-16
+> **Audience**: Build Engineers, DevOps, Developers
 > **Purpose**: Compiler security flags and build hardening
 
 ## Quick Start
@@ -14,7 +14,7 @@ meson compile -C builddir
 meson test -C builddir
 ```
 
-**Performance Impact**: < 3% overhead  
+**Performance Impact**: < 3% overhead
 **Security Benefit**: Multiple layers of runtime protection
 
 ---
@@ -66,7 +66,7 @@ Security hardening consists of compiler and linker flags that add runtime protec
 
 ### 3. Format String Security (`-Wformat -Wformat-security`)
 
-**What it does:** 
+**What it does:**
 - `-Wformat`: Warns about incorrect format strings
 - `-Wformat-security`: Warns when format strings are not string literals (potential security issue)
 
@@ -305,5 +305,5 @@ For security-related questions or to report vulnerabilities, please see `SECURIT
 
 ---
 
-**Last Updated:** 2025-11-14  
+**Last Updated:** 2025-11-14
 **Version:** 0.5.0-alpha

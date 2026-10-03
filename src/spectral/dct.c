@@ -81,7 +81,7 @@ struct _aubio_dct_t {
 
 aubio_dct_t* new_aubio_dct (uint_t size) {
   aubio_dct_t * s = AUBIO_NEW(aubio_dct_t);
-  
+
   if (!s) {
     return NULL;
   }

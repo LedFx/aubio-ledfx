@@ -52,7 +52,7 @@ def get_preprocessor():
     """Get the C preprocessor command without using distutils."""
     # Try to use the CC environment variable, otherwise fall back to common compilers
     cc = os.environ.get('CC', None)
-    
+
     if cc:
         # CC is set, use it
         cpp_cmd = cc.split()
@@ -63,29 +63,29 @@ def get_preprocessor():
         if os.name == 'nt':
             # On Windows, also try cl.exe as last resort
             compilers_to_try.append('cl.exe')
-        
+
         cpp_cmd = None
         for compiler in compilers_to_try:
             try:
-                subprocess.run([compiler, '--version' if compiler != 'cl.exe' else '/?'], 
-                             stdout=subprocess.PIPE, 
-                             stderr=subprocess.PIPE, 
+                subprocess.run([compiler, '--version' if compiler != 'cl.exe' else '/?'],
+                             stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE,
                              check=True,
                              timeout=5)
                 cpp_cmd = [compiler]
                 break
             except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
                 continue
-        
+
         if cpp_cmd is None:
             raise RuntimeError("No C compiler found. Please install gcc, clang, or MSVC and ensure it's in PATH.")
-    
+
     # Add preprocessor flag
     if 'cl.exe' in cpp_cmd[0] or 'cl' == cpp_cmd[0]:
         cpp_cmd += ['/E']  # MSVC preprocessor flag
     else:
         cpp_cmd += ['-E']  # GCC/Clang preprocessor flag
-    
+
     return cpp_cmd
 
 
@@ -108,18 +108,18 @@ def get_cpp_output(header=header, usedouble=False):
         raise Exception("could not find include file " + header)
 
     includes = [os.path.dirname(header)]
-    
+
     # Add macro definitions
     for macro_name, macro_value in macros:
         if macro_value is None:
             cpp_cmd += ['-D' + macro_name]
         else:
             cpp_cmd += ['-D{}={}'.format(macro_name, macro_value)]
-    
+
     # Add include paths
     for include_dir in includes:
         cpp_cmd += ['-I' + include_dir]
-    
+
     cpp_cmd += [header]
 
     print("Running command: {:s}".format(" ".join(cpp_cmd)))
@@ -208,7 +208,7 @@ def generate_lib_from_c_declarations(cpp_objects, c_declarations):
     ''' returns a lib from given cpp_object names
 
     a lib is a dict grouping functions by family (onset,pitch...)
-        each eement is itself a dict of functions grouped by puposes as : 
+        each eement is itself a dict of functions grouped by puposes as :
         struct, new, del, do, get, set and other
     '''
     lib = {}

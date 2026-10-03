@@ -45,7 +45,7 @@ new_aubio_pitchshift (const char_t * mode,
     smpl_t transpose, uint_t hopsize, uint_t samplerate)
 {
   aubio_pitchshift_t *p = AUBIO_NEW (aubio_pitchshift_t);
-  
+
   if (!p) {
     return NULL;
   }

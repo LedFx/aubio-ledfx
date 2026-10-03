@@ -1,5 +1,5 @@
 project('aubio', 'c',
-  version: '0.5.0-alpha',
+  version: '0.4.11', # x-release-please-version
   license: 'GPL-3.0-or-later',
   default_options: [
     'warning_level=2',
@@ -56,6 +56,10 @@ lib_version = '@0@.@1@.@2@'.format(
   version_data.get('lt_rev'),
   version_data.get('lt_age')
 )
+
+if aubio_version != meson.project_version()
+  error('VERSION (' + aubio_version + ') and meson.build (' + meson.project_version() + ') disagree; release-please keeps them in step')
+endif
 
 message('Building aubio version: ' + aubio_version)
 message('Library version: ' + lib_version)
@@ -142,10 +146,11 @@ if host_system == 'windows'
     vcpkg_triplet = 'x64-windows-release'
   endif
 elif host_system == 'darwin'
+  # Release-only static triplets, as built by the CI workflow
   if host_machine.cpu_family() == 'aarch64'
-    vcpkg_triplet = 'arm64-osx'
+    vcpkg_triplet = 'arm64-osx-release'
   else
-    vcpkg_triplet = 'x64-osx'
+    vcpkg_triplet = 'x64-osx-release'
   endif
 elif host_system == 'linux'
   # Linux: Use custom triplets with -fPIC for all architectures
@@ -171,7 +176,7 @@ else
   vcpkg_exe = find_program('vcpkg', required: false)
   if vcpkg_exe.found()
     message('vcpkg found, installing dependencies from vcpkg.json manifest...')
-    
+
     # Install vcpkg dependencies with custom triplets for PIC support
     vcpkg_result = run_command(
       vcpkg_exe,
@@ -183,7 +188,7 @@ else
       '--x-install-root=' + vcpkg_install_root,
       check: false
     )
-    
+
     if vcpkg_result.returncode() == 0
       message('vcpkg dependencies installed successfully')
       vcpkg_found = true
@@ -207,27 +212,27 @@ if vcpkg_found
   vcpkg_pkgconfig_dir = vcpkg_lib_dir / 'pkgconfig'
   vcpkg_share_pkgconfig_dir = vcpkg_installed_dir / 'share' / 'pkgconfig'
   # Note: Debug libraries not used since VCPKG_BUILD_TYPE=release in CI
-  
+
   message('vcpkg pkg-config directories:')
   message('  - ' + vcpkg_pkgconfig_dir)
   message('  - ' + vcpkg_share_pkgconfig_dir)
-  
+
   # Add vcpkg include and lib paths as compiler/linker flags
   # This ensures that even if pkg-config fails, the compiler can find headers and libs
   add_project_arguments(
     '-I' + vcpkg_include_dir,
     language: 'c'
   )
-  
+
   # Add library search path (release-only since VCPKG_BUILD_TYPE=release)
   add_project_link_arguments(
     '-L' + vcpkg_lib_dir,
     language: 'c'
   )
-  
+
   # Store vcpkg dirs for dependency lookups
   vcpkg_cmake_prefix_path = vcpkg_installed_dir
-  
+
 else
   message('vcpkg dependencies not available, using system dependencies')
   vcpkg_found = false
@@ -280,8 +285,13 @@ math_dep = cc.find_library('m', required: false)
 
 # Double precision mode
 enable_double = get_option('double')
+# smpl_t is chosen in the public header types.h, so code built against
+# libaubio (its tests and examples here, and users through aubio.pc) must
+# see the same HAVE_AUBIO_DOUBLE as the library, not only config.h.
+aubio_public_c_args = []
 if enable_double
   conf_data.set('HAVE_AUBIO_DOUBLE', 1)
+  aubio_public_c_args += ['-DHAVE_AUBIO_DOUBLE=1']
   message('Building in double precision mode')
 else
   message('Building in single precision mode')
@@ -320,29 +330,38 @@ endif
 # Dependencies
 dependencies = [math_dep]
 
-# FFT implementation
+# FFT implementation. FFTW must match the precision (fft.c refuses a
+# mismatch): fftw3f for single precision, fftw3 for double. Both default to
+# disabled, so ooura is used unless FFTW is asked for: ooura is power-of-two
+# only, but at the sizes aubio is normally run with it was as fast or faster
+# than FFTW (e.g. a 4096-point pvoc, 82us vs 85us), and FFTW_ESTIMATE plans
+# are not tuned. -Dfftw3f=enabled adds non-power-of-two sizes.
 fftw3_dep = dependency('', required: false)
 fftw3f_dep = dependency('', required: false)
 
-if get_option('fftw3f').enabled()
+if not enable_double
+  if get_option('fftw3').enabled()
+    error('fftw3 is the double-precision FFTW: use -Dfftw3f=enabled, or -Ddouble=true')
+  endif
   fftw3f_dep = dependency('fftw3f', version: '>=3.0.0', required: get_option('fftw3f'))
   if fftw3f_dep.found()
     conf_data.set('HAVE_FFTW3F', 1)
     conf_data.set('HAVE_FFTW3', 1)
     dependencies += fftw3f_dep
-    message('FFT implementation: fftw3f')
   endif
-elif get_option('fftw3').enabled()
+else
+  if get_option('fftw3f').enabled()
+    error('fftw3f is the single-precision FFTW: use -Dfftw3=enabled with -Ddouble=true')
+  endif
   fftw3_dep = dependency('fftw3', version: '>=3.0.0', required: get_option('fftw3'))
   if fftw3_dep.found()
     conf_data.set('HAVE_FFTW3', 1)
     dependencies += fftw3_dep
-    message('FFT implementation: fftw3')
   endif
 endif
 
 # Intel IPP
-if get_option('intelipp').enabled()
+if not get_option('intelipp').disabled()
   ipp_headers = ['ippcore.h', 'ippvm.h', 'ipps.h']
   has_ipp_headers = true
   foreach h : ipp_headers
@@ -350,28 +369,40 @@ if get_option('intelipp').enabled()
       has_ipp_headers = false
     endif
   endforeach
-  
+
   if has_ipp_headers
     ipp_dep = cc.find_library('ippcore', required: false)
     ippvm_dep = cc.find_library('ippvm', required: false)
     ipps_dep = cc.find_library('ipps', required: false)
-    
+
     if ipp_dep.found() and ippvm_dep.found() and ipps_dep.found()
       conf_data.set('HAVE_INTEL_IPP', 1)
       dependencies += [ipp_dep, ippvm_dep, ipps_dep]
       message('Intel IPP support: enabled')
-      
+
       if cc.get_id() == 'msvc'
         conf_data.set('_IPP_SEQUENTIAL_STATIC', 1)
       endif
     endif
   endif
+  if get_option('intelipp').enabled() and not conf_data.has('HAVE_INTEL_IPP')
+    error('Intel IPP support was requested but its headers or libraries could not be found')
+  endif
+endif
+
+# Calling an Apple API newer than the deployment target, without checking
+# it's there, makes the library fail to load on older macOS: an error, not a
+# warning.
+if host_system == 'darwin'
+  add_project_arguments(cc.get_supported_arguments('-Werror=unguarded-availability-new'), language: 'c')
 endif
 
 # Accelerate framework (macOS)
+accelerate_opt = get_option('accelerate').require(host_system == 'darwin',
+  error_message: 'the Accelerate framework is only available on macOS')
 accelerate_dep = dependency('', required: false)
-if host_system == 'darwin' and get_option('accelerate').auto()
-  accelerate_dep = dependency('Accelerate', required: false)
+if not accelerate_opt.disabled()
+  accelerate_dep = dependency('Accelerate', required: accelerate_opt)
   if accelerate_dep.found()
     conf_data.set('HAVE_ACCELERATE', 1)
     dependencies += accelerate_dep
@@ -381,10 +412,12 @@ endif
 
 # Apple Audio (macOS/iOS)
 apple_audio_deps = []
-if host_system == 'darwin' and get_option('apple-audio').auto()
-  corefoundation_dep = dependency('CoreFoundation', required: false)
-  audiotoolbox_dep = dependency('AudioToolbox', required: false)
-  
+apple_audio_opt = get_option('apple-audio').require(host_system == 'darwin',
+  error_message: 'Apple AudioToolbox is only available on macOS')
+if not apple_audio_opt.disabled()
+  corefoundation_dep = dependency('CoreFoundation', required: apple_audio_opt)
+  audiotoolbox_dep = dependency('AudioToolbox', required: apple_audio_opt)
+
   if corefoundation_dep.found() and audiotoolbox_dep.found()
     conf_data.set('HAVE_SOURCE_APPLE_AUDIO', 1)
     conf_data.set('HAVE_SINK_APPLE_AUDIO', 1)
@@ -410,6 +443,9 @@ single_feature_specs = [
     'pkg': 'jack',
     'fallback_libs': ['jack'],
     'define': 'HAVE_JACK',
+    # only the example programs talk to JACK (examples/jackio.c, which link
+    # it themselves): libaubio must not depend on libjack
+    'link_library': false,
     'auto_message': 'JACK not found, disabling support automatically',
     'error_message': 'JACK support was requested but the dependency could not be found',
   },
@@ -435,7 +471,7 @@ if host_system == 'linux'
     {'pkg': 'vorbisenc', 'fallback_libs': ['vorbisenc']},
     {'pkg': 'ogg', 'fallback_libs': ['ogg']},
   ]
-  
+
   foreach spec : linux_transitive_specs
     dep = dependency(spec['pkg'], required: false, disabler: true)
     if not dep.found() and vcpkg_found and spec.has_key('fallback_libs')
@@ -452,6 +488,9 @@ if host_system == 'linux'
     endif
   endforeach
 endif
+
+# set by the loop below when JACK is found; used by examples/ only
+jack_dep = dependency('', required: false)
 
 foreach spec : single_feature_specs
   opt = get_option(spec['option'])
@@ -477,7 +516,12 @@ foreach spec : single_feature_specs
 
   if dep.found()
     conf_data.set(spec['define'], 1)
-    dependencies += dep
+    if spec.get('link_library', true)
+      dependencies += dep
+    endif
+    if spec['option'] == 'jack'
+      jack_dep = dep
+    endif
   elif opt.enabled()
     error(spec['error_message'])
   elif opt.auto()
@@ -522,6 +566,10 @@ if not rubberband_opt.disabled()
   if rubberband_dep.found()
     conf_data.set('HAVE_RUBBERBAND', 1)
     dependencies += rubberband_dep
+    # a static rubberband needs the C++ runtime the C extension doesn't link
+    if host_system == 'linux'
+      add_project_link_arguments('-lstdc++', language: 'c')
+    endif
     if host_system == 'darwin'
       add_project_link_arguments('-lc++', language: 'c')
       sleef_dep = dependency('sleef', required: false, disabler: true)
@@ -569,6 +617,14 @@ if not avcodec_opt.disabled()
       conf_data.set(spec['define'], 1)
     endforeach
     dependencies += libav_deps
+    # A static FFmpeg's x86 assembly refers to its own constants directly
+    # (R_X86_64_PC32 against ff_pw_9 ...), which a shared object only allows
+    # when they bind locally. vcpkg's FFmpeg port says to link with
+    # -Bsymbolic, as FFmpeg's own shared libraries do. It also keeps the
+    # extension's copies of these libraries from being interposed.
+    if host_system == 'linux' and vcpkg_found
+      add_project_link_arguments('-Wl,-Bsymbolic', language: 'c')
+    endif
   elif avcodec_opt.enabled()
     error('libavcodec support was requested but the dependencies could not be found')
   elif avcodec_opt.auto()
@@ -613,7 +669,7 @@ blas_dep = dependency('blas', required: get_option('blas'))
 if blas_dep.found()
   conf_data.set('HAVE_BLAS', 1)
   dependencies += blas_dep
-  
+
   # Check for BLAS headers
   blas_headers = ['cblas.h', 'atlas/cblas.h', 'openblas/cblas.h']
   foreach h : blas_headers
@@ -658,15 +714,50 @@ pkg.generate(
   version: aubio_version,
   filebase: 'aubio',
   subdirs: 'aubio',
+  extra_cflags: aubio_public_c_args,
 )
+
+# What this build actually uses. Wheel builds print it too (cibuildwheel
+# build-verbosity in pyproject.toml), so CI logs show each platform's
+# feature set.
+if conf_data.has('HAVE_FFTW3F')
+  fft_backend = 'fftw3f'
+elif conf_data.has('HAVE_FFTW3')
+  fft_backend = 'fftw3'
+elif conf_data.has('HAVE_ACCELERATE')
+  fft_backend = 'Accelerate (vDSP)'
+elif conf_data.has('HAVE_INTEL_IPP')
+  fft_backend = 'Intel IPP'
+else
+  fft_backend = 'ooura (power-of-two sizes only)'
+endif
+
+summary({
+  'Precision': enable_double ? 'double' : 'single',
+  'Security hardening': get_option('security_hardening'),
+  'Python bindings': get_option('python'),
+  'C tests': get_option('tests'),
+  'Examples / CLI tools': get_option('examples'),
+}, section: 'Configuration')
+
+summary({
+  'FFT': fft_backend,
+  'Accelerate (vector ops)': conf_data.has('HAVE_ACCELERATE'),
+  'Intel IPP': conf_data.has('HAVE_INTEL_IPP'),
+  'BLAS': conf_data.has('HAVE_BLAS'),
+}, section: 'Math')
 
 summary({
   'libsndfile': conf_data.has('HAVE_SNDFILE'),
+  'FFmpeg/libav': conf_data.has('HAVE_LIBAV'),
+  'Apple AudioToolbox': conf_data.has('HAVE_SOURCE_APPLE_AUDIO'),
+  'WAV reader / writer': '@0@ / @1@'.format(conf_data.has('HAVE_WAVREAD'), conf_data.has('HAVE_WAVWRITE')),
+  'Vorbis sink': conf_data.has('HAVE_VORBISENC'),
+  'FLAC sink': conf_data.has('HAVE_FLAC'),
+  'JACK (examples only)': conf_data.has('HAVE_JACK'),
+}, section: 'Audio I/O')
+
+summary({
   'libsamplerate': conf_data.has('HAVE_SAMPLERATE'),
   'rubberband': conf_data.has('HAVE_RUBBERBAND'),
-  'JACK': conf_data.has('HAVE_JACK'),
-  'FFmpeg/libav': conf_data.has('HAVE_LIBAV'),
-  'Vorbis': conf_data.has('HAVE_VORBISENC'),
-  'FLAC': conf_data.has('HAVE_FLAC'),
-}, section: 'Optional dependencies')
-
+}, section: 'Resampling and effects')

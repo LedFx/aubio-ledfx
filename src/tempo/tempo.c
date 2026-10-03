@@ -131,7 +131,7 @@ uint_t aubio_tempo_set_delay_ms(aubio_tempo_t * o, smpl_t delay) {
   return aubio_tempo_set_delay_s(o, delay / 1000.);
 }
 
-uint_t aubio_tempo_get_delay(aubio_tempo_t * o) {
+sint_t aubio_tempo_get_delay(aubio_tempo_t * o) {
   return o->delay;
 }
 
@@ -168,11 +168,11 @@ aubio_tempo_t * new_aubio_tempo (const char_t * tempo_mode,
 {
   aubio_tempo_t * o = AUBIO_NEW(aubio_tempo_t);
   char_t specdesc_func[PATH_MAX];
-  
+
   if (!o) {
     return NULL;
   }
-  
+
   o->samplerate = samplerate;
   // check parameters are valid
   if ((sint_t)hop_size < 1) {

@@ -98,7 +98,7 @@ uint_t aubio_tss_set_threshold(aubio_tss_t *o, smpl_t threshold){
 aubio_tss_t * new_aubio_tss(uint_t buf_size, uint_t hop_size)
 {
   aubio_tss_t * o = AUBIO_NEW(aubio_tss_t);
-  
+
   if (!o) {
     return NULL;
   }
@@ -136,4 +136,3 @@ uint_t aubio_tss_set_beta(aubio_tss_t *o, smpl_t beta){
   o->beta = beta;
   return AUBIO_OK;
 }
-

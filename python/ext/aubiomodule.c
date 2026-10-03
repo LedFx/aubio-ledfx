@@ -207,6 +207,7 @@ Py_alpha_norm (PyObject * self, PyObject * args)
 {
   PyObject *input;
   fvec_t vec;
+  PyObject *owner;
   smpl_t alpha;
   PyObject *result;
 
@@ -218,12 +219,13 @@ Py_alpha_norm (PyObject * self, PyObject * args)
     return NULL;
   }
 
-  if (!PyAubio_ArrayToCFvec(input, &vec)) {
+  if (!PyAubio_ArrayToCFvecIn(input, &vec, &owner)) {
     return NULL;
   }
 
   // compute the function
   result = PyFloat_FromDouble(fvec_alpha_norm (&vec, alpha));
+  Py_DECREF(owner);
   if (result == NULL) {
     return NULL;
   }
@@ -304,6 +306,7 @@ Py_zero_crossing_rate (PyObject * self, PyObject * args)
 {
   PyObject *input;
   fvec_t vec;
+  PyObject *owner;
   PyObject *result;
 
   if (!PyArg_ParseTuple (args, "O:zero_crossing_rate", &input)) {
@@ -314,12 +317,13 @@ Py_zero_crossing_rate (PyObject * self, PyObject * args)
     return NULL;
   }
 
-  if (!PyAubio_ArrayToCFvec(input, &vec)) {
+  if (!PyAubio_ArrayToCFvecIn(input, &vec, &owner)) {
     return NULL;
   }
 
   // compute the function
   result = PyFloat_FromDouble(aubio_zero_crossing_rate (&vec));
+  Py_DECREF(owner);
   if (result == NULL) {
     return NULL;
   }

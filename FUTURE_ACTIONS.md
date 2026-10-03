@@ -5,7 +5,7 @@ This document catalogues issues discovered during the security review that are n
 ## Priority: LOW - Verification Required
 
 ### 1. fvec_quadratic_peak_mag Bounds Validation
-**File:** `src/mathutils.c:500-509`  
+**File:** `src/mathutils.c:500-509`
 **Issue:** Function accesses `x->data[index + 1]` but bounds check may not prevent `index + 1 >= x->length`
 
 **Current Code:**
@@ -152,11 +152,11 @@ for (i = 0; i < length; i++) {
 ```c
 /**
  * Find peak magnitude using quadratic interpolation
- * 
+ *
  * @param x      Input vector
  * @param pos    Peak position (must be in range [1, x->length-2])
  * @return       Interpolated peak magnitude
- * 
+ *
  * @warning pos must allow access to pos-1 and pos+1
  * @pre     1 <= pos <= x->length - 2
  */
@@ -175,7 +175,7 @@ smpl_t fvec_quadratic_peak_mag (fvec_t *x, smpl_t pos);
 
 **Failing Tests:**
 1. sink
-2. sink_wavwrite  
+2. sink_wavwrite
 3. source
 4. source_wavread
 5. onset

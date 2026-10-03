@@ -3,48 +3,25 @@
   "name": "aubio-ledfx",
   "version-string": "0.4.11",
   "description": "aubio is a library for audio and music analysis, synthesis, and effects",
+  "builtin-baseline": "c76c06644034521fb761a39f8f52d8e87d1103d5",
+  "vcpkg-configuration": {
+    "overlay-ports": ["./vcpkg-ports"]
+  },
   "dependencies": [
     "pkgconf",
     {
       "name": "libsndfile",
       "default-features": false,
-      "features": ["external-libs"]
+      "features": ["external-libs", "mpeg"]
     },
     "libsamplerate",
-    "fftw3",
-    {
-      "name": "mpg123",
-      "platform": "linux"
-    },
-    {
-      "name": "mp3lame",
-      "platform": "linux"
-    },
-    {
-      "name": "opus",
-      "platform": "linux"
-    },
-    {
-      "name": "libogg",
-      "platform": "linux"
-    },
-    {
-      "name": "libvorbis",
-      "platform": "linux"
-    },
-    {
-      "name": "libflac",
-      "platform": "linux"
-    },
-    {
-      "name": "rubberband",
-      "platform": "!linux"
-    },
+    "libvorbis",
+    "libflac",
+    "rubberband",
     {
       "name": "ffmpeg",
       "default-features": false,
-      "features": ["avcodec", "avformat", "swresample"],
-      "platform": "!linux"
+      "features": ["avcodec", "avformat", "swresample"]
     }
   ]
 }

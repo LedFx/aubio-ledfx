@@ -14,14 +14,14 @@ option('complex',
 
 option('fftw3',
   type: 'feature',
-  value: 'auto',
-  description: 'Use fftw3 instead of ooura'
+  value: 'disabled',
+  description: 'FFT with fftw3 instead of ooura (double precision builds only)'
 )
 
 option('fftw3f',
   type: 'feature',
-  value: 'auto',
-  description: 'Use fftw3f instead of ooura (recommended)'
+  value: 'disabled',
+  description: 'FFT with fftw3f instead of ooura (single precision builds): adds non-power-of-two sizes'
 )
 
 option('intelipp',
@@ -45,7 +45,7 @@ option('apple-audio',
 option('jack',
   type: 'feature',
   value: 'auto',
-  description: 'Enable JACK support'
+  description: 'JACK input and output for the example programs (not used by the library)'
 )
 
 option('sndfile',

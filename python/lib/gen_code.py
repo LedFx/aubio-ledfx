@@ -33,14 +33,21 @@ member_types = {
 pyfromtype_fn = {
         'smpl_t': 'PyFloat_FromDouble',
         'uint_t': 'PyLong_FromLong', # was: 'PyInt_FromLong',
+        'sint_t': 'PyLong_FromLong',
         'fvec_t*': 'PyAubio_CFvecToArray',
         'fmat_t*': 'PyAubio_CFmatToArray',
         }
 
+# arrays aubio writes into (outputs); inputs use pytoaubio_in_fn
 pytoaubio_fn = {
         'fvec_t*': 'PyAubio_ArrayToCFvec',
         'cvec_t*': 'PyAubio_PyCvecToCCvec',
         #'fmat_t*': 'PyAubio_ArrayToCFmat',
+        }
+
+# read-only inputs: copied when strided, the copy is released after the call
+pytoaubio_in_fn = {
+        'fvec_t*': 'PyAubio_ArrayToCFvecIn',
         }
 
 newfromtype_fn = {
@@ -66,7 +73,7 @@ param_init = {
 pyargparse_chars = {
         'smpl_t': 'f', # if not usedouble else 'd',
         'uint_t': 'I',
-        'sint_t': 'I',
+        'sint_t': 'i',
         'char_t*': 's',
         'fmat_t*': 'O',
         'fvec_t*': 'O',
@@ -115,7 +122,7 @@ def get_return_type(proto):
     return outputs[0].replace(' ', '')
 
 def split_type(arg):
-    """ arg = 'foo *name' 
+    """ arg = 'foo *name'
         return ['foo*', 'name'] """
     l = arg.split()
     type_arg = {} #'type': l[0], 'name': l[1]}
@@ -345,7 +352,8 @@ Py_{shortname}_init (Py_{shortname} * self, PyObject * args, PyObject * kwds)
         out += """
   // return -1 and set error string on failure
   if (self->o == NULL) {{
-    PyErr_Format (PyExc_RuntimeError, "failed creating {shortname}");
+    if (PyErr_Occurred() == NULL)
+      PyErr_Format (PyExc_RuntimeError, "failed creating {shortname}");
     return -1;
   }}
 """.format(paramchars = paramchars, paramvals = paramvals, **self.__dict__)
@@ -420,6 +428,16 @@ Pyaubio_{shortname}_{method}  (Py_{shortname} * self, PyObject * args)
         for input_param in input_params:
             out += """
     PyObject *py_{0};""".format(input_param['name'])
+            if input_param['type'] in pytoaubio_in_fn:
+                out += """
+    PyObject *own_{0} = NULL;""".format(input_param['name'])
+        owned = ["own_%s" % p['name'] for p in input_params
+                if p['type'] in pytoaubio_in_fn]
+        # error paths are inside an if block, the final release is not
+        release = "".join("""
+        Py_XDECREF({0});""".format(o) for o in owned)
+        release_done = "".join("""
+    Py_XDECREF({0});""".format(o) for o in owned)
         refs = ", ".join(["&py_%s" % p['name'] for p in input_params])
         pyparamtypes = "".join([pyargparse_chars[p['type']] for p in input_params])
         out += """
@@ -427,20 +445,30 @@ Pyaubio_{shortname}_{method}  (Py_{shortname} * self, PyObject * args)
         return NULL;
     }}""".format(refs = refs, pyparamtypes = pyparamtypes, **self.__dict__)
         for input_param in input_params:
-            out += """
+            if input_param['type'] in pytoaubio_in_fn:
+                out += """
 
-    if (!{pytoaubio}(py_{0[name]}, &(self->{0[name]}))) {{
+    if (!{pytoaubio}(py_{0[name]}, &(self->{0[name]}), &own_{0[name]})) {{{release}
         return NULL;
-    }}""".format(input_param, pytoaubio = pytoaubio_fn[input_param['type']])
+    }}""".format(input_param, release = release,
+                pytoaubio = pytoaubio_in_fn[input_param['type']])
+            else:
+                out += """
+
+    if (!{pytoaubio}(py_{0[name]}, &(self->{0[name]}))) {{{release}
+        return NULL;
+    }}""".format(input_param, release = release,
+                pytoaubio = pytoaubio_fn[input_param['type']])
         if self.shortname in objinputsize:
             out += """
 
     if (self->{0[name]}.length != {expected_size}) {{
         PyErr_Format (PyExc_ValueError,
             "input size of {shortname} should be %d, not %d",
-            {expected_size}, self->{0[name]}.length);
+            {expected_size}, self->{0[name]}.length);{release}
         return NULL;
-    }}""".format(input_param, expected_size = objinputsize[self.shortname], **self.__dict__)
+    }}""".format(input_param, expected_size = objinputsize[self.shortname],
+            release = release, **self.__dict__)
         else:
             out += """
 
@@ -448,19 +476,20 @@ Pyaubio_{shortname}_{method}  (Py_{shortname} * self, PyObject * args)
         for output_param in output_params:
             out += """
 
-    Py_INCREF(self->{0[name]});
-    if (!{pytoaubio}(self->{0[name]}, &(self->c_{0[name]}))) {{
+    if (!{pytoaubio}(self->{0[name]}, &(self->c_{0[name]}))) {{{release}
         return NULL;
-    }}""".format(output_param, pytoaubio = pytoaubio_fn[output_param['type']])
+    }}
+    Py_INCREF(self->{0[name]});""".format(output_param, release = release,
+            pytoaubio = pytoaubio_fn[output_param['type']])
         do_fn = get_name(self.do_proto)
         inputs = ", ".join(['&(self->'+p['name']+')' for p in input_params])
         c_outputs = ", ".join(["&(self->c_%s)" % p['name'] for p in self.do_outputs])
         outputs = ", ".join(["self->%s" % p['name'] for p in self.do_outputs])
         out += """
 
-    {do_fn}(self->o, {inputs}, {c_outputs});
+    {do_fn}(self->o, {inputs}, {c_outputs});{release}
 """.format(
-        do_fn = do_fn,
+        do_fn = do_fn, release = release_done,
         inputs = inputs, c_outputs = c_outputs,
         )
         if len(self.do_outputs) > 1:

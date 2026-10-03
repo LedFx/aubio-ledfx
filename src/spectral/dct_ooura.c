@@ -38,7 +38,7 @@ struct _aubio_dct_ooura_t {
 
 aubio_dct_ooura_t * new_aubio_dct_ooura (uint_t size) {
   aubio_dct_ooura_t * s = AUBIO_NEW(aubio_dct_ooura_t);
-  
+
   if (!s) {
     return NULL;
   }

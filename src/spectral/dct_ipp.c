@@ -62,7 +62,7 @@ void del_aubio_dct_ipp (aubio_dct_ipp_t *s);
 
 aubio_dct_ipp_t * new_aubio_dct_ipp (uint_t size) {
   aubio_dct_ipp_t * s = AUBIO_NEW(aubio_dct_ipp_t);
-  
+
   if (!s) {
     return NULL;
   }

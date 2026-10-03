@@ -51,7 +51,7 @@ aubio_pitchyinfast_t *
 new_aubio_pitchyinfast (uint_t bufsize)
 {
   aubio_pitchyinfast_t *o = AUBIO_NEW (aubio_pitchyinfast_t);
-  
+
   if (!o) {
     return NULL;
   }
@@ -181,7 +181,7 @@ aubio_pitchyinfast_do (aubio_pitchyinfast_t * o, const fvec_t * input, fvec_t * 
       return;
     }
   }
-  // use global minimum 
+  // use global minimum
   o->peak_pos = (uint_t)fvec_min_elem (yin);
   out->data[0] = fvec_quadratic_peak_pos (yin, o->peak_pos);
 }

@@ -1,8 +1,8 @@
 # aubio-ledfx Optimization and Modernization Roadmap
 
-**Document Version:** 1.0  
-**Created:** 2025-11-14  
-**Project:** aubio-ledfx maintained fork  
+**Document Version:** 1.0
+**Created:** 2025-11-14
+**Project:** aubio-ledfx maintained fork
 **Purpose:** Comprehensive optimization and modernization strategy
 
 ---
@@ -30,8 +30,8 @@ This document presents the **top 5 highest priority optimization and modernizati
 ## Priority 1: CI/CD Build Performance Optimization
 
 ### Priority Level: **CRITICAL**
-**Estimated ROI:** HIGH - Reduces developer iteration time and CI costs by 40-60%  
-**Effort:** 3-5 days  
+**Estimated ROI:** HIGH - Reduces developer iteration time and CI costs by 40-60%
+**Effort:** 3-5 days
 **Impact:** All contributors, every PR, every release
 
 ### Problem Statement
@@ -64,7 +64,7 @@ The current CI/CD pipeline using cibuildwheel builds wheels for 5 platform/archi
 
 **Current State (Already Implemented):**
 - ✅ macOS builds: `actions/cache@v4` caches `vcpkg_installed/` directory
-- ✅ Windows builds: `actions/cache@v4` caches `vcpkg_installed/` directory  
+- ✅ Windows builds: `actions/cache@v4` caches `vcpkg_installed/` directory
 - ✅ Cache keys use `hashFiles('vcpkg.json', 'vcpkg-triplets/*.cmake')` for smart invalidation
 - ✅ Linux builds: Dependencies rebuild in Docker (GitHub Actions cache doesn't persist in containers)
 
@@ -74,7 +74,7 @@ The old `x-gha` binary source provider was deprecated in June 2024. The current 
 **Remaining Optimization Opportunities:**
 1. **Linux Docker caching:** Explore Docker layer caching or bind mounts to persist vcpkg builds
 2. **Cache analysis:** Measure actual cache hit rates on macOS/Windows
-3. **Alternative approaches:** 
+3. **Alternative approaches:**
    - Pre-built dependency Docker images for Linux
    - vcpkg's newer binary caching features (files, nuget providers)
 
@@ -143,7 +143,7 @@ jobs:
         with:
           path: vcpkg_installed
           key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('vcpkg.json') }}
-  
+
   build-wheels:
     needs: build-dependencies
     steps:
@@ -341,8 +341,8 @@ on:
 ## Priority 2: Python Code Generation Modernization
 
 ### Priority Level: **HIGH**
-**Estimated ROI:** HIGH - Reduces maintenance burden, improves type safety  
-**Effort:** 4-6 days  
+**Estimated ROI:** HIGH - Reduces maintenance burden, improves type safety
+**Effort:** 4-6 days
 **Impact:** Python package quality, developer experience
 
 ### Problem Statement
@@ -370,13 +370,13 @@ The Python bindings use a **custom code generation system** (`python/lib/gen_ext
 #### 2.1 Modern Python Binding Alternatives
 
 **Option A: Migrate to pybind11**
-- **Pros:** 
+- **Pros:**
   - Modern C++11 binding framework
   - Automatic type conversion, docstrings
   - Full Python 3.x support with type hints
   - Excellent NumPy integration
   - Active maintenance and community
-- **Cons:** 
+- **Cons:**
   - Requires C++11 (aubio is C99)
   - Significant migration effort
   - All bindings need rewriting
@@ -481,7 +481,7 @@ def main():
         "-p", "aubio",
         "-o", "python/aubio-stubs"
     ], check=True)
-    
+
     # Post-process stubs to add missing information
     # (e.g., NumPy array types)
 
@@ -510,7 +510,7 @@ def generate_docstring(self, obj_name: str, method_name: str) -> str:
     # Convert to Python docstring format
     return f'''"""
     {obj_name}.{method_name}
-    
+
     [Generated from C API documentation]
     """'''
 ```
@@ -531,9 +531,9 @@ PYBIND11_MODULE(_aubio_pybind11, m) {
         .def(py::init([](size_t length) {
             return new_fvec(length);
         }), "Create new float vector")
-        .def_property_readonly("length", 
+        .def_property_readonly("length",
             [](fvec_t* fv) { return fv->length; })
-        .def("__getitem__", 
+        .def("__getitem__",
             [](fvec_t* fv, size_t i) {
                 if (i >= fv->length) throw py::index_error();
                 return fv->data[i];
@@ -596,8 +596,8 @@ endif
 ## Priority 3: Test Infrastructure Enhancement
 
 ### Priority Level: **HIGH**
-**Estimated ROI:** HIGH - Prevents regressions, improves code quality  
-**Effort:** 5-7 days  
+**Estimated ROI:** HIGH - Prevents regressions, improves code quality
+**Effort:** 5-7 days
 **Impact:** Code reliability, contributor confidence
 
 ### Problem Statement
@@ -671,11 +671,11 @@ static void BM_FFT_512(benchmark::State& state) {
   aubio_fft_t* fft = new_aubio_fft(512);
   fvec_t* input = new_fvec(512);
   cvec_t* output = new_cvec(512);
-  
+
   for (auto _ : state) {
     aubio_fft_do(fft, input, output);
   }
-  
+
   del_aubio_fft(fft);
   del_fvec(input);
   del_cvec(output);
@@ -714,26 +714,26 @@ BENCHMARK(BM_FFT_512);
 
 int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
   if (size < 16) return 0;
-  
+
   // Extract parameters from fuzz input
   uint_t win_s = 512;
   uint_t hop_s = 256;
-  
+
   // Create onset detector
   aubio_onset_t* o = new_aubio_onset("default", win_s, hop_s, 44100);
   if (!o) return 0;
-  
+
   fvec_t* in = new_fvec(hop_s);
   fvec_t* out = new_fvec(1);
-  
+
   // Fill input with fuzz data
   for (uint_t i = 0; i < hop_s && i < size; i++) {
     in->data[i] = (smpl_t)data[i] / 128.0 - 1.0;
   }
-  
+
   // Run onset detection (should not crash)
   aubio_onset_do(o, in, out);
-  
+
   del_aubio_onset(o);
   del_fvec(in);
   del_fvec(out);
@@ -834,7 +834,7 @@ if benchmark_dep.found()
     'bench_fft.c',
     dependencies: [aubio_dep, benchmark_dep],
   )
-  
+
   benchmark('FFT Performance', bench_fft)
 endif
 ```
@@ -854,20 +854,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Build with fuzzing
         run: |
           export CC=clang
           export CFLAGS="-fsanitize=fuzzer,address -g"
           meson setup builddir
           meson compile -C builddir
-      
+
       - name: Run fuzzers (5 minutes each)
         run: |
           for fuzzer in builddir/fuzz/fuzz_*; do
             timeout 300 $fuzzer fuzz/corpus/ || true
           done
-      
+
       - name: Upload crashes
         if: failure()
         uses: actions/upload-artifact@v4
@@ -880,14 +880,14 @@ jobs:
 ```meson
 if get_option('fuzzing')
   fuzzer_flags = ['-fsanitize=fuzzer,address']
-  
+
   fuzz_onset = executable('fuzz_onset',
     'fuzz_onset.c',
     c_args: fuzzer_flags,
     link_args: fuzzer_flags,
     dependencies: aubio_dep
   )
-  
+
   # Add more fuzz targets...
 endif
 ```
@@ -911,17 +911,17 @@ def test_onset_detection_workflow():
     # Generate audio with sharp attack
     signal = generate_sine_wave(440, 1.0)
     signal[:100] *= np.linspace(0, 1, 100)  # Add attack
-    
+
     # Detect onsets
     onset = aubio.onset("default", 512, 256, 44100)
     onsets = []
-    
+
     for frame in signal.reshape(-1, 256):
         fvec = aubio.fvec(256)
         fvec[:] = frame
         if onset(fvec):
             onsets.append(onset.get_last())
-    
+
     # Verify at least one onset detected at start
     assert len(onsets) >= 1
     assert onsets[0] < 1000  # Within first 1000 samples
@@ -929,10 +929,10 @@ def test_onset_detection_workflow():
 def test_pitch_detection_workflow():
     """Test complete pitch detection workflow."""
     signal = generate_sine_wave(440, 1.0)
-    
+
     pitch_o = aubio.pitch("default", 2048, 512, 44100)
     pitch_o.set_unit("Hz")
-    
+
     pitches = []
     for frame in signal.reshape(-1, 512):
         fvec = aubio.fvec(512)
@@ -940,7 +940,7 @@ def test_pitch_detection_workflow():
         detected = pitch_o(fvec)[0]
         if detected > 0:
             pitches.append(detected)
-    
+
     # Verify average detected pitch is close to 440 Hz
     avg_pitch = np.mean(pitches)
     assert 430 < avg_pitch < 450, f"Expected ~440 Hz, got {avg_pitch}"
@@ -977,8 +977,8 @@ def test_pitch_detection_workflow():
 ## Priority 4: Code Quality and Static Analysis
 
 ### Priority Level: **MEDIUM**
-**Estimated ROI:** MEDIUM - Prevents bugs, improves maintainability  
-**Effort:** 3-4 days  
+**Estimated ROI:** MEDIUM - Prevents bugs, improves maintainability
+**Effort:** 3-4 days
 **Impact:** Code quality, security, maintainability
 
 ### Problem Statement
@@ -1268,8 +1268,8 @@ format-check:
 ## Priority 5: Documentation and Developer Experience
 
 ### Priority Level: **MEDIUM**
-**Estimated ROI:** MEDIUM - Improves contributor onboarding  
-**Effort:** 3-5 days  
+**Estimated ROI:** MEDIUM - Improves contributor onboarding
+**Effort:** 3-5 days
 **Impact:** Contributor experience, project sustainability
 
 ### Problem Statement
@@ -1390,11 +1390,11 @@ Thank you for your interest in contributing to aubio-ledfx!
    ```bash
    # Install dependencies
    pip install meson ninja numpy pytest
-   
+
    # Configure and build
    meson setup builddir -Dtests=true -Dexamples=true
    meson compile -C builddir
-   
+
    # Run tests
    meson test -C builddir
    ```
@@ -1403,13 +1403,13 @@ Thank you for your interest in contributing to aubio-ledfx!
    ```bash
    # Edit code
    vim src/...
-   
+
    # Rebuild
    meson compile -C builddir
-   
+
    # Test
    meson test -C builddir
-   
+
    # Run specific test
    ./builddir/tests/test-onset
    ```
@@ -1555,19 +1555,19 @@ from pathlib import Path
 def check_function_doc(filepath, function_name, comment_block):
     """Check if function has complete documentation."""
     issues = []
-    
+
     # Check for parameter documentation
     if '@param' not in comment_block:
         issues.append("Missing @param documentation")
-    
+
     # Check for return documentation
     if '@return' not in comment_block:
         issues.append("Missing @return documentation")
-    
+
     # Check for example
     if '@example' not in comment_block and 'new_' in function_name:
         issues.append("Constructor missing usage example")
-    
+
     return issues
 
 # Run on all headers...

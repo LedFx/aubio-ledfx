@@ -162,7 +162,7 @@ aubio_peakpicker_t *
 new_aubio_peakpicker (void)
 {
   aubio_peakpicker_t *t = AUBIO_NEW (aubio_peakpicker_t);
-  
+
   if (!t) {
     return NULL;
   }

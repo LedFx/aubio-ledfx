@@ -19,7 +19,7 @@
 */
 
 
-/* Requires lsmp_t to be long or double. float will NOT give reliable 
+/* Requires lsmp_t to be long or double. float will NOT give reliable
  * results */
 
 #include "aubio_priv.h"
@@ -134,7 +134,7 @@ aubio_filter_t *
 new_aubio_filter (uint_t order)
 {
   aubio_filter_t *f = AUBIO_NEW (aubio_filter_t);
-  
+
   /* validate order parameter to prevent unrealistic allocations */
   if ((sint_t)order < 1) {
     AUBIO_FREE(f);
@@ -146,7 +146,7 @@ new_aubio_filter (uint_t order)
     AUBIO_FREE(f);
     return NULL;
   }
-  
+
   /* check if main structure allocation succeeded */
   if (!f) {
     return NULL;
@@ -167,7 +167,7 @@ new_aubio_filter (uint_t order)
   f->a->data[0] = 1.;
   f->b->data[0] = 1.;
   return f;
-  
+
 beach:
   /* cleanup on allocation failure */
   if (f->a) del_lvec(f->a);

@@ -12,7 +12,7 @@ The `copilot-setup-steps.yml` file is a GitHub Actions workflow that can be used
 - **Compilers**: gcc, g++ (C99-compliant for aubio)
 - **Build systems**: ninja-build (used by Meson)
 - **Build utilities**: pkg-config, git
-- **Development libraries**: 
+- **Development libraries**:
   - libfftw3-dev (FFT library)
   - libsndfile1-dev (audio file I/O)
   - libsamplerate0-dev (sample rate conversion)

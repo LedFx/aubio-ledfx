@@ -316,13 +316,13 @@ For contributors:
 Quick start (Priority 1 - CI/CD):
   # Check current cache performance
   $ du -sh vcpkg_installed/*/
-  
+
   # Review CI logs for cache hit rates
   # Look for "Cache restored from key:" in GitHub Actions
-  
+
   # Measure build times with warm vs cold cache
   # Compare workflow runs to identify bottlenecks
-  
+
   Note: CI already uses actions/cache@v4 for vcpkg on macOS/Windows.
         The deprecated x-gha provider (June 2024) is not recommended.
 

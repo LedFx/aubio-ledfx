@@ -60,7 +60,7 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
 {
 
   aubio_beattracking_t *p = AUBIO_NEW (aubio_beattracking_t);
-  
+
   if (!p) {
     return NULL;
   }
@@ -277,18 +277,16 @@ fvec_gettimesig (fvec_t * acf, uint_t acflen, uint_t gp)
 {
   sint_t k = 0;
   smpl_t three_energy = 0., four_energy = 0.;
-  if (gp < 2) return 4;
-  if (acflen > 6 * gp + 2) {
-    for (k = -2; k < 2; k++) {
-      three_energy += acf->data[3 * gp + k];
-      four_energy += acf->data[4 * gp + k];
-    }
-  } else {
-    /*Expanded to be more accurate in time sig estimation */
-    for (k = -2; k < 2; k++) {
-      three_energy += acf->data[3 * gp + k] + acf->data[6 * gp + k];
-      four_energy += acf->data[4 * gp + k] + acf->data[2 * gp + k];
-    }
+  // Compare the autocorrelation around 3 and 4 beat periods. An "expanded"
+  // variant that also summed 6 * gp and 2 * gp sat behind an inverted test:
+  // it ran only when acflen <= 6 * gp + 2, reading past the end of acf in
+  // all but that last case (aubio#434). Released results come from this
+  // comparison, so it is now the only one.
+  // acflen > 4 * gp + 1 keeps every read in bounds.
+  if (gp < 2 || acflen <= 4 * gp + 1) return 4;
+  for (k = -2; k < 2; k++) {
+    three_energy += acf->data[3 * gp + k];
+    four_energy += acf->data[4 * gp + k];
   }
   return (three_energy > four_energy) ? 3 : 4;
 }
@@ -394,8 +392,11 @@ aubio_beattracking_checkstate (aubio_beattracking_t * bt)
 
   /* do some further checks on the final bp value */
 
-  /* if tempo is > 206 bpm, half it */
-  while (0 < bp && bp < 25) {
+  /* if tempo is > 206 bpm, half it. The limit was 25 detection frames,
+   * which is 206 bpm only at 44100Hz with a hop of 512: scale it so the
+   * limit stays in time, not frames (aubio#284). At 30000/500 it was 144
+   * bpm, at 22050/512 103 bpm. */
+  while (0 < bp && bp < 25. * 512. / 44100. * bt->samplerate / bt->hop_size) {
 #if AUBIO_BEAT_WARNINGS
     AUBIO_WRN ("doubling from %f (%f bpm) to %f (%f bpm)\n",
         bp, 60.*44100./512./bp, bp/2., 60.*44100./512./bp/2. );

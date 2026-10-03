@@ -171,6 +171,7 @@ static int
 Py_cvec_set_norm (Py_cvec * vec, PyObject *input, void * closure)
 {
   npy_intp length;
+  PyObject *array;
   if (!PyAubio_IsValidVector(input)) {
     return -1;
   }
@@ -182,9 +183,15 @@ Py_cvec_set_norm (Py_cvec * vec, PyObject *input, void * closure)
     return -1;
   }
 
+  // aubio reads and writes this array for as long as the cvec holds it:
+  // keep it if it is C-contiguous and writeable, else hold a copy that is
+  array = PyArray_FromAny (input, PyArray_DescrFromType (AUBIO_NPY_SMPL), 1, 1,
+      NPY_ARRAY_CARRAY | NPY_ARRAY_NOTSWAPPED, NULL);
+  if (array == NULL) {
+    return -1;
+  }
   Py_XDECREF(vec->norm);
-  vec->norm = input;
-  Py_INCREF(vec->norm);
+  vec->norm = array;
   return 0;
 }
 
@@ -192,6 +199,7 @@ static int
 Py_cvec_set_phas (Py_cvec * vec, PyObject *input, void * closure)
 {
   npy_intp length;
+  PyObject *array;
   if (!PyAubio_IsValidVector(input)) {
     return -1;
   }
@@ -203,9 +211,15 @@ Py_cvec_set_phas (Py_cvec * vec, PyObject *input, void * closure)
     return -1;
   }
 
+  // aubio reads and writes this array for as long as the cvec holds it:
+  // keep it if it is C-contiguous and writeable, else hold a copy that is
+  array = PyArray_FromAny (input, PyArray_DescrFromType (AUBIO_NPY_SMPL), 1, 1,
+      NPY_ARRAY_CARRAY | NPY_ARRAY_NOTSWAPPED, NULL);
+  if (array == NULL) {
+    return -1;
+  }
   Py_XDECREF(vec->phas);
-  vec->phas = input;
-  Py_INCREF(vec->phas);
+  vec->phas = array;
   return 0;
 }
 
