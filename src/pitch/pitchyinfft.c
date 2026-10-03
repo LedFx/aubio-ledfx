@@ -57,6 +57,8 @@ static const smpl_t weight[] = {
 aubio_pitchyinfft_t *
 new_aubio_pitchyinfft (uint_t samplerate, uint_t bufsize)
 {
+  // last entry of the weighting table (freqs has an extra -1 terminator)
+  const uint_t last = sizeof(weight) / sizeof(weight[0]) - 1;
   uint_t i = 0, j = 1;
   smpl_t freq = 0, a0 = 0, a1 = 0, f0 = 0, f1 = 0;
   aubio_pitchyinfft_t *p = AUBIO_NEW (aubio_pitchyinfft_t);
@@ -76,26 +78,26 @@ new_aubio_pitchyinfft (uint_t samplerate, uint_t bufsize)
   p->weight = new_fvec (bufsize / 2 + 1);
   for (i = 0; i < p->weight->length; i++) {
     freq = (smpl_t) i / (smpl_t) bufsize *(smpl_t) samplerate;
-    while (freq > freqs[j] && freqs[j] > 0) {
-      //AUBIO_DBG("freq %3.5f > %3.5f \tsamplerate %d (Hz) \t"
-      //    "(weight length %d, bufsize %d) %d %d\n", freq, freqs[j],
-      //    samplerate, p->weight->length, bufsize, i, j);
+    // find the table segment [j - 1, j] holding freq, staying in the table
+    while (j < last && freq > freqs[j]) {
       j += 1;
     }
-    a0 = weight[j - 1];
-    f0 = freqs[j - 1];
-    a1 = weight[j];
-    f1 = freqs[j];
-    if (f0 == f1) {           // just in case
-      p->weight->data[i] = a0;
-    } else if (f0 == 0) {     // y = ax+b
-      p->weight->data[i] = (a1 - a0) / f1 * freq + a0;
+    if (freq >= freqs[last]) {
+      // above the table (samplerate > 2 * 25.1kHz): hold its last weight
+      p->weight->data[i] = weight[last];
     } else {
-      p->weight->data[i] = (a1 - a0) / (f1 - f0) * freq +
-          (a0 - (a1 - a0) / (f1 / f0 - 1.));
-    }
-    while (freq > freqs[j]) {
-      j += 1;
+      a0 = weight[j - 1];
+      f0 = freqs[j - 1];
+      a1 = weight[j];
+      f1 = freqs[j];
+      if (f0 == f1) {           // just in case
+        p->weight->data[i] = a0;
+      } else if (f0 == 0) {     // y = ax+b
+        p->weight->data[i] = (a1 - a0) / f1 * freq + a0;
+      } else {
+        p->weight->data[i] = (a1 - a0) / (f1 - f0) * freq +
+            (a0 - (a1 - a0) / (f1 / f0 - 1.));
+      }
     }
     //AUBIO_DBG("%f\n",p->weight->data[i]);
     p->weight->data[i] = DB2LIN (p->weight->data[i]);
