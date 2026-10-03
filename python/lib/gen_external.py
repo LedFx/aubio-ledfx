@@ -80,9 +80,12 @@ def get_preprocessor():
         if cpp_cmd is None:
             raise RuntimeError("No C compiler found. Please install gcc, clang, or MSVC and ensure it's in PATH.")
 
-    # Add preprocessor flag
-    if 'cl.exe' in cpp_cmd[0] or 'cl' == cpp_cmd[0]:
-        cpp_cmd += ['/E']  # MSVC preprocessor flag
+    # Add preprocessor flag. The compiler may come after a wrapper such as
+    # ccache ("ccache cl"); /nologo keeps cl's banner off stderr, which is
+    # otherwise reported as preprocessor warnings.
+    names = [os.path.basename(c).lower() for c in cpp_cmd]
+    if 'cl' in names or 'cl.exe' in names:
+        cpp_cmd += ['/nologo', '/E']  # MSVC preprocessor flags
     else:
         cpp_cmd += ['-E']  # GCC/Clang preprocessor flag
 

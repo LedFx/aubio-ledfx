@@ -96,7 +96,7 @@ Py_filter_new (PyTypeObject * type, PyObject * args, PyObject * kwds)
 }
 
 static int
-Py_filter_init (Py_filter * self, PyObject * args, PyObject * kwds)
+Py_filter_init (Py_filter * self, PyObject * Py_UNUSED(args), PyObject * Py_UNUSED(kwds))
 {
   self->o = new_aubio_filter (self->order);
   if (self->o == NULL) {
@@ -116,7 +116,7 @@ Py_filter_del (Py_filter * self)
 }
 
 static PyObject *
-Py_filter_do(Py_filter * self, PyObject * args)
+Py_filter_do(Py_filter * self, PyObject * args, PyObject * Py_UNUSED(kwds))
 {
   PyObject *input, *owner;
 
@@ -236,7 +236,7 @@ static PyMemberDef Py_filter_members[] = {
   // TODO remove READONLY flag and define getter/setter
   {"order", T_INT, offsetof (Py_filter, order), READONLY,
       "order of the filter"},
-  {NULL}                        /* Sentinel */
+  {0}                        /* Sentinel */
 };
 
 static PyMethodDef Py_filter_methods[] = {
@@ -246,55 +246,19 @@ static PyMethodDef Py_filter_methods[] = {
       Py_filter_set_a_weighting_doc},
   {"set_biquad", (PyCFunction) Py_filter_set_biquad, METH_VARARGS,
       Py_filter_set_biquad_doc},
-  {NULL}
+  {0}
 };
 
 PyTypeObject Py_filterType = {
-  PyVarObject_HEAD_INIT(NULL, 0)
-  "aubio.digital_filter",       /* tp_name           */
-  sizeof (Py_filter),           /* tp_basicsize      */
-  0,                            /* tp_itemsize       */
-  (destructor) Py_filter_del,   /* tp_dealloc        */
-  0,                            /* tp_print          */
-  0,                            /* tp_getattr        */
-  0,                            /* tp_setattr        */
-  0,                            /* tp_compare        */
-  0, //(reprfunc) Py_filter_repr,    /* tp_repr           */
-  0,                            /* tp_as_number      */
-  0,                            /* tp_as_sequence    */
-  0,                            /* tp_as_mapping     */
-  0,                            /* tp_hash           */
-  (ternaryfunc)Py_filter_do,    /* tp_call           */
-  0,                            /* tp_str            */
-  0,                            /* tp_getattro       */
-  0,                            /* tp_setattro       */
-  0,                            /* tp_as_buffer      */
-  Py_TPFLAGS_DEFAULT,           /* tp_flags          */
-  Py_filter_doc,                /* tp_doc            */
-  0,                            /* tp_traverse       */
-  0,                            /* tp_clear          */
-  0,                            /* tp_richcompare    */
-  0,                            /* tp_weaklistoffset */
-  0,                            /* tp_iter           */
-  0,                            /* tp_iternext       */
-  Py_filter_methods,            /* tp_methods        */
-  Py_filter_members,            /* tp_members        */
-  0,                            /* tp_getset         */
-  0,                            /* tp_base           */
-  0,                            /* tp_dict           */
-  0,                            /* tp_descr_get      */
-  0,                            /* tp_descr_set      */
-  0,                            /* tp_dictoffset     */
-  (initproc) Py_filter_init,    /* tp_init           */
-  0,                            /* tp_alloc          */
-  Py_filter_new,                /* tp_new            */
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
+  PyVarObject_HEAD_INIT (NULL, 0)
+  .tp_name = "aubio.digital_filter",
+  .tp_basicsize = sizeof (Py_filter),
+  .tp_dealloc = (destructor) Py_filter_del,
+  .tp_call = (ternaryfunc)Py_filter_do,
+  .tp_flags = Py_TPFLAGS_DEFAULT,
+  .tp_doc = Py_filter_doc,
+  .tp_methods = Py_filter_methods,
+  .tp_members = Py_filter_members,
+  .tp_init = (initproc) Py_filter_init,
+  .tp_new = Py_filter_new,
 };
