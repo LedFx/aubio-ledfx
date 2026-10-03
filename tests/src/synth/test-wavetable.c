@@ -6,7 +6,7 @@ int main (int argc, char **argv)
   sint_t err = 0;
 
   if (argc < 2) {
-    PRINT_ERR("not enough arguments, running tests\n");
+    PRINT_MSG("no arguments given, running the built-in tests\n");
     err = run_on_default_sink(main);
     PRINT_MSG("usage: %s <output_path> [freq] [samplerate]\n", argv[0]);
     return err;

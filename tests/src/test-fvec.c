@@ -57,12 +57,12 @@ int main (void)
 
   // copy to a different size fail
   other_vec = new_fvec(length + 1);
-  fvec_copy(vec, other_vec);
+  EXPECT_LOGGED(fvec_copy(vec, other_vec));
   del_fvec(other_vec);
 
   // copy to a different size fail
   other_vec = new_fvec(length - 1);
-  fvec_copy(vec, other_vec);
+  EXPECT_LOGGED(fvec_copy(vec, other_vec));
 
   // now destroys the vector
   if (vec)

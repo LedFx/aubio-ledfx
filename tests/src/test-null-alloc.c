@@ -9,6 +9,7 @@
 #include "aubio.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include "utils_tests.h"
 
 int test_count = 0;
 int test_passed = 0;
@@ -194,8 +195,9 @@ int test_io(void) {
   TEST("new_aubio_sink_wavwrite", sw != NULL);
   del_aubio_sink_wavwrite(sw);
 
-  aubio_source_wavread_t *sr = new_aubio_source_wavread("sounds/woodblock.wav", 44100, 256);
-  TEST("new_aubio_source_wavread", sr != NULL || 1); // OK if file doesn't exist
+  aubio_source_wavread_t *sr;
+  EXPECT_LOGGED(sr = new_aubio_source_wavread("/nonexistent/aubio-null-alloc.wav", 44100, 256));
+  TEST("new_aubio_source_wavread on a missing file returns NULL", sr == NULL);
   if (sr) del_aubio_source_wavread(sr);
 
   return 0;
@@ -251,7 +253,7 @@ int test_invalid_params(void) {
   if (f) del_aubio_filter(f);
 
   /* Test that order > 512 is rejected */
-  f = new_aubio_filter(1024);
+  EXPECT_LOGGED(f = new_aubio_filter(1024));
   TEST("new_aubio_filter(1024) returns NULL", f == NULL);
   if (f) del_aubio_filter(f);
 
