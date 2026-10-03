@@ -212,6 +212,16 @@
    longer or the allocation fails (strutils.c) */
 char_t *aubio_str_copy_path(const char_t *path);
 
+/* highest degree aubio_filter_set_analog accepts */
+#define AUBIO_FILTER_MAX_ANALOG_DEGREE 15
+
+/* set an order degree + 1 filter, at its samplerate, from the analog transfer
+   function num(s) / den(s), whose degree + 1 coefficients are given by
+   ascending power of s, with the bilinear transform (temporal/filter.c) */
+struct _aubio_filter_t;
+uint_t aubio_filter_set_analog (struct _aubio_filter_t * f, const lsmp_t * num,
+    const lsmp_t * den, uint_t degree);
+
 
 /* file interface */
 #define AUBIO_FOPEN(_f,_m)           fopen(_f,_m)

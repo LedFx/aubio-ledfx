@@ -81,6 +81,9 @@ for freq in freqs:
         ( 2048,  512, 44100, freq ),
         ( 2048, 1024, 44100, freq ),
         ( 2048, 1024, 32000, freq ),
+        # LedFx's settings: a hop that isn't a power of two, and a samplerate
+        # mcomb's C-weighting had no coefficients for (it crashed)
+        ( 4096,  500, 30000, freq ),
         ]
 
 freqs = [ ] #55., 110., 220., 440., 880., 1760., 3520. ]

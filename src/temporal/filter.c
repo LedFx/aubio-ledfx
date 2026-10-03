@@ -123,6 +123,53 @@ aubio_filter_set_samplerate (aubio_filter_t * f, uint_t samplerate)
   return AUBIO_OK;
 }
 
+uint_t
+aubio_filter_set_analog (aubio_filter_t * f, const lsmp_t * num,
+    const lsmp_t * den, uint_t degree)
+{
+  /* the analog H(s) = num(s) / den(s), coefficients by ascending power of s,
+     mapped to z with the bilinear transform s = 2 fs (1 - z^-1) / (1 + z^-1):
+     each s^i becomes (2 fs)^i (1 - z^-1)^i (1 + z^-1)^(degree - i), once
+     both sides are multiplied by (1 + z^-1)^degree */
+  lsmp_t term[AUBIO_FILTER_MAX_ANALOG_DEGREE + 1];
+  lsmp_t *b = f->b->data, *a = f->a->data;
+  lsmp_t two_fs = 2. * f->samplerate, scale = 1.;
+  uint_t i, j, k;
+  if (degree > AUBIO_FILTER_MAX_ANALOG_DEGREE || f->order != degree + 1
+      || f->samplerate == 0) {
+    AUBIO_ERR("filter: can not set a degree %d analog design on an order %d "
+        "filter at %dHz\n", degree, f->order, f->samplerate);
+    return AUBIO_FAIL;
+  }
+  for (j = 0; j <= degree; j++) {
+    b[j] = 0.;
+    a[j] = 0.;
+  }
+  for (i = 0; i <= degree; i++) {
+    /* term = (1 - x)^i (1 + x)^(degree - i), x = z^-1 */
+    term[0] = 1.;
+    for (j = 1; j <= degree; j++) term[j] = 0.;
+    for (k = 0; k < degree; k++) {
+      lsmp_t sign = (k < i) ? -1. : 1.;
+      for (j = k + 1; j > 0; j--) term[j] += sign * term[j - 1];
+    }
+    for (j = 0; j <= degree; j++) {
+      b[j] += num[i] * scale * term[j];
+      a[j] += den[i] * scale * term[j];
+    }
+    scale *= two_fs;
+  }
+  if (a[0] == 0.) {
+    AUBIO_ERR("filter: analog design has no denominator\n");
+    return AUBIO_FAIL;
+  }
+  for (j = degree + 1; j > 0; j--) {
+    b[j - 1] /= a[0];
+    a[j - 1] /= a[0];
+  }
+  return AUBIO_OK;
+}
+
 void
 aubio_filter_do_reset (aubio_filter_t * f)
 {

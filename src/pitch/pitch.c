@@ -169,7 +169,7 @@ new_aubio_pitch (const char_t * pitch_mode,
     case aubio_pitcht_yin:
       p->buf = new_fvec (bufsize);
       p->p_object = new_aubio_pitchyin (bufsize);
-      if (!p->p_object) goto beach;
+      if (!p->buf || !p->p_object) goto beach;
       p->detect_cb = aubio_pitch_do_yin;
       p->conf_cb = (aubio_pitch_get_conf_t)aubio_pitchyin_get_confidence;
       aubio_pitchyin_set_tolerance (p->p_object, 0.15);
@@ -177,27 +177,29 @@ new_aubio_pitch (const char_t * pitch_mode,
     case aubio_pitcht_mcomb:
       p->filtered = new_fvec (hopsize);
       p->pv = new_aubio_pvoc (bufsize, hopsize);
-      if (!p->pv) goto beach;
       p->fftgrain = new_cvec (bufsize);
       p->p_object = new_aubio_pitchmcomb (bufsize, hopsize);
       p->filter = new_aubio_filter_c_weighting (samplerate);
+      if (!p->filtered || !p->pv || !p->fftgrain || !p->p_object
+          || !p->filter) goto beach;
       p->detect_cb = aubio_pitch_do_mcomb;
       break;
     case aubio_pitcht_fcomb:
       p->buf = new_fvec (bufsize);
       p->p_object = new_aubio_pitchfcomb (bufsize, hopsize);
-      if (!p->p_object) goto beach;
+      if (!p->buf || !p->p_object) goto beach;
       p->detect_cb = aubio_pitch_do_fcomb;
       break;
     case aubio_pitcht_schmitt:
       p->buf = new_fvec (bufsize);
       p->p_object = new_aubio_pitchschmitt (bufsize);
+      if (!p->buf || !p->p_object) goto beach;
       p->detect_cb = aubio_pitch_do_schmitt;
       break;
     case aubio_pitcht_yinfft:
       p->buf = new_fvec (bufsize);
       p->p_object = new_aubio_pitchyinfft (samplerate, bufsize);
-      if (!p->p_object) goto beach;
+      if (!p->buf || !p->p_object) goto beach;
       p->detect_cb = aubio_pitch_do_yinfft;
       p->conf_cb = (aubio_pitch_get_conf_t)aubio_pitchyinfft_get_confidence;
       aubio_pitchyinfft_set_tolerance (p->p_object, 0.85);
@@ -205,7 +207,7 @@ new_aubio_pitch (const char_t * pitch_mode,
     case aubio_pitcht_yinfast:
       p->buf = new_fvec (bufsize);
       p->p_object = new_aubio_pitchyinfast (bufsize);
-      if (!p->p_object) goto beach;
+      if (!p->buf || !p->p_object) goto beach;
       p->detect_cb = aubio_pitch_do_yinfast;
       p->conf_cb = (aubio_pitch_get_conf_t)aubio_pitchyinfast_get_confidence;
       aubio_pitchyinfast_set_tolerance (p->p_object, 0.15);
@@ -213,7 +215,7 @@ new_aubio_pitch (const char_t * pitch_mode,
     case aubio_pitcht_specacf:
       p->buf = new_fvec (bufsize);
       p->p_object = new_aubio_pitchspecacf (bufsize);
-      if (!p->p_object) goto beach;
+      if (!p->buf || !p->p_object) goto beach;
       p->detect_cb = aubio_pitch_do_specacf;
       p->conf_cb = (aubio_pitch_get_conf_t)aubio_pitchspecacf_get_tolerance;
       aubio_pitchspecacf_set_tolerance (p->p_object, 0.85);
@@ -224,49 +226,46 @@ new_aubio_pitch (const char_t * pitch_mode,
   return p;
 
 beach:
-  if (p->filtered) del_fvec(p->filtered);
-  if (p->buf) del_fvec(p->buf);
-  AUBIO_FREE(p);
+  // p->type is set before anything is allocated, and every member is NULL
+  // until it is: del_aubio_pitch frees exactly what was created
+  del_aubio_pitch(p);
   return NULL;
 }
 
 void
 del_aubio_pitch (aubio_pitch_t * p)
 {
-  switch (p->type) {
-    case aubio_pitcht_yin:
-      del_fvec (p->buf);
-      del_aubio_pitchyin (p->p_object);
-      break;
-    case aubio_pitcht_mcomb:
-      del_fvec (p->filtered);
-      del_aubio_pvoc (p->pv);
-      del_cvec (p->fftgrain);
-      del_aubio_filter (p->filter);
-      del_aubio_pitchmcomb (p->p_object);
-      break;
-    case aubio_pitcht_schmitt:
-      del_fvec (p->buf);
-      del_aubio_pitchschmitt (p->p_object);
-      break;
-    case aubio_pitcht_fcomb:
-      del_fvec (p->buf);
-      del_aubio_pitchfcomb (p->p_object);
-      break;
-    case aubio_pitcht_yinfft:
-      del_fvec (p->buf);
-      del_aubio_pitchyinfft (p->p_object);
-      break;
-    case aubio_pitcht_yinfast:
-      del_fvec (p->buf);
-      del_aubio_pitchyinfast (p->p_object);
-      break;
-    case aubio_pitcht_specacf:
-      del_fvec (p->buf);
-      del_aubio_pitchspecacf (p->p_object);
-      break;
-    default:
-      break;
+  if (p->buf) del_fvec (p->buf);
+  if (p->filtered) del_fvec (p->filtered);
+  if (p->pv) del_aubio_pvoc (p->pv);
+  if (p->fftgrain) del_cvec (p->fftgrain);
+  if (p->filter) del_aubio_filter (p->filter);
+  if (p->p_object) {
+    switch (p->type) {
+      case aubio_pitcht_yin:
+        del_aubio_pitchyin (p->p_object);
+        break;
+      case aubio_pitcht_mcomb:
+        del_aubio_pitchmcomb (p->p_object);
+        break;
+      case aubio_pitcht_schmitt:
+        del_aubio_pitchschmitt (p->p_object);
+        break;
+      case aubio_pitcht_fcomb:
+        del_aubio_pitchfcomb (p->p_object);
+        break;
+      case aubio_pitcht_yinfft:
+        del_aubio_pitchyinfft (p->p_object);
+        break;
+      case aubio_pitcht_yinfast:
+        del_aubio_pitchyinfast (p->p_object);
+        break;
+      case aubio_pitcht_specacf:
+        del_aubio_pitchspecacf (p->p_object);
+        break;
+      default:
+        break;
+    }
   }
   AUBIO_FREE (p);
 }
