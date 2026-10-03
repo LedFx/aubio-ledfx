@@ -141,7 +141,11 @@ before-all = [
     # Always run: with the binary cache warm it only unpacks archives, and it
     # picks up vcpkg.json changes (skipping it when vcpkg_installed existed
     # could ship stale dependencies).
-    "cd {project} && %VCPKG_ROOT%\\vcpkg.exe install --triplet=x64-windows-release",
+    # The host triplet matches the target: rubberband's sleef dependency needs
+    # sleef's code generators for the host, and with vcpkg's default host
+    # triplet (x64-windows, debug + release) sleef was built a second time
+    # just for them (about 7 of a cold build's 29 minutes).
+    "cd {project} && %VCPKG_ROOT%\\vcpkg.exe install --triplet=x64-windows-release --host-triplet=x64-windows-release",
     "dir {project}\\vcpkg_installed\\x64-windows-release\\lib\\pkgconfig",
 ]
 
