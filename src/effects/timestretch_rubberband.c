@@ -32,15 +32,6 @@
 #define MIN_STRETCH_RATIO 0.025
 #define MAX_STRETCH_RATIO 40.
 
-#define HAVE_THREADS 1
-#if 0
-#undef HAVE_THREADS
-#endif
-
-#ifdef HAVE_THREADS
-#include <pthread.h>
-#endif
-
 /** generic time stretching structure */
 struct _aubio_timestretch_t
 {
