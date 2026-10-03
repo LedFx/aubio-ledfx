@@ -213,6 +213,11 @@ smpl_t aubio_tempo_get_delay_ms(aubio_tempo_t * o);
 
 /** set current delay
 
+  The latency of the analysis itself, about a quarter of `buf_size` (at most
+  6 hops) plus most of a hop for the default method, is already taken back
+  from the beats: use the delay for any other latency, such as that of the
+  audio input. It is added to the time returned by aubio_tempo_get_last().
+
   \param o beat tracking object
   \param delay delay to set tempo to, in samples
 
