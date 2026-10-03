@@ -284,8 +284,13 @@ math_dep = cc.find_library('m', required: false)
 
 # Double precision mode
 enable_double = get_option('double')
+# smpl_t is chosen in the public header types.h, so code built against
+# libaubio (its tests and examples here, and users through aubio.pc) must
+# see the same HAVE_AUBIO_DOUBLE as the library, not only config.h.
+aubio_public_c_args = []
 if enable_double
   conf_data.set('HAVE_AUBIO_DOUBLE', 1)
+  aubio_public_c_args += ['-DHAVE_AUBIO_DOUBLE=1']
   message('Building in double precision mode')
 else
   message('Building in single precision mode')
@@ -662,6 +667,7 @@ pkg.generate(
   version: aubio_version,
   filebase: 'aubio',
   subdirs: 'aubio',
+  extra_cflags: aubio_public_c_args,
 )
 
 summary({

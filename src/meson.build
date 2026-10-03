@@ -268,4 +268,5 @@ aubio_dep = declare_dependency(
   link_with: libaubio,
   include_directories: aubio_inc,
   dependencies: dependencies,
+  compile_args: aubio_public_c_args,
 )
