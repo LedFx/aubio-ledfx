@@ -435,6 +435,9 @@ single_feature_specs = [
     'pkg': 'jack',
     'fallback_libs': ['jack'],
     'define': 'HAVE_JACK',
+    # only the example programs talk to JACK (examples/jackio.c, which link
+    # it themselves): libaubio must not depend on libjack
+    'link_library': false,
     'auto_message': 'JACK not found, disabling support automatically',
     'error_message': 'JACK support was requested but the dependency could not be found',
   },
@@ -478,6 +481,9 @@ if host_system == 'linux'
   endforeach
 endif
 
+# set by the loop below when JACK is found; used by examples/ only
+jack_dep = dependency('', required: false)
+
 foreach spec : single_feature_specs
   opt = get_option(spec['option'])
   if opt.disabled()
@@ -502,7 +508,12 @@ foreach spec : single_feature_specs
 
   if dep.found()
     conf_data.set(spec['define'], 1)
-    dependencies += dep
+    if spec.get('link_library', true)
+      dependencies += dep
+    endif
+    if spec['option'] == 'jack'
+      jack_dep = dep
+    endif
   elif opt.enabled()
     error(spec['error_message'])
   elif opt.auto()

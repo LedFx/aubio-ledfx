@@ -6,13 +6,8 @@ utils_sources = files(
   'jackio.c',
 )
 
-# Declare jack dependency
-jack = dependency('jack', required: false)
-if jack.found()
-  jack_dep = declare_dependency(link_args: jack.get_variable('link_args', default_value: []))
-else
-  jack_dep = declare_dependency()
-endif
+# jackio.c talks to JACK when the top-level build found it (HAVE_JACK);
+# libaubio itself does not link libjack.
 
 # Build utility objects library
 utils_inc = include_directories('.')
@@ -24,7 +19,7 @@ if host_system == 'windows'
   utilsio_deps = [jack_dep] + dependencies
 else
   utilsio_link_with = []
-  utilsio_deps = [aubio_dep] + (jack.found() ? [jack] : [])
+  utilsio_deps = [aubio_dep, jack_dep]
 endif
 
 utilsio = static_library('utilsio',

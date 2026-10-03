@@ -45,7 +45,7 @@ option('apple-audio',
 option('jack',
   type: 'feature',
   value: 'auto',
-  description: 'Enable JACK support'
+  description: 'JACK input and output for the example programs (not used by the library)'
 )
 
 option('sndfile',
