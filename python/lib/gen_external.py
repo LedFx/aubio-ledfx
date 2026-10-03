@@ -348,8 +348,11 @@ void add_generated_objects( PyObject *m );
     return sorted(sources_list)
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        header = sys.argv[1]
-    if len(sys.argv) > 2:
-        output_path = sys.argv[2]
-    generate_external(header, output_path)
+    # gen_external.py [header [output_path]] [--double]
+    args = [a for a in sys.argv[1:] if a != '--double']
+    if len(args) > 0:
+        header = args[0]
+    if len(args) > 1:
+        output_path = args[1]
+    generate_external(header, output_path,
+            usedouble='--double' in sys.argv[1:])
