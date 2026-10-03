@@ -97,7 +97,10 @@ before-all = """
     cd {project} && \
     CC=/opt/rh/gcc-toolset-14/root/usr/bin/gcc \
     CXX=/opt/rh/gcc-toolset-14/root/usr/bin/g++ \
-    /tmp/vcpkg/vcpkg install --triplet=$VCPKG_TRIPLET --overlay-triplets=./vcpkg-triplets
+    /tmp/vcpkg/vcpkg install --triplet=$VCPKG_TRIPLET --overlay-triplets=./vcpkg-triplets || {
+        # vcpkg only names its logs, which die with the container: show them
+        find /tmp/vcpkg/buildtrees -maxdepth 2 -name '*.log' -mmin -5 \
+            -exec sh -c 'echo "=== $1"; tail -n 50 "$1"' _ {} \\; ; exit 1; }
 """
 
 # The workflow points VCPKG_BINARY_SOURCES at its cache under /host.
