@@ -105,6 +105,9 @@ before-all = """
 
 # The workflow points VCPKG_BINARY_SOURCES at its cache under /host.
 environment-pass = ["VCPKG_BINARY_SOURCES"]
+# vcpkg's static libraries carry debug information, which ELF linking copies
+# into the extension (an 88 MB wheel with FFmpeg); the wheels ship without it.
+config-settings = { "setup-args" = "-Dc_link_args=-Wl,--strip-debug" }
 
 [tool.cibuildwheel.linux.environment]
 # cibuildwheel copies the project to /project in the container ({project} is
@@ -119,6 +122,8 @@ CXX = "/opt/rh/gcc-toolset-14/root/usr/bin/g++"
 [tool.cibuildwheel.macos]
 # The workflow installs the vcpkg dependencies (static, release-only triplets
 # built for the wheel's deployment target) and sets PKG_CONFIG_PATH.
+# Like Linux, the wheels ship without the static libraries' debug information.
+config-settings = { "setup-args" = "-Dc_link_args=-Wl,-S" }
 
 [tool.cibuildwheel.windows]
 # vcpkg builds DLLs (x64-windows-release): rubberband doesn't support static
