@@ -303,7 +303,7 @@ Py_filterbank_set_triangle_bands (Py_filterbank * self, PyObject *args)
 {
   uint_t err = 0;
 
-  PyObject *input;
+  PyObject *input, *owner;
   smpl_t samplerate;
   if (!PyArg_ParseTuple (args, "O" AUBIO_NPY_SMPL_CHR, &input, &samplerate)) {
     return NULL;
@@ -313,12 +313,13 @@ Py_filterbank_set_triangle_bands (Py_filterbank * self, PyObject *args)
     return NULL;
   }
 
-  if (!PyAubio_ArrayToCFvec(input, &(self->freqs) )) {
+  if (!PyAubio_ArrayToCFvecIn(input, &(self->freqs), &owner)) {
     return NULL;
   }
 
   err = aubio_filterbank_set_triangle_bands (self->o,
       &(self->freqs), samplerate);
+  Py_DECREF(owner);
   if (err > 0) {
     if (PyErr_Occurred() == NULL) {
       PyErr_SetString (PyExc_ValueError, "error running set_triangle_bands");
@@ -433,16 +434,17 @@ Py_filterbank_set_coeffs (Py_filterbank * self, PyObject *args)
 {
   uint_t err = 0;
 
-  PyObject *input;
+  PyObject *input, *owner;
   if (!PyArg_ParseTuple (args, "O", &input)) {
     return NULL;
   }
 
-  if (!PyAubio_ArrayToCFmat(input, &(self->coeffs))) {
+  if (!PyAubio_ArrayToCFmatIn(input, &(self->coeffs), &owner)) {
     return NULL;
   }
 
   err = aubio_filterbank_set_coeffs (self->o, &(self->coeffs));
+  Py_DECREF(owner);
 
   if (err > 0) {
     PyErr_SetString (PyExc_ValueError,

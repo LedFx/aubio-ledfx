@@ -21,6 +21,8 @@ endif
 # This generates gen-*.c files for each aubio object (dct, mfcc, notes, etc.)
 # and aubio-generated.c/.h that ties them all together
 gen_external_script = files('lib/gen_external.py')
+# gen_external.py imports gen_code.py: a change to either regenerates
+gen_code_script = files('lib/gen_code.py')
 
 gen_wrapper_sources = custom_target('generate_python_wrappers',
   output: [
@@ -44,7 +46,7 @@ gen_wrapper_sources = custom_target('generate_python_wrappers',
     meson.project_source_root() / 'src' / 'aubio.h',
     '@OUTDIR@',
   ],
-  depend_files: gen_external_script,
+  depend_files: [gen_external_script, gen_code_script],
   # Set CC environment variable so gen_external.py can find the compiler
   env: {'CC': ' '.join(cc.cmd_array())},
 )

@@ -25,6 +25,7 @@ Py_aubio_level_lin(PyObject *self, PyObject *args)
 {
   PyObject *input;
   fvec_t vec;
+  PyObject *owner;
   PyObject *level_lin;
 
   if (!PyArg_ParseTuple (args, "O:level_lin", &input)) {
@@ -35,11 +36,12 @@ Py_aubio_level_lin(PyObject *self, PyObject *args)
     return NULL;
   }
 
-  if (!PyAubio_ArrayToCFvec(input, &vec)) {
+  if (!PyAubio_ArrayToCFvecIn(input, &vec, &owner)) {
     return NULL;
   }
 
   level_lin = PyFloat_FromDouble(aubio_level_lin(&vec));
+  Py_DECREF(owner);
   if (level_lin == NULL) {
     PyErr_SetString (PyExc_ValueError, "failed computing level_lin");
     return NULL;
@@ -53,6 +55,7 @@ Py_aubio_db_spl(PyObject *self, PyObject *args)
 {
   PyObject *input;
   fvec_t vec;
+  PyObject *owner;
   PyObject *db_spl;
 
   if (!PyArg_ParseTuple (args, "O:db_spl", &input)) {
@@ -63,11 +66,12 @@ Py_aubio_db_spl(PyObject *self, PyObject *args)
     return NULL;
   }
 
-  if (!PyAubio_ArrayToCFvec(input, &vec)) {
+  if (!PyAubio_ArrayToCFvecIn(input, &vec, &owner)) {
     return NULL;
   }
 
   db_spl = PyFloat_FromDouble(aubio_db_spl(&vec));
+  Py_DECREF(owner);
   if (db_spl == NULL) {
     PyErr_SetString (PyExc_ValueError, "failed computing db_spl");
     return NULL;
@@ -81,6 +85,7 @@ Py_aubio_silence_detection(PyObject *self, PyObject *args)
 {
   PyObject *input;
   fvec_t vec;
+  PyObject *owner;
   PyObject *silence_detection;
   smpl_t threshold;
 
@@ -92,11 +97,12 @@ Py_aubio_silence_detection(PyObject *self, PyObject *args)
     return NULL;
   }
 
-  if (!PyAubio_ArrayToCFvec(input, &vec)) {
+  if (!PyAubio_ArrayToCFvecIn(input, &vec, &owner)) {
     return NULL;
   }
 
   silence_detection = PyLong_FromLong(aubio_silence_detection(&vec, threshold));
+  Py_DECREF(owner);
   if (silence_detection == NULL) {
     PyErr_SetString (PyExc_ValueError, "failed computing silence_detection");
     return NULL;
@@ -110,6 +116,7 @@ Py_aubio_level_detection(PyObject *self, PyObject *args)
 {
   PyObject *input;
   fvec_t vec;
+  PyObject *owner;
   PyObject *level_detection;
   smpl_t threshold;
 
@@ -121,11 +128,12 @@ Py_aubio_level_detection(PyObject *self, PyObject *args)
     return NULL;
   }
 
-  if (!PyAubio_ArrayToCFvec(input, &vec)) {
+  if (!PyAubio_ArrayToCFvecIn(input, &vec, &owner)) {
     return NULL;
   }
 
   level_detection = PyFloat_FromDouble(aubio_level_detection(&vec, threshold));
+  Py_DECREF(owner);
   if (level_detection == NULL) {
     PyErr_SetString (PyExc_ValueError, "failed computing level_detection");
     return NULL;

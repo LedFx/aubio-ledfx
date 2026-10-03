@@ -70,7 +70,7 @@ Py_filter_new (PyTypeObject * type, PyObject * args, PyObject * kwds)
   Py_filter *self;
   static char *kwlist[] = { "order", NULL };
 
-  if (!PyArg_ParseTupleAndKeywords (args, kwds, "|I", kwlist,
+  if (!PyArg_ParseTupleAndKeywords (args, kwds, "|i", kwlist,
           &order)) {
     return NULL;
   }
@@ -88,6 +88,7 @@ Py_filter_new (PyTypeObject * type, PyObject * args, PyObject * kwds)
   } else if (order < 0) {
     PyErr_SetString (PyExc_ValueError,
         "can not use negative order");
+    Py_DECREF (self);
     return NULL;
   }
 
@@ -117,7 +118,7 @@ Py_filter_del (Py_filter * self)
 static PyObject *
 Py_filter_do(Py_filter * self, PyObject * args)
 {
-  PyObject *input;
+  PyObject *input, *owner;
 
   if (!PyArg_ParseTuple (args, "O:digital_filter.do", &input)) {
     return NULL;
@@ -127,7 +128,7 @@ Py_filter_do(Py_filter * self, PyObject * args)
     return NULL;
   }
 
-  if (!PyAubio_ArrayToCFvec(input, &(self->vec))) {
+  if (!PyAubio_ArrayToCFvecIn(input, &(self->vec), &owner)) {
     return NULL;
   }
 
@@ -136,12 +137,14 @@ Py_filter_do(Py_filter * self, PyObject * args)
     self->out = new_py_fvec(self->vec.length);
   }
 
-  Py_INCREF(self->out);
   if (!PyAubio_ArrayToCFvec(self->out, &(self->c_out)) ) {
+    Py_DECREF(owner);
     return NULL;
   }
   // compute the function
   aubio_filter_do_outplace (self->o, &(self->vec), &(self->c_out));
+  Py_DECREF(owner);
+  Py_INCREF(self->out);
   return self->out;
 }
 

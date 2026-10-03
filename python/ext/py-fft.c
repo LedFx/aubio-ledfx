@@ -94,14 +94,14 @@ Py_fft_del (Py_fft *self, PyObject *unused)
 static PyObject *
 Py_fft_do(Py_fft * self, PyObject * args)
 {
-  PyObject *input;
+  PyObject *input, *owner;
   cvec_t c_out;
 
   if (!PyArg_ParseTuple (args, "O", &input)) {
     return NULL;
   }
 
-  if (!PyAubio_ArrayToCFvec(input, &(self->vecin))) {
+  if (!PyAubio_ArrayToCFvecIn(input, &(self->vecin), &owner)) {
     return NULL;
   }
 
@@ -109,15 +109,18 @@ Py_fft_do(Py_fft * self, PyObject * args)
     PyErr_Format(PyExc_ValueError,
                  "input array has length %d, but fft expects length %d",
                  self->vecin.length, self->win_s);
+    Py_DECREF(owner);
     return NULL;
   }
 
-  Py_INCREF(self->doout);
   if (!PyAubio_PyCvecToCCvec(self->doout, &c_out)) {
+    Py_DECREF(owner);
     return NULL;
   }
   // compute the function
   aubio_fft_do (self->o, &(self->vecin), &c_out);
+  Py_DECREF(owner);
+  Py_INCREF(self->doout);
   return self->doout;
 }
 

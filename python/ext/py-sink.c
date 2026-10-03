@@ -165,7 +165,7 @@ static PyObject *
 Py_sink_do(Py_sink * self, PyObject * args)
 {
   /* input vectors python prototypes */
-  PyObject * write_data_obj;
+  PyObject * write_data_obj, * owner;
 
   /* input vectors prototypes */
   uint_t write;
@@ -176,13 +176,14 @@ Py_sink_do(Py_sink * self, PyObject * args)
   }
 
   /* input vectors parsing */
-  if (!PyAubio_ArrayToCFvec(write_data_obj, &(self->write_data))) {
+  if (!PyAubio_ArrayToCFvecIn(write_data_obj, &(self->write_data), &owner)) {
     return NULL;
   }
 
 
   /* compute _do function */
   aubio_sink_do (self->o, &(self->write_data), write);
+  Py_DECREF(owner);
 
   Py_RETURN_NONE;
 }
@@ -192,7 +193,7 @@ static PyObject *
 Py_sink_do_multi(Py_sink * self, PyObject * args)
 {
   /* input vectors python prototypes */
-  PyObject * write_data_obj;
+  PyObject * write_data_obj, * owner;
 
   /* input vectors prototypes */
   uint_t write;
@@ -204,12 +205,13 @@ Py_sink_do_multi(Py_sink * self, PyObject * args)
 
 
   /* input vectors parsing */
-  if (!PyAubio_ArrayToCFmat(write_data_obj, &(self->mwrite_data))) {
+  if (!PyAubio_ArrayToCFmatIn(write_data_obj, &(self->mwrite_data), &owner)) {
     return NULL;
   }
 
   /* compute _do function */
   aubio_sink_do_multi (self->o, &(self->mwrite_data), write);
+  Py_DECREF(owner);
   Py_RETURN_NONE;
 }
 
