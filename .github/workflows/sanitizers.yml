@@ -58,7 +58,8 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q --no-install-recommends \
-            libsndfile1-dev libsamplerate0-dev libfftw3-dev
+            libsndfile1-dev libsamplerate0-dev libfftw3-dev \
+            libavcodec-dev libavformat-dev libswresample-dev libavutil-dev
           pip install meson ninja numpy
 
       - name: Setup build with sanitizers
@@ -118,7 +119,8 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q --no-install-recommends \
-            libsndfile1-dev libsamplerate0-dev libfftw3-dev
+            libsndfile1-dev libsamplerate0-dev libfftw3-dev \
+            libavcodec-dev libavformat-dev libswresample-dev libavutil-dev
           pip install meson ninja numpy
 
       - name: Setup build with UBSAN
@@ -163,7 +165,8 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y -q --no-install-recommends valgrind libsndfile1-dev libsamplerate0-dev libfftw3-dev
+          sudo apt-get install -y -q --no-install-recommends valgrind libsndfile1-dev libsamplerate0-dev libfftw3-dev \
+            libavcodec-dev libavformat-dev libswresample-dev libavutil-dev
           pip install meson ninja numpy
 
       - name: Setup build

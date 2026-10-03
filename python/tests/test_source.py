@@ -130,6 +130,26 @@ class Test_aubio_source_read(object):
         assert_equal (duration, total_frames)
 
 
+class Test_aubio_source_duration(object):
+    """ duration is exact for PCM files (aubio#322: avcodec truncated a
+    float and lost one sample about half the time) """
+
+    @parametrize('samplerate', [8000, 22050, 44100, 48000])
+    def test_duration_in_samples(self, samplerate, tmp_path):
+        from aubio import sink, float_type
+        import numpy as np
+        hop_size = 512
+        for n_frames in range(4092, 4100):
+            path = str(tmp_path / '{:d}.wav'.format(n_frames))
+            g = sink(path, samplerate)
+            written = 0
+            while written < n_frames:
+                count = min(hop_size, n_frames - written)
+                g(np.zeros(hop_size, dtype=float_type), count)
+                written += count
+            g.close()
+            assert_equal(source(path).duration, n_frames)
+
 class Test_aubio_source_wrong_params(object):
 
     def test_wrong_file(self):

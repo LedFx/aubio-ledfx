@@ -166,6 +166,7 @@ aubio_source_avcodec_t * new_aubio_source_avcodec(const char_t * path,
   s->channels = 1;
 
   s->path = AUBIO_ARRAY(char_t, strnlen(path, PATH_MAX) + 1);
+  if (!s->path) goto beach;
   strncpy(s->path, path, strnlen(path, PATH_MAX) + 1);
 
 #if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(58,0,0)
@@ -185,6 +186,9 @@ aubio_source_avcodec_t * new_aubio_source_avcodec(const char_t * path,
     AUBIO_ERR("source_avcodec: Failed opening %s (%s)\n", s->path, errorstr);
     goto beach;
   }
+  // hand every context to s as soon as it exists, so that the error path
+  // (del_aubio_source_avcodec) frees it (aubio#439)
+  s->avFormatCtx = avFormatCtx;
 
   // try to make sure max_analyze_duration is big enough for most songs
 #if FFMPEG_LIBAVFORMAT_MAX_DUR2
@@ -243,8 +247,10 @@ aubio_source_avcodec_t * new_aubio_source_avcodec(const char_t * path,
         s->path);
     goto beach;
   }
+  s->avCodecCtx = avCodecCtx;
 #else
   avCodecCtx = avFormatCtx->streams[selected_stream]->codec;
+  s->avCodecCtx = avCodecCtx;
   codec = avcodec_find_decoder(avCodecCtx->codec_id);
 #endif
   if (codec == NULL) {
@@ -301,6 +307,7 @@ aubio_source_avcodec_t * new_aubio_source_avcodec(const char_t * path,
     AUBIO_ERR("source_avcodec: Could not allocate frame for (%s)\n", s->path);
     goto beach;
   }
+  s->avFrame = avFrame;
 
 #if FF_API_INIT_PACKET
   avPacket = av_packet_alloc();
@@ -308,21 +315,19 @@ aubio_source_avcodec_t * new_aubio_source_avcodec(const char_t * path,
     AUBIO_ERR("source_avcodec: Could not allocate packet for (%s)\n", s->path);
     goto beach;
   }
+  s->avPacket = avPacket;
 #endif
 
   /* allocate output for avr */
   s->output = (smpl_t *)av_malloc(AUBIO_AVCODEC_MAX_BUFFER_SIZE
       * sizeof(smpl_t));
+  if (!s->output) {
+    AUBIO_ERR("source_avcodec: Could not allocate output for (%s)\n", s->path);
+    goto beach;
+  }
 
   s->read_samples = 0;
   s->read_index = 0;
-
-  s->avFormatCtx = avFormatCtx;
-  s->avCodecCtx = avCodecCtx;
-  s->avFrame = avFrame;
-#if FF_API_INIT_PACKET
-  s->avPacket = avPacket;
-#endif
 
   aubio_source_avcodec_reset_resampler(s);
 
@@ -347,6 +352,11 @@ void aubio_source_avcodec_reset_resampler(aubio_source_avcodec_t * s)
   if ( s->avr == NULL ) {
     int err;
     SwrContext *avr = swr_alloc();
+    if (!avr) {
+      AUBIO_ERR("source_avcodec: Could not allocate resampling context"
+         " for %s\n", s->path);
+      return;
+    }
 #ifdef LIBAVUTIL_HAS_CH_LAYOUT
     AVChannelLayout input_layout;
     AVChannelLayout output_layout;
@@ -378,6 +388,7 @@ void aubio_source_avcodec_reset_resampler(aubio_source_avcodec_t * s)
       av_strerror (err, errorstr, sizeof(errorstr));
       AUBIO_ERR("source_avcodec: Could not open resampling context"
          " for %s (%s)\n", s->path, errorstr);
+      swr_free(&avr);
       return;
     }
     s->avr = avr;
@@ -630,11 +641,29 @@ uint_t aubio_source_avcodec_seek (aubio_source_avcodec_t * s, uint_t pos) {
 }
 
 uint_t aubio_source_avcodec_get_duration (aubio_source_avcodec_t * s) {
-  if (s && &(s->avFormatCtx) != NULL) {
-    int64_t duration = s->avFormatCtx->duration;
-    return s->samplerate * ((uint_t)duration / 1e6 );
+  // Convert in 64-bit integers, rounding to the nearest sample: going
+  // through a truncated float dropped a sample about half the time, and a
+  // 32-bit microsecond count wrapped after 71 minutes (aubio#322). Prefer
+  // the stream's own duration and time base (exact for PCM), then the
+  // container's estimate.
+  AVStream *stream;
+  int64_t duration;
+  AVRational output_base;
+  if (!s || !s->avFormatCtx || !s->samplerate) return 0;
+  output_base.num = 1;
+  output_base.den = s->samplerate;
+  stream = s->avFormatCtx->streams[s->selected_stream];
+  if (stream->duration != AV_NOPTS_VALUE && stream->duration > 0) {
+    duration = av_rescale_q_rnd(stream->duration, stream->time_base,
+        output_base, AV_ROUND_NEAR_INF);
+  } else if (s->avFormatCtx->duration != AV_NOPTS_VALUE
+      && s->avFormatCtx->duration > 0) {
+    duration = av_rescale_q_rnd(s->avFormatCtx->duration, AV_TIME_BASE_Q,
+        output_base, AV_ROUND_NEAR_INF);
+  } else {
+    return 0;
   }
-  return 0;
+  return (uint_t)MIN(duration, (int64_t)UINT32_MAX);
 }
 
 uint_t aubio_source_avcodec_close(aubio_source_avcodec_t * s) {
