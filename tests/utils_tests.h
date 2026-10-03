@@ -104,7 +104,7 @@ aubio_tests_capture_log (void)
 // assuming libbc is recent enough to supports these functions.
 extern void srandom(unsigned);
 extern int random(void);
-extern char mkstemp(const char *pat);
+// mkstemp (int mkstemp(char *)) is POSIX.1-2008, which meson.build selects
 
 #endif
 
