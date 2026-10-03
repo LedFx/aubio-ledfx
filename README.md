@@ -223,6 +223,8 @@ branch. Submitted requests should pass all continuous integration tests.
 - **Tests**: `meson setup builddir -Dtests=true && meson test -C builddir` for
   the C library; `pytest python/tests` against an installed build for Python.
   Wheel builds run the Python suite on every platform and fail on any failure.
+  A pull request builds what its changes can affect (the `Plan` job in
+  `.github/workflows/build.yml` says why), and `main` builds everything.
 - **Releases** are made by [release-please](https://github.com/googleapis/release-please):
   it keeps a release PR open with the next version and changelog, built from
   the `fix:`/`feat:` titles on `main`. Merging it tags the release, and CI

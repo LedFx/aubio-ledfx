@@ -33,6 +33,182 @@ permissions:
   contents: read
 
 jobs:
+  # Decides what a run builds, here rather than with paths filters: a workflow
+  # skipped by a filter never reports, so the required "CI passed" check would
+  # wait forever, and skipped jobs count as passed. Also checks that the tag,
+  # pyproject.toml, meson.build, VERSION and vcpkg.json agree on the version.
+  #
+  # Pushes (main, tags), the weekly run and manual runs build everything. A pull
+  # request builds what its changed files can affect:
+  # - prose, docs, other workflows, bot config: lint only;
+  # - one platform's pyproject.toml [tool.cibuildwheel.<platform>] table, its
+  #   vcpkg triplets or its platform-only sources: that platform's wheels;
+  # - Python bindings and tests: every wheel (the tests run inside each wheel
+  #   build, against that platform's backends);
+  # - the C library, its tests, meson.build: the C tests and every wheel
+  #   (meson.build is one file for every platform, so any change builds all);
+  # - this workflow, or anything not classified here: everything.
+  # Stacked pull requests: one with another open PR on top of it builds only
+  # Linux x86_64 (its tree is tested in full by the top of the stack); the top
+  # of a stack (based on another PR's branch) builds everything.
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read # lists the PR's changed files and stacked PRs
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      release: ${{ steps.plan.outputs.release }}
+      c-tests: ${{ steps.plan.outputs.c-tests }}
+      wheels: ${{ steps.plan.outputs.wheels }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            pyproject.toml
+            meson.build
+            VERSION
+            vcpkg.json
+          sparse-checkout-cone-mode: false
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+          REPO: ${{ github.repository }}
+          REF: ${{ github.ref }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          version=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          # PR-controlled on PR runs; it ends up in outputs and release names.
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([a-z0-9.+-]*)$ ]]; then
+            echo "::error::Unexpected version string in pyproject.toml"
+            exit 1
+          fi
+          meson=$(sed -nE "s/^  version: '([^']+)'.*/\1/p" meson.build)
+          vcpkg=$(python3 -c "import json; print(json.load(open('vcpkg.json'))['version-string'])")
+          # shellcheck disable=SC1091
+          file=$(. ./VERSION && echo "$AUBIO_MAJOR_VERSION.$AUBIO_MINOR_VERSION.$AUBIO_PATCH_VERSION$AUBIO_VERSION_STATUS")
+          for other in "$meson" "$vcpkg" "$file"; do
+            if [[ "$other" != "$version" ]]; then
+              echo "::error::Version mismatch: pyproject.toml $version, meson.build $meson, vcpkg.json $vcpkg, VERSION $file"
+              exit 1
+            fi
+          done
+          # The one guard for every publish path.
+          if [[ "$REF" == refs/tags/v* && "$REF" != "refs/tags/v$version" ]]; then
+            echo "::error::Tag ${REF#refs/tags/} does not match version $version"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$EVENT" == push && "$REF" == refs/tags/v* ]]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          c_tests=true linux=true windows=true macos=true
+          if [ -n "$PR" ]; then
+            c_tests=false linux=false windows=false macos=false
+            build_all() { c_tests=true linux=true windows=true macos=true; }
+            build_wheels() { linux=true windows=true macos=true; }
+            # previous_filename: a rename out of a path still changes that path
+            files=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')
+            while IFS= read -r f; do
+              case "$f" in
+                "") ;;
+                .github/workflows/build.yml) build_all ;;
+                # linted, nothing to build
+                .github/*|doc/*|SECURITY/*|scripts/apple/*|scripts/build_apple_frameworks \
+                  |*.md|*.rst|ChangeLog|AUTHORS|COPYING|renovate.json|release-please-config.json \
+                  |.release-please-manifest.json|.pre-commit-config.yaml|.gitignore|python/demos/*) ;;
+                src/io/audio_unit.[ch]|src/io/*_apple_audio.[ch]|tests/src/io/test-*_apple_audio.c) macos=true ;;
+                src/utils/windll.c) windows=true ;;
+                vcpkg-triplets/*-linux-*.cmake) linux=true ;;
+                pyproject.toml)
+                  # Only the [tool.cibuildwheel.<platform>] tables that changed,
+                  # unless anything else that builds did.
+                  gh api -H "Accept: application/vnd.github.raw" \
+                    "repos/$REPO/contents/pyproject.toml?ref=$BASE_SHA" < /dev/null > "$RUNNER_TEMP/base.toml" || : > "$RUNNER_TEMP/base.toml"
+                  changed=$(python3 - "$RUNNER_TEMP/base.toml" <<'PY'
+          import copy, sys, tomllib
+          def split(path):
+              try:
+                  with open(path, "rb") as f:
+                      d = tomllib.load(f)
+              except (OSError, tomllib.TOMLDecodeError):
+                  return None, None
+              d = copy.deepcopy(d)
+              tool = d.get("tool", {})
+              tool.pop("ruff", None)  # lint config
+              cibw = tool.get("cibuildwheel", {})
+              return {p: cibw.pop(p, None) for p in ("linux", "windows", "macos")}, d
+          old, old_rest = split(sys.argv[1])
+          new, new_rest = split("pyproject.toml")
+          if old is None or old_rest != new_rest:
+              print("all")
+          else:
+              print(" ".join(p for p in old if old[p] != new[p]))
+          PY
+                  )
+                  for c in $changed; do
+                    case "$c" in
+                      all) build_all ;;
+                      linux) linux=true ;;
+                      windows) windows=true ;;
+                      macos) macos=true ;;
+                    esac
+                  done
+                  ;;
+                python/*|vcpkg.json|vcpkg-ports/*|vcpkg-triplets/*|MANIFEST.in) build_wheels ;;
+                *) build_all ;; # the C library, its tests, meson.build, anything new
+              esac
+            done <<< "$files"
+            # Mid-stack (another open PR here builds on this branch): Linux
+            # x86_64 only. A plain assignment, so a failed query fails this
+            # step (bash -e) and with it CI passed.
+            above=0
+            if [ "$HEAD_REPO" = "$REPO" ]; then
+              above=$(gh api -X GET "repos/$REPO/pulls" -f state=open -f base="$HEAD_REF" --jq length)
+            fi
+            if [ "$above" != 0 ]; then
+              windows=false macos=false
+            elif [ "$BASE_REF" != main ]; then
+              build_all # top of a stack: its tree is the whole stack's
+            fi
+          fi
+
+          # Every wheel job; the plan keeps those of the selected platforms.
+          # On a mid-stack PR Linux means x86_64 only.
+          wheels=$(jq -c --argjson linux "$linux" --argjson windows "$windows" --argjson macos "$macos" \
+            --arg midstack "${above:-0}" '
+            map(select(
+              (.platform == "linux" and $linux and ($midstack == "0" or .arch == "x86_64"))
+              or (.platform == "windows" and $windows)
+              or (.platform == "macos" and $macos)))' <<'JSON'
+          [
+            {"platform": "linux", "os": "ubuntu-latest", "arch": "x86_64"},
+            {"platform": "linux", "os": "ubuntu-24.04-arm", "arch": "aarch64"},
+            {"platform": "windows", "os": "windows-latest", "arch": "AMD64"},
+            {"platform": "macos", "os": "macos-15-intel", "arch": "x86_64",
+             "macosx_deployment_target": "10.15", "triplet": "x64-osx-release"},
+            {"platform": "macos", "os": "macos-latest", "arch": "arm64",
+             "macosx_deployment_target": "11.0", "triplet": "arm64-osx-release"}
+          ]
+          JSON
+          )
+          {
+            echo "c-tests=$c_tests"
+            echo "wheels=$wheels"
+          } >> "$GITHUB_OUTPUT"
+          echo "C tests: $c_tests; wheels: $(jq -r 'map(.os + " " + .arch) | join(", ")' <<< "$wheels")" >> "$GITHUB_STEP_SUMMARY"
+
   # Fast lint gate before any build spend. Same hook set as `uvx prek run
   # --all-files` locally. autofix.ci runs in parallel and pushes fixes; that
   # push re-triggers this workflow. Failure comments come from lint-notify.yml.
@@ -49,59 +225,11 @@ jobs:
           prek-version: "0.5.3"
           extra-args: --all-files # the action adds --show-diff-on-failure itself
 
-  # The tag must match the version release-please wrote, everywhere it wrote it.
-  version:
-    name: Version
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      version: ${{ steps.version.outputs.version }}
-      release: ${{ steps.version.outputs.release }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-          sparse-checkout: |
-            pyproject.toml
-            meson.build
-            VERSION
-            vcpkg.json
-          sparse-checkout-cone-mode: false
-      - id: version
-        env:
-          REF: ${{ github.ref }}
-          EVENT: ${{ github.event_name }}
-        run: |
-          version=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
-          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([a-z0-9.+-]*)$ ]]; then
-            echo "::error::Unexpected version string in pyproject.toml"
-            exit 1
-          fi
-          meson=$(sed -nE "s/^  version: '([^']+)'.*/\1/p" meson.build)
-          vcpkg=$(python3 -c "import json; print(json.load(open('vcpkg.json'))['version-string'])")
-          # shellcheck disable=SC1091
-          file=$(. ./VERSION && echo "$AUBIO_MAJOR_VERSION.$AUBIO_MINOR_VERSION.$AUBIO_PATCH_VERSION$AUBIO_VERSION_STATUS")
-          for other in "$meson" "$vcpkg" "$file"; do
-            if [[ "$other" != "$version" ]]; then
-              echo "::error::Version mismatch: pyproject.toml $version, meson.build $meson, vcpkg.json $vcpkg, VERSION $file"
-              exit 1
-            fi
-          done
-          if [[ "$REF" == refs/tags/v* && "$REF" != "refs/tags/v$version" ]]; then
-            echo "::error::Tag ${REF#refs/tags/} does not match version $version"
-            exit 1
-          fi
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          if [[ "$EVENT" == push && "$REF" == refs/tags/v* ]]; then
-            echo "release=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "release=false" >> "$GITHUB_OUTPUT"
-          fi
-
   # The C library and its own test programs, against system libraries.
   c-tests:
     name: C tests (${{ matrix.name }})
-    needs: lint
+    needs: [plan, lint]
+    if: needs.plan.outputs.c-tests == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     strategy:
@@ -142,7 +270,8 @@ jobs:
 
   build-sdist:
     name: Build source distribution
-    needs: lint
+    needs: [plan, lint]
+    if: needs.plan.outputs.wheels != '[]'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -160,28 +289,14 @@ jobs:
 
   build-wheels:
     name: Wheels (${{ matrix.os }} ${{ matrix.arch }})
-    needs: lint
+    needs: [plan, lint]
+    if: needs.plan.outputs.wheels != '[]'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - os: ubuntu-latest
-            arch: x86_64
-          # Native ARM64 runner, no QEMU
-          - os: ubuntu-24.04-arm
-            arch: aarch64
-          - os: windows-latest
-            arch: AMD64
-          - os: macos-15-intel
-            arch: x86_64
-            macosx_deployment_target: "10.15"
-            triplet: x64-osx
-          - os: macos-latest
-            arch: arm64
-            macosx_deployment_target: "11.0"
-            triplet: arm64-osx
+        include: ${{ fromJSON(needs.plan.outputs.wheels) }} # listed in the plan job
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -218,16 +333,38 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/vcpkg-cache
-          key: vcpkg-bin-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg-triplets/*.cmake') }}
+          key: vcpkg-bin-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg-triplets/*.cmake', 'vcpkg-ports/**') }}
           restore-keys: |
             vcpkg-bin-${{ matrix.os }}-${{ matrix.arch }}-
           lookup-only: ${{ github.ref_type == 'tag' }} # zizmor: ignore[cache-poisoning] release builds never restore
 
-      # macOS: build the vcpkg dependencies with the wheel's deployment target.
+      # Windows: meson finds the vcpkg DLLs through vcpkg's own pkgconf (the
+      # pkg-config on the image's PATH is Strawberry Perl's, which meson
+      # rejects), and delvewheel bundles msvcp140.dll from this Visual Studio,
+      # the toolset vcpkg builds rubberband and sleef with.
+      - name: Windows build environment
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $prefix = "$env:GITHUB_WORKSPACE\vcpkg_installed\x64-windows-release"
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $crt = Get-ChildItem "$vs\VC\Redist\MSVC" -Recurse -Filter msvcp140.dll |
+            Where-Object { $_.FullName -match '\\x64\\Microsoft\.VC\d+\.CRT\\' } |
+            Sort-Object { $_.VersionInfo.FileVersionRaw } | Select-Object -Last 1
+          if (-not $crt) { throw "No x64 msvcp140.dll in $vs\VC\Redist\MSVC" }
+          Write-Output "Bundling $($crt.FullName) ($($crt.VersionInfo.FileVersionRaw))"
+          @(
+            "PKG_CONFIG=$prefix\tools\pkgconf\pkgconf.exe"
+            "PKG_CONFIG_PATH=$prefix\lib\pkgconfig"
+            "CMAKE_PREFIX_PATH=$prefix"
+            "MSVC_CRT_DIR=$($crt.DirectoryName)"
+          ) | Add-Content $env:GITHUB_ENV
+
+      # macOS: build the vcpkg dependencies with the wheel's deployment target,
+      # with static release-only triplets.
       - name: Install vcpkg dependencies (macOS)
         if: runner.os == 'macOS'
         env:
-          VCPKG_BUILD_TYPE: release
           TRIPLET: ${{ matrix.triplet }}
           DEPLOYMENT_TARGET: ${{ matrix.macosx_deployment_target }}
         run: |
@@ -257,24 +394,26 @@ jobs:
   ci-passed:
     name: CI passed
     if: always()
-    needs: [lint, version, c-tests, build-sdist, build-wheels]
+    needs: [plan, lint, c-tests, build-sdist, build-wheels]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # A job the plan skipped is "skipped", which passes; anything that ran
+      # must have succeeded.
       - env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
           echo "Results: $RESULTS"
           for r in $RESULTS; do
-            if [[ "$r" != success ]]; then
+            if [[ "$r" != success && "$r" != skipped ]]; then
               exit 1
             fi
           done
 
   publish-to-pypi:
     name: Publish to PyPI
-    needs: [version, ci-passed]
-    if: needs.version.outputs.release == 'true'
+    needs: [plan, ci-passed]
+    if: needs.plan.outputs.release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
@@ -298,8 +437,8 @@ jobs:
   # what went to PyPI and publishes it.
   github-release:
     name: Publish GitHub release
-    needs: [version, publish-to-pypi]
-    if: needs.version.outputs.release == 'true'
+    needs: [plan, publish-to-pypi]
+    if: needs.plan.outputs.release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -316,7 +455,7 @@ jobs:
           path: dist/
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          name: aubio-ledfx ${{ needs.version.outputs.version }}
+          name: aubio-ledfx ${{ needs.plan.outputs.version }}
           files: dist/*
           fail_on_unmatched_files: true
 

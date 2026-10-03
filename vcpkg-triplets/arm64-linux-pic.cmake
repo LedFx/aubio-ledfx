@@ -11,3 +11,6 @@ set(VCPKG_CMAKE_SYSTEM_NAME Linux)
 # This is critical for FFmpeg and other dependencies when linking into shared libraries
 set(VCPKG_C_FLAGS "-fPIC")
 set(VCPKG_CXX_FLAGS "-fPIC")
+
+# Release only: wheels never link the debug libraries
+set(VCPKG_BUILD_TYPE release)

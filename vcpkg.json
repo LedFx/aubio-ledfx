@@ -12,42 +12,16 @@
     {
       "name": "libsndfile",
       "default-features": false,
-      "features": ["external-libs"]
+      "features": ["external-libs", "mpeg"]
     },
     "libsamplerate",
-    {
-      "name": "mpg123",
-      "platform": "linux"
-    },
-    {
-      "name": "mp3lame",
-      "platform": "linux"
-    },
-    {
-      "name": "opus",
-      "platform": "linux"
-    },
-    {
-      "name": "libogg",
-      "platform": "linux"
-    },
-    {
-      "name": "libvorbis",
-      "platform": "linux"
-    },
-    {
-      "name": "libflac",
-      "platform": "linux"
-    },
-    {
-      "name": "rubberband",
-      "platform": "!linux"
-    },
+    "libvorbis",
+    "libflac",
+    "rubberband",
     {
       "name": "ffmpeg",
       "default-features": false,
-      "features": ["avcodec", "avformat", "swresample"],
-      "platform": "!linux"
+      "features": ["avcodec", "avformat", "swresample"]
     }
   ]
 }
