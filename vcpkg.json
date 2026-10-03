@@ -3,7 +3,7 @@
   "name": "aubio-ledfx",
   "version-string": "0.4.11",
   "description": "aubio is a library for audio and music analysis, synthesis, and effects",
-  "builtin-baseline": "c76c06644034521fb761a39f8f52d8e87d1103d5",
+  "builtin-baseline": "173a20135d7daa83d048d25f50506b6eba8c0d5e",
   "dependencies": [
     "pkgconf",
     {
@@ -45,6 +45,18 @@
       "default-features": false,
       "features": ["avcodec", "avformat", "swresample"],
       "platform": "!linux"
+    }
+  ],
+  "overrides": [
+    {
+      "$comment": "Keep FFmpeg 8: the baseline's FFmpeg 9 is a major API change, to move to separately",
+      "name": "ffmpeg",
+      "version": "8.1.2",
+      "port-version": 3
+    },
+    {
+      "name": "ffmpeg-bin2c",
+      "version": "8.1.1"
     }
   ]
 }
