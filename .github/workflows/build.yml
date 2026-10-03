@@ -42,7 +42,7 @@ jobs:
       - uses: j178/prek-action@4e14d07f9231acabce116ccfca13b13dd9755ece # v3.0.0
         with:
           prek-version: "0.5.3"
-          extra-args: --all-files --show-diff-on-failure
+          extra-args: --all-files # the action adds --show-diff-on-failure itself
 
   # The tag must match the version release-please wrote, everywhere it wrote it.
   version:
