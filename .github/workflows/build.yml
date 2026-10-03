@@ -107,6 +107,10 @@ jobs:
             setup: -Dbuildtype=release
           - name: double precision
             setup: -Dbuildtype=release -Ddouble=true
+          # FFTW is off by default (ooura measured as fast at aubio's usual
+          # power-of-two sizes); keep the opt-in backend building and passing
+          - name: fftw3f
+            setup: -Dbuildtype=release -Dfftw3f=enabled
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
