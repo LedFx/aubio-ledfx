@@ -28,7 +28,17 @@
 /* note that <complex.h> is not included here but only in aubio_priv.h, so that
  * c++ projects can still use their own complex definition. */
 #include <fftw3.h>
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#else
 #include <pthread.h>
+#endif
 
 #ifdef HAVE_COMPLEX_H
 #ifdef HAVE_FFTW3F
@@ -74,8 +84,18 @@ typedef FFTW_TYPE fft_data_t;
 #define real_t double
 #endif /* HAVE_FFTW3F */
 
-// a global mutex for FFTW thread safety
-pthread_mutex_t aubio_fftw_mutex = PTHREAD_MUTEX_INITIALIZER;
+// FFTW's planner is not thread-safe: plans are created and destroyed under
+// one global lock, shared with dct_fftw.c. MSVC has no pthreads, so Windows
+// uses a slim reader/writer lock, which also needs no runtime initialisation.
+#ifdef _WIN32
+static SRWLOCK aubio_fftw_srwlock = SRWLOCK_INIT;
+void aubio_fftw_lock (void) { AcquireSRWLockExclusive (&aubio_fftw_srwlock); }
+void aubio_fftw_unlock (void) { ReleaseSRWLockExclusive (&aubio_fftw_srwlock); }
+#else
+static pthread_mutex_t aubio_fftw_mutex = PTHREAD_MUTEX_INITIALIZER;
+void aubio_fftw_lock (void) { pthread_mutex_lock (&aubio_fftw_mutex); }
+void aubio_fftw_unlock (void) { pthread_mutex_unlock (&aubio_fftw_mutex); }
+#endif
 
 #elif defined HAVE_ACCELERATE        // using ACCELERATE
 // https://developer.apple.com/library/mac/#documentation/Accelerate/Reference/vDSPRef/Reference/reference.html
@@ -194,7 +214,7 @@ aubio_fft_t * new_aubio_fft (uint_t winsize) {
   s->out      = AUBIO_ARRAY(real_t,winsize);
   s->compspec = new_fvec(winsize);
   /* create plans */
-  pthread_mutex_lock(&aubio_fftw_mutex);
+  aubio_fftw_lock();
 #ifdef HAVE_COMPLEX_H
   s->fft_size = winsize/2 + 1;
   s->specdata = (fft_data_t*)fftw_malloc(sizeof(fft_data_t)*s->fft_size);
@@ -206,7 +226,7 @@ aubio_fft_t * new_aubio_fft (uint_t winsize) {
   s->pfw = fftw_plan_r2r_1d(winsize, s->in,  s->specdata, FFTW_R2HC, FFTW_ESTIMATE);
   s->pbw = fftw_plan_r2r_1d(winsize, s->specdata, s->out, FFTW_HC2R, FFTW_ESTIMATE);
 #endif
-  pthread_mutex_unlock(&aubio_fftw_mutex);
+  aubio_fftw_unlock();
   for (i = 0; i < s->winsize; i++) {
     s->in[i] = 0.;
     s->out[i] = 0.;
@@ -306,11 +326,11 @@ beach:
 void del_aubio_fft(aubio_fft_t * s) {
   /* destroy data */
 #ifdef HAVE_FFTW3             // using FFTW3
-  pthread_mutex_lock(&aubio_fftw_mutex);
+  aubio_fftw_lock();
   fftw_destroy_plan(s->pfw);
   fftw_destroy_plan(s->pbw);
   fftw_free(s->specdata);
-  pthread_mutex_unlock(&aubio_fftw_mutex);
+  aubio_fftw_unlock();
 
 #elif defined HAVE_ACCELERATE // using ACCELERATE
   AUBIO_FREE(s->spec.realp);

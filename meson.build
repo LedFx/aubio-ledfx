@@ -329,29 +329,38 @@ endif
 # Dependencies
 dependencies = [math_dep]
 
-# FFT implementation
+# FFT implementation. FFTW must match the precision (fft.c refuses a
+# mismatch): fftw3f for single precision, fftw3 for double. Both default to
+# disabled, so ooura is used unless FFTW is asked for: ooura is power-of-two
+# only, but at the sizes aubio is normally run with it was as fast or faster
+# than FFTW (e.g. a 4096-point pvoc, 82us vs 85us), and FFTW_ESTIMATE plans
+# are not tuned. -Dfftw3f=enabled adds non-power-of-two sizes.
 fftw3_dep = dependency('', required: false)
 fftw3f_dep = dependency('', required: false)
 
-if get_option('fftw3f').enabled()
+if not enable_double
+  if get_option('fftw3').enabled()
+    error('fftw3 is the double-precision FFTW: use -Dfftw3f=enabled, or -Ddouble=true')
+  endif
   fftw3f_dep = dependency('fftw3f', version: '>=3.0.0', required: get_option('fftw3f'))
   if fftw3f_dep.found()
     conf_data.set('HAVE_FFTW3F', 1)
     conf_data.set('HAVE_FFTW3', 1)
     dependencies += fftw3f_dep
-    message('FFT implementation: fftw3f')
   endif
-elif get_option('fftw3').enabled()
+else
+  if get_option('fftw3f').enabled()
+    error('fftw3f is the single-precision FFTW: use -Dfftw3=enabled with -Ddouble=true')
+  endif
   fftw3_dep = dependency('fftw3', version: '>=3.0.0', required: get_option('fftw3'))
   if fftw3_dep.found()
     conf_data.set('HAVE_FFTW3', 1)
     dependencies += fftw3_dep
-    message('FFT implementation: fftw3')
   endif
 endif
 
 # Intel IPP
-if get_option('intelipp').enabled()
+if not get_option('intelipp').disabled()
   ipp_headers = ['ippcore.h', 'ippvm.h', 'ipps.h']
   has_ipp_headers = true
   foreach h : ipp_headers
@@ -375,12 +384,17 @@ if get_option('intelipp').enabled()
       endif
     endif
   endif
+  if get_option('intelipp').enabled() and not conf_data.has('HAVE_INTEL_IPP')
+    error('Intel IPP support was requested but its headers or libraries could not be found')
+  endif
 endif
 
 # Accelerate framework (macOS)
+accelerate_opt = get_option('accelerate').require(host_system == 'darwin',
+  error_message: 'the Accelerate framework is only available on macOS')
 accelerate_dep = dependency('', required: false)
-if host_system == 'darwin' and get_option('accelerate').auto()
-  accelerate_dep = dependency('Accelerate', required: false)
+if not accelerate_opt.disabled()
+  accelerate_dep = dependency('Accelerate', required: accelerate_opt)
   if accelerate_dep.found()
     conf_data.set('HAVE_ACCELERATE', 1)
     dependencies += accelerate_dep
@@ -390,9 +404,11 @@ endif
 
 # Apple Audio (macOS/iOS)
 apple_audio_deps = []
-if host_system == 'darwin' and get_option('apple-audio').auto()
-  corefoundation_dep = dependency('CoreFoundation', required: false)
-  audiotoolbox_dep = dependency('AudioToolbox', required: false)
+apple_audio_opt = get_option('apple-audio').require(host_system == 'darwin',
+  error_message: 'Apple AudioToolbox is only available on macOS')
+if not apple_audio_opt.disabled()
+  corefoundation_dep = dependency('CoreFoundation', required: apple_audio_opt)
+  audiotoolbox_dep = dependency('AudioToolbox', required: apple_audio_opt)
 
   if corefoundation_dep.found() and audiotoolbox_dep.found()
     conf_data.set('HAVE_SOURCE_APPLE_AUDIO', 1)
