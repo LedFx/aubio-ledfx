@@ -4,7 +4,7 @@
 # (autofix.yml), which commits whatever the fixers change on a pull request.
 # Renovate bumps every rev below (the shared LedFx config enables pre-commit).
 # Test sounds and vcpkg overlay files are data, not text to tidy.
-exclude: ^(python/tests/sounds/|tests/sounds/)
+exclude: ^(python/tests/sounds/|tests/sounds/|vcpkg-ports/)
 repos:
   - repo: builtin
     hooks:
