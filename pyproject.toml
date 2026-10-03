@@ -78,10 +78,11 @@ build-verbosity = 1
 #
 # OPTIMIZATION NOTES:
 # - before-all runs once per job (not per Python version), so dependencies are built once
-# - Checking if /tmp/vcpkg exists prevents redundant clones if script runs multiple times
-# - vcpkg binary caching via GitHub Actions cache doesn't work inside Docker containers
-# - Dependencies must rebuild on each CI run (Docker container starts fresh each time)
-# - Main optimization: before-all runs once, builds 5 wheels reusing same dependencies
+# - vcpkg is checked out at the builtin-baseline commit from vcpkg.json, like on
+#   Windows and macOS, so all platforms build the same port versions
+# - vcpkg's binary cache lives on the host and reaches the container through
+#   cibuildwheel's /host mount (VCPKG_BINARY_SOURCES, set by the workflow and
+#   passed in with environment-pass); a warm run only unpacks archives
 #
 # PLATFORM-SPECIFIC DEPENDENCIES (via vcpkg.json platform expressions):
 # - Linux: Excludes rubberband and ffmpeg (PIC issues with static linking)
@@ -91,7 +92,9 @@ build-verbosity = 1
 before-all = """
     yum install -y git zip unzip tar curl make nasm && \
     if [ ! -d /tmp/vcpkg ]; then
-        git clone https://github.com/microsoft/vcpkg.git /tmp/vcpkg && \
+        BASELINE=$(sed -n 's/.*"builtin-baseline": *"\\([0-9a-f]\\{40\\}\\)".*/\\1/p' {project}/vcpkg.json) && \
+        git clone --quiet --filter=tree:0 --no-checkout https://github.com/microsoft/vcpkg.git /tmp/vcpkg && \
+        git -C /tmp/vcpkg checkout --quiet "$BASELINE" && \
         cd /tmp/vcpkg && ./bootstrap-vcpkg.sh -disableMetrics
     fi && \
     if [ "$AUDITWHEEL_ARCH" = "x86_64" ]; then
@@ -115,6 +118,9 @@ before-all = """
     ls -la {project}/vcpkg_installed/$VCPKG_TRIPLET/lib/*.a 2>/dev/null | head -20 || echo "No static libraries found"
 """
 
+# The workflow points VCPKG_BINARY_SOURCES at its cache under /host.
+environment-pass = ["VCPKG_BINARY_SOURCES"]
+
 [tool.cibuildwheel.linux.environment]
 # Set paths for both architectures - Meson will detect and use the correct one based on host_machine.cpu_family()
 # This works because only one triplet directory will exist (installed in before-all based on AUDITWHEEL_ARCH)
@@ -132,7 +138,10 @@ CXX = "/opt/rh/gcc-toolset-14/root/usr/bin/g++"
 # Use built-in triplet x64-windows-release for release-only builds with dynamic libs
 # (rubberband requires dynamic linking on Windows)
 before-all = [
-    "cd {project} && if not exist vcpkg_installed %VCPKG_INSTALLATION_ROOT%\\vcpkg.exe install --triplet=x64-windows-release",
+    # Always run: with the binary cache warm it only unpacks archives, and it
+    # picks up vcpkg.json changes (skipping it when vcpkg_installed existed
+    # could ship stale dependencies).
+    "cd {project} && %VCPKG_ROOT%\\vcpkg.exe install --triplet=x64-windows-release",
     "dir {project}\\vcpkg_installed\\x64-windows-release\\lib\\pkgconfig",
 ]
 

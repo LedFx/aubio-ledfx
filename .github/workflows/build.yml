@@ -18,6 +18,11 @@ on:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
+  # Weekly on main: GitHub evicts caches unused for 7 days, and pull requests
+  # restore main's, so this keeps the vcpkg binary caches warm. It also
+  # catches runner image and dependency changes before a release does.
+  schedule:
+    - cron: "17 4 * * 1"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -182,16 +187,40 @@ jobs:
         with:
           persist-credentials: false
 
-      # vcpkg_installed is reused across runs on Windows and macOS (Linux
-      # builds its dependencies inside the manylinux container instead).
-      - name: Cache vcpkg packages
-        if: runner.os != 'Linux'
+      # vcpkg at the commit vcpkg.json pins (builtin-baseline), not the
+      # runner image's copy, so every platform builds the same port versions.
+      # Its binary cache keeps one archive per package, keyed by the package's
+      # ABI hash: a warm run only unpacks archives, and a vcpkg.json change
+      # rebuilds just the packages it affects. On Linux the dependencies are
+      # built inside the manylinux container, which sees the host at /host.
+      - name: Set up vcpkg
+        shell: bash
+        run: |
+          baseline=$(sed -n 's/.*"builtin-baseline": *"\([0-9a-f]\{40\}\)".*/\1/p' vcpkg.json)
+          mkdir -p "$RUNNER_TEMP/vcpkg-cache"
+          if [[ "$RUNNER_OS" == Linux ]]; then
+            echo "VCPKG_BINARY_SOURCES=clear;files,/host$RUNNER_TEMP/vcpkg-cache,readwrite" >> "$GITHUB_ENV"
+            exit 0 # the container clones vcpkg itself (pyproject.toml before-all)
+          fi
+          git clone --quiet --filter=tree:0 --no-checkout https://github.com/microsoft/vcpkg "$RUNNER_TEMP/vcpkg"
+          git -C "$RUNNER_TEMP/vcpkg" checkout --quiet "$baseline"
+          if [[ "$RUNNER_OS" == Windows ]]; then
+            cmd //c "$RUNNER_TEMP\\vcpkg\\bootstrap-vcpkg.bat" -disableMetrics
+          else
+            "$RUNNER_TEMP/vcpkg/bootstrap-vcpkg.sh" -disableMetrics
+          fi
+          {
+            echo "VCPKG_ROOT=$RUNNER_TEMP/vcpkg"
+            echo "VCPKG_BINARY_SOURCES=clear;files,$RUNNER_TEMP/vcpkg-cache,readwrite"
+          } >> "$GITHUB_ENV"
+
+      - name: Cache vcpkg binary packages
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          path: ${{ github.workspace }}/vcpkg_installed
-          key: vcpkg-installed-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg-triplets/*.cmake') }}
+          path: ${{ runner.temp }}/vcpkg-cache
+          key: vcpkg-bin-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg-triplets/*.cmake') }}
           restore-keys: |
-            vcpkg-installed-${{ matrix.os }}-${{ matrix.arch }}-
+            vcpkg-bin-${{ matrix.os }}-${{ matrix.arch }}-
           lookup-only: ${{ github.ref_type == 'tag' }} # zizmor: ignore[cache-poisoning] release builds never restore
 
       # macOS: build the vcpkg dependencies with the wheel's deployment target.
@@ -204,7 +233,7 @@ jobs:
         run: |
           brew install nasm
           export MACOSX_DEPLOYMENT_TARGET="$DEPLOYMENT_TARGET"
-          "$VCPKG_INSTALLATION_ROOT/vcpkg" install --triplet="$TRIPLET"
+          "$VCPKG_ROOT/vcpkg" install --triplet="$TRIPLET"
           {
             echo "MACOSX_DEPLOYMENT_TARGET=$DEPLOYMENT_TARGET"
             echo "CMAKE_PREFIX_PATH=$GITHUB_WORKSPACE/vcpkg_installed/$TRIPLET"
