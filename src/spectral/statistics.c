@@ -194,10 +194,9 @@ aubio_specdesc_rolloff (aubio_specdesc_t *o UNUSED, const cvec_t * spec,
     desc->data[0] = 0.;
   } else {
     cumsum *= 0.95;
-    // j counts the bins summed so far, so bins [0, j) hold 95% of the
-    // energy: the documented "bin number below which 95% of the energy is
-    // found", as aubio has always returned. The bound keeps rounding from
-    // walking off the end of norm.
+    // j counts the bins summed so far; the result is the index of the bin
+    // that reaches 95% of the energy, in [0, length - 1] (upstream gh-318).
+    // The bound keeps rounding from walking off the end of norm.
     j = 0;
     while (rollsum < cumsum && j < spec->length) {
       rollsum += SQR (spec->norm[j]);
