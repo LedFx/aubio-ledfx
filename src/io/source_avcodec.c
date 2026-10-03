@@ -163,9 +163,8 @@ aubio_source_avcodec_t * new_aubio_source_avcodec(const char_t * path,
   s->hop_size = hop_size;
   s->channels = 1;
 
-  s->path = AUBIO_ARRAY(char_t, strnlen(path, PATH_MAX) + 1);
+  s->path = aubio_str_copy_path(path);
   if (!s->path) goto beach;
-  strncpy(s->path, path, strnlen(path, PATH_MAX) + 1);
 
 #if LIBAVFORMAT_VERSION_INT < AV_VERSION_INT(58,0,0)
   // register all formats and codecs

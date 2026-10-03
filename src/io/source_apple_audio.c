@@ -97,8 +97,8 @@ uint_t aubio_source_apple_audio_open (aubio_source_apple_audio_t *s, const char_
   OSStatus err = noErr;
   UInt32 propSize;
 
-  s->path = AUBIO_ARRAY(char_t, strnlen(path, PATH_MAX) + 1);
-  strncpy(s->path, path, strnlen(path, PATH_MAX) + 1);
+  s->path = aubio_str_copy_path(path);
+  if (!s->path) goto beach;
 
   // open the resource url
   CFURLRef fileURL = createURLFromPath(s->path);

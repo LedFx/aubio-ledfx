@@ -48,3 +48,19 @@ uint_t aubio_str_path_has_extension(const char_t *filename,
   const char_t *ext = aubio_str_get_extension(filename);
   return aubio_str_extension_matches(ext, pattern);
 }
+
+char_t *aubio_str_copy_path(const char_t *path)
+{
+  size_t len;
+  char_t *copy;
+  if (!path) return NULL;
+  // a longer path can't be opened, and copying part of it names another file
+  len = strnlen(path, PATH_MAX);
+  if (len == PATH_MAX) {
+    AUBIO_ERR("path is %d characters or longer: %.64s...\n", PATH_MAX, path);
+    return NULL;
+  }
+  copy = AUBIO_ARRAY(char_t, len + 1);
+  if (copy) AUBIO_MEMCPY(copy, path, len + 1);
+  return copy;
+}

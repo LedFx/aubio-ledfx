@@ -70,8 +70,8 @@ aubio_sink_sndfile_t * new_aubio_sink_sndfile(const char_t * path, uint_t sample
     goto beach;
   }
 
-  s->path = AUBIO_ARRAY(char_t, strnlen(path, PATH_MAX) + 1);
-  strncpy(s->path, path, strnlen(path, PATH_MAX) + 1);
+  s->path = aubio_str_copy_path(path);
+  if (!s->path) goto beach;
 
   s->samplerate = 0;
   s->channels = 0;
