@@ -1,18 +1,23 @@
 {
   "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/main/docs/vcpkg.schema.json",
   "name": "aubio-ledfx",
-  "version-string": "0.4.11",
+  "version-string": "0.4.12",
   "description": "aubio is a library for audio and music analysis, synthesis, and effects",
   "builtin-baseline": "c76c06644034521fb761a39f8f52d8e87d1103d5",
   "vcpkg-configuration": {
-    "overlay-ports": ["./vcpkg-ports"]
+    "overlay-ports": [
+      "./vcpkg-ports"
+    ]
   },
   "dependencies": [
     "pkgconf",
     {
       "name": "libsndfile",
       "default-features": false,
-      "features": ["external-libs", "mpeg"]
+      "features": [
+        "external-libs",
+        "mpeg"
+      ]
     },
     "libsamplerate",
     "libvorbis",
@@ -21,7 +26,11 @@
     {
       "name": "ffmpeg",
       "default-features": false,
-      "features": ["avcodec", "avformat", "swresample"]
+      "features": [
+        "avcodec",
+        "avformat",
+        "swresample"
+      ]
     }
   ]
 }

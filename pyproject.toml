@@ -4,7 +4,7 @@ build-backend = "mesonpy"
 
 [project]
 name = "aubio-ledfx"
-version = "0.4.11"
+version = "0.4.12"
 description = "A collection of tools for music analysis"
 readme = "python/README.md"
 license = {text = "GNU/GPL version 3"}
