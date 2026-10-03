@@ -86,15 +86,15 @@ void aubio_tempo_do(aubio_tempo_t *o, const fvec_t * input, fvec_t * tempo)
   /* end of second level loop */
   tempo->data[0] = 0; /* reset tactus */
   //i=0;
-  for (i = 1; i < o->out->data[0]; i++ ) {
+  for (i = 1; (smpl_t)i < o->out->data[0]; i++ ) {
     /* if current frame is a predicted tactus */
-    if (o->blockpos == FLOOR(o->out->data[i])) {
+    if ((smpl_t)o->blockpos == FLOOR(o->out->data[i])) {
       tempo->data[0] = o->out->data[i] - FLOOR(o->out->data[i]); /* set tactus */
       /* test for silence */
       if (aubio_silence_detection(input, o->silence)==1) {
         tempo->data[0] = 0; // unset beat if silent
       }
-      o->last_beat = o->total_frames + (uint_t)ROUND(tempo->data[0] * o->hop_size);
+      o->last_beat = o->total_frames + (uint_t)ROUND(tempo->data[0] * (smpl_t)o->hop_size);
       o->last_tatum = o->last_beat;
     }
   }
@@ -109,12 +109,12 @@ uint_t aubio_tempo_get_last (aubio_tempo_t *o)
 
 smpl_t aubio_tempo_get_last_s (aubio_tempo_t *o)
 {
-  return aubio_tempo_get_last (o) / (smpl_t) (o->samplerate);
+  return (smpl_t)aubio_tempo_get_last (o) / (smpl_t)o->samplerate;
 }
 
 smpl_t aubio_tempo_get_last_ms (aubio_tempo_t *o)
 {
-  return aubio_tempo_get_last_s (o) * 1000.;
+  return aubio_tempo_get_last_s (o) * 1000;
 }
 
 uint_t aubio_tempo_set_delay(aubio_tempo_t * o, sint_t delay) {
@@ -123,12 +123,12 @@ uint_t aubio_tempo_set_delay(aubio_tempo_t * o, sint_t delay) {
 }
 
 uint_t aubio_tempo_set_delay_s(aubio_tempo_t * o, smpl_t delay) {
-  o->delay = delay * o->samplerate;
+  o->delay = (sint_t)ROUND(delay * (smpl_t)o->samplerate);
   return AUBIO_OK;
 }
 
 uint_t aubio_tempo_set_delay_ms(aubio_tempo_t * o, smpl_t delay) {
-  return aubio_tempo_set_delay_s(o, delay / 1000.);
+  return aubio_tempo_set_delay_s(o, delay / 1000);
 }
 
 sint_t aubio_tempo_get_delay(aubio_tempo_t * o) {
@@ -136,11 +136,11 @@ sint_t aubio_tempo_get_delay(aubio_tempo_t * o) {
 }
 
 smpl_t aubio_tempo_get_delay_s(aubio_tempo_t * o) {
-  return o->delay / (smpl_t)(o->samplerate);
+  return (smpl_t)o->delay / (smpl_t)o->samplerate;
 }
 
 smpl_t aubio_tempo_get_delay_ms(aubio_tempo_t * o) {
-  return aubio_tempo_get_delay_s(o) * 1000.;
+  return aubio_tempo_get_delay_s(o) * 1000;
 }
 
 uint_t aubio_tempo_set_silence(aubio_tempo_t * o, smpl_t silence) {
@@ -190,11 +190,11 @@ aubio_tempo_t * new_aubio_tempo (const char_t * tempo_mode,
   }
 
   /* length of observations, worth about 6 seconds */
-  o->winlen = aubio_next_power_of_two(5.8 * samplerate / hop_size);
+  o->winlen = aubio_next_power_of_two((uint_t)(5.8 * samplerate / hop_size));
   if (o->winlen < 4) o->winlen = 4;
   o->step = o->winlen/4;
   o->blockpos = 0;
-  o->threshold = 0.3;
+  o->threshold = (smpl_t)0.3;
   o->silence = -90.;
   o->total_frames = 0;
   o->last_beat = 0;
@@ -257,13 +257,13 @@ uint_t aubio_tempo_was_tatum (aubio_tempo_t *o)
 {
   uint_t last_tatum_distance = o->total_frames - o->last_tatum;
   smpl_t beat_period = aubio_tempo_get_period(o);
-  smpl_t tatum_period = beat_period / o->tatum_signature;
+  smpl_t tatum_period = beat_period / (smpl_t)o->tatum_signature;
   if (last_tatum_distance < o->hop_size) {
     o->last_tatum = o->last_beat;
     return 2;
   }
-  else if (last_tatum_distance > tatum_period) {
-    if ( last_tatum_distance + o->hop_size > beat_period ) {
+  else if ((smpl_t)last_tatum_distance > tatum_period) {
+    if ( (smpl_t)(last_tatum_distance + o->hop_size) > beat_period ) {
       // next beat is too close, pass
       return 0;
     }
@@ -274,7 +274,7 @@ uint_t aubio_tempo_was_tatum (aubio_tempo_t *o)
 }
 
 smpl_t aubio_tempo_get_last_tatum (aubio_tempo_t *o) {
-  return (smpl_t)o->last_tatum - o->delay;
+  return (smpl_t)o->last_tatum - (smpl_t)o->delay;
 }
 
 uint_t aubio_tempo_set_tatum_signature (aubio_tempo_t *o, uint_t signature) {

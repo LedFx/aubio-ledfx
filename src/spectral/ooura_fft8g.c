@@ -687,21 +687,22 @@ void makewt(int nw, int *ip, smpl_t *w)
 {
     void bitrv2(int n, int *ip, smpl_t *a);
     int j, nwh;
-    smpl_t delta, x, y;
+    double delta;
+    smpl_t x, y;
 
     ip[0] = nw;
     ip[1] = 1;
     if (nw > 2) {
         nwh = nw >> 1;
-        delta = ATAN(1.0) / nwh;
+        delta = atan(1.0) / nwh;
         w[0] = 1;
         w[1] = 0;
-        w[nwh] = COS(delta * nwh);
+        w[nwh] = (smpl_t)cos(delta * nwh);
         w[nwh + 1] = w[nwh];
         if (nwh > 2) {
             for (j = 2; j < nwh; j += 2) {
-                x = COS(delta * j);
-                y = SIN(delta * j);
+                x = (smpl_t)cos(delta * j);
+                y = (smpl_t)sin(delta * j);
                 w[j] = x;
                 w[j + 1] = y;
                 w[nw - j] = y;
@@ -722,17 +723,17 @@ void makewt(int nw, int *ip, smpl_t *w)
 void makect(int nc, int *ip, smpl_t *c)
 {
     int j, nch;
-    smpl_t delta;
+    double delta;
 
     ip[1] = nc;
     if (nc > 1) {
         nch = nc >> 1;
-        delta = ATAN(1.0) / nch;
-        c[0] = COS(delta * nch);
+        delta = atan(1.0) / nch;
+        c[0] = (smpl_t)cos(delta * nch);
         c[nch] = (smpl_t)0.5 * c[0];
         for (j = 1; j < nch; j++) {
-            c[j] = (smpl_t)0.5 * COS(delta * j);
-            c[nc - j] = (smpl_t)0.5 * SIN(delta * j);
+            c[j] = (smpl_t)(0.5 * cos(delta * j));
+            c[nc - j] = (smpl_t)(0.5 * sin(delta * j));
         }
     }
 }

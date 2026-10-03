@@ -38,6 +38,11 @@ class Test_aubio_sink(object):
         with assert_raises(RuntimeError):
             sink(get_tmp_sink_path(), 44100, -1)
 
+    def test_path_too_long(self):
+        # rejected, rather than copied without its terminating NUL
+        with assert_raises(RuntimeError):
+            sink('a' * 70000 + '.wav', 44100)
+
     def test_wrong_channels_too_large(self):
         with assert_raises(RuntimeError):
             sink(get_tmp_sink_path(), 44100, 202020)
@@ -71,6 +76,8 @@ class Test_aubio_sink(object):
             g(vec, read)
             total_frames += read
             if read < f.hop_size: break
+        # finishes the file, and Windows can't delete one that is still open
+        g.close()
         del_tmp_sink_path(sink_path)
 
     @parametrize('hop_size, samplerate, path', all_params)
@@ -85,6 +92,8 @@ class Test_aubio_sink(object):
             g.do_multi(vec, read)
             total_frames += read
             if read < f.hop_size: break
+        # finishes the file, and Windows can't delete one that is still open
+        g.close()
         del_tmp_sink_path(sink_path)
 
     def test_close_file(self):

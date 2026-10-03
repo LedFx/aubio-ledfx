@@ -339,7 +339,8 @@ Py_{shortname}_new (PyTypeObject * pytype, PyObject * args, PyObject * kwds)
         out = """
 // init {shortname}
 static int
-Py_{shortname}_init (Py_{shortname} * self, PyObject * args, PyObject * kwds)
+Py_{shortname}_init (Py_{shortname} * self, PyObject * Py_UNUSED(args),
+    PyObject * Py_UNUSED(kwds))
 {{
 """.format(**self.__dict__)
         new_name = get_name(self.new_proto)
@@ -381,7 +382,7 @@ static PyMemberDef Py_{shortname}_members[] = {{
             tmp = "  {{\"{name}\", {ttype}, offsetof (Py_{shortname}, {name}), READONLY, \"TODO documentation\"}},\n"
             pytype = member_types[p['type']]
             out += tmp.format(name = p['name'], ttype = pytype, shortname = self.shortname)
-        out += """  {NULL}, // sentinel
+        out += """  {0}, // sentinel
 };
 """
         return out
@@ -390,7 +391,7 @@ static PyMemberDef Py_{shortname}_members[] = {{
         out = """
 // del {shortname}
 static void
-Py_{shortname}_del  (Py_{shortname} * self, PyObject * unused)
+Py_{shortname}_del  (Py_{shortname} * self)
 {{""".format(**self.__dict__)
         for input_param in self.do_inputs:
             if input_param['type'] == 'fmat_t *':
@@ -414,11 +415,14 @@ Py_{shortname}_del  (Py_{shortname} * self, PyObject * unused)
         return out
 
     def gen_do(self, method = 'do'):
+        # 'do' is the type's tp_call (a ternaryfunc), 'rdo' a METH_VARARGS
+        # method: each must have its slot's exact parameter list
+        kwds = ", PyObject * Py_UNUSED(kwds)" if method == 'do' else ""
         out = """
 // do {shortname}
 static PyObject*
-Pyaubio_{shortname}_{method}  (Py_{shortname} * self, PyObject * args)
-{{""".format(method = method, **self.__dict__)
+Pyaubio_{shortname}_{method}  (Py_{shortname} * self, PyObject * args{kwds})
+{{""".format(method = method, kwds = kwds, **self.__dict__)
         input_params = self.do_inputs
         output_params = self.do_outputs
         #print input_params
@@ -526,13 +530,14 @@ Pyaubio_{shortname}_{method}  (Py_{shortname} * self, PyObject * args)
             if len(params):
                 paramlist = "," + paramlist
             pyparamtypes = ''.join([pyargparse_chars[p['type']] for p in params])
+            args = "args" if len(refs) and len(pyparamtypes) else "Py_UNUSED(args)"
             out += """
 static PyObject *
-Pyaubio_{shortname}_set_{param} (Py_{shortname} *self, PyObject *args)
+Pyaubio_{shortname}_set_{param} (Py_{shortname} *self, PyObject *{args})
 {{
   uint_t err = 0;
   {paramdecls}
-""".format(param = param, paramdecls = paramdecls, **self.__dict__)
+""".format(param = param, paramdecls = paramdecls, args = args, **self.__dict__)
 
             if len(refs) and len(pyparamtypes):
                 out += """
@@ -579,7 +584,7 @@ Pyaubio_{shortname}_set_{param} (Py_{shortname} *self, PyObject *args)
             ptypeconv = pyfromtype_fn[paramtype]
             out += """
 static PyObject *
-Pyaubio_{shortname}_get_{param} (Py_{shortname} *self, PyObject *unused)
+Pyaubio_{shortname}_get_{param} (Py_{shortname} *self, PyObject *Py_UNUSED(unused))
 {{
   {ptype} {param} = aubio_{shortname}_get_{param} (self->o);
   return (PyObject *){ptypeconv} ({param});
@@ -610,7 +615,7 @@ static PyMethodDef Py_{shortname}_methods[] = {{""".format(**self.__dict__)
   {{"{shortname}", (PyCFunction) Py{name},
     METH_VARARGS, ""}},""".format(name = name, shortname = shortname)
         out += """
-  {NULL} /* sentinel */
+  {0} /* sentinel */
 };
 """
         return out
@@ -618,54 +623,16 @@ static PyMethodDef Py_{shortname}_methods[] = {{""".format(**self.__dict__)
     def gen_typeobject(self):
         return """
 PyTypeObject Py_{shortname}Type = {{
-  //PyObject_HEAD_INIT (NULL)
-  //0,
   PyVarObject_HEAD_INIT (NULL, 0)
-  "aubio.{shortname}",
-  sizeof (Py_{shortname}),
-  0,
-  (destructor) Py_{shortname}_del,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  (ternaryfunc)Pyaubio_{shortname}_do,
-  0,
-  0,
-  0,
-  0,
-  Py_TPFLAGS_DEFAULT,
-  Py_{shortname}_doc,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Py_{shortname}_methods,
-  Py_{shortname}_members,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  (initproc) Py_{shortname}_init,
-  0,
-  Py_{shortname}_new,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
+  .tp_name = "aubio.{shortname}",
+  .tp_basicsize = sizeof (Py_{shortname}),
+  .tp_dealloc = (destructor) Py_{shortname}_del,
+  .tp_call = (ternaryfunc) Pyaubio_{shortname}_do,
+  .tp_flags = Py_TPFLAGS_DEFAULT,
+  .tp_doc = Py_{shortname}_doc,
+  .tp_methods = Py_{shortname}_methods,
+  .tp_members = Py_{shortname}_members,
+  .tp_init = (initproc) Py_{shortname}_init,
+  .tp_new = Py_{shortname}_new,
 }};
 """.format(**self.__dict__)

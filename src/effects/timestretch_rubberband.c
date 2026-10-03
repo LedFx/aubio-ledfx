@@ -188,7 +188,7 @@ uint_t
 aubio_timestretch_set_transpose(aubio_timestretch_t * p, smpl_t transpose)
 {
   if (transpose >= -24. && transpose <= 24.) {
-    smpl_t pitchscale = POW(2., transpose / 12.);
+    smpl_t pitchscale = (smpl_t)pow(2., transpose / 12.);
     return aubio_timestretch_set_pitchscale(p, pitchscale);
   } else {
     AUBIO_ERR("timestretch: could not set transpose to '%f',"
@@ -200,7 +200,7 @@ aubio_timestretch_set_transpose(aubio_timestretch_t * p, smpl_t transpose)
 smpl_t
 aubio_timestretch_get_transpose(aubio_timestretch_t * p)
 {
-  return 12. * LOG(p->pitchscale) / LOG(2.0);
+  return (smpl_t)(12. * log(p->pitchscale) / log(2.0));
 }
 
 sint_t

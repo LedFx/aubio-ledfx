@@ -50,7 +50,7 @@ int main (void)
   if (aubio_pitch_set_unit(o, "bin")) return 1;
   EXPECT_LOGGED(if (!aubio_pitch_set_unit(o, "unknown")) return 1);
 
-  if (aubio_pitch_set_tolerance(o, 0.3)) return 1;
+  if (aubio_pitch_set_tolerance(o, (smpl_t)0.3)) return 1;
   if (aubio_pitch_set_silence(o, 0)) return 1;
   if (aubio_pitch_set_silence(o, -200)) return 1;
   EXPECT_LOGGED(if (!aubio_pitch_set_silence(o, -300)) return 1);

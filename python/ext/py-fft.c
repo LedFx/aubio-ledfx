@@ -65,7 +65,7 @@ Py_fft_new (PyTypeObject * type, PyObject * args, PyObject * kwds)
 }
 
 static int
-Py_fft_init (Py_fft * self, PyObject * args, PyObject * kwds)
+Py_fft_init (Py_fft * self, PyObject * Py_UNUSED(args), PyObject * Py_UNUSED(kwds))
 {
   self->o = new_aubio_fft (self->win_s);
   if (self->o == NULL) {
@@ -81,7 +81,7 @@ Py_fft_init (Py_fft * self, PyObject * args, PyObject * kwds)
 }
 
 static void
-Py_fft_del (Py_fft *self, PyObject *unused)
+Py_fft_del (Py_fft *self)
 {
   Py_XDECREF(self->doout);
   Py_XDECREF(self->rdoout);
@@ -92,7 +92,7 @@ Py_fft_del (Py_fft *self, PyObject *unused)
 }
 
 static PyObject *
-Py_fft_do(Py_fft * self, PyObject * args)
+Py_fft_do(Py_fft * self, PyObject * args, PyObject * Py_UNUSED(kwds))
 {
   PyObject *input, *owner;
   cvec_t c_out;
@@ -127,7 +127,7 @@ Py_fft_do(Py_fft * self, PyObject * args)
 static PyMemberDef Py_fft_members[] = {
   {"win_s", T_INT, offsetof (Py_fft, win_s), READONLY,
     "size of the window"},
-  {NULL}
+  {0}
 };
 
 static PyObject *
@@ -163,55 +163,19 @@ Py_fft_rdo(Py_fft * self, PyObject * args)
 static PyMethodDef Py_fft_methods[] = {
   {"rdo", (PyCFunction) Py_fft_rdo, METH_VARARGS,
     "synthesis of spectral grain"},
-  {NULL}
+  {0}
 };
 
 PyTypeObject Py_fftType = {
   PyVarObject_HEAD_INIT (NULL, 0)
-  "aubio.fft",
-  sizeof (Py_fft),
-  0,
-  (destructor) Py_fft_del,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  (ternaryfunc)Py_fft_do,
-  0,
-  0,
-  0,
-  0,
-  Py_TPFLAGS_DEFAULT,
-  Py_fft_doc,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  Py_fft_methods,
-  Py_fft_members,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  (initproc) Py_fft_init,
-  0,
-  Py_fft_new,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
-  0,
+  .tp_name = "aubio.fft",
+  .tp_basicsize = sizeof (Py_fft),
+  .tp_dealloc = (destructor) Py_fft_del,
+  .tp_call = (ternaryfunc)Py_fft_do,
+  .tp_flags = Py_TPFLAGS_DEFAULT,
+  .tp_doc = Py_fft_doc,
+  .tp_methods = Py_fft_methods,
+  .tp_members = Py_fft_members,
+  .tp_init = (initproc) Py_fft_init,
+  .tp_new = Py_fft_new,
 };

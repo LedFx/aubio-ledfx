@@ -1,7 +1,7 @@
 #include "aubio-types.h"
 
 PyObject *
-Py_aubio_window(PyObject *self, PyObject *args)
+Py_aubio_window(PyObject *Py_UNUSED(self), PyObject *args)
 {
   char_t *wintype = NULL;
   uint_t winlen = 0;
@@ -21,7 +21,7 @@ Py_aubio_window(PyObject *self, PyObject *args)
 }
 
 PyObject *
-Py_aubio_level_lin(PyObject *self, PyObject *args)
+Py_aubio_level_lin(PyObject *Py_UNUSED(self), PyObject *args)
 {
   PyObject *input;
   fvec_t vec;
@@ -51,7 +51,7 @@ Py_aubio_level_lin(PyObject *self, PyObject *args)
 }
 
 PyObject *
-Py_aubio_db_spl(PyObject *self, PyObject *args)
+Py_aubio_db_spl(PyObject *Py_UNUSED(self), PyObject *args)
 {
   PyObject *input;
   fvec_t vec;
@@ -81,7 +81,7 @@ Py_aubio_db_spl(PyObject *self, PyObject *args)
 }
 
 PyObject *
-Py_aubio_silence_detection(PyObject *self, PyObject *args)
+Py_aubio_silence_detection(PyObject *Py_UNUSED(self), PyObject *args)
 {
   PyObject *input;
   fvec_t vec;
@@ -112,7 +112,7 @@ Py_aubio_silence_detection(PyObject *self, PyObject *args)
 }
 
 PyObject *
-Py_aubio_level_detection(PyObject *self, PyObject *args)
+Py_aubio_level_detection(PyObject *Py_UNUSED(self), PyObject *args)
 {
   PyObject *input;
   fvec_t vec;
@@ -143,7 +143,7 @@ Py_aubio_level_detection(PyObject *self, PyObject *args)
 }
 
 PyObject *
-Py_aubio_shift(PyObject *self, PyObject *args)
+Py_aubio_shift(PyObject *Py_UNUSED(self), PyObject *args)
 {
   PyObject *input;
   fvec_t vec;
@@ -167,7 +167,7 @@ Py_aubio_shift(PyObject *self, PyObject *args)
 }
 
 PyObject *
-Py_aubio_ishift(PyObject *self, PyObject *args)
+Py_aubio_ishift(PyObject *Py_UNUSED(self), PyObject *args)
 {
   PyObject *input;
   fvec_t vec;
@@ -191,7 +191,7 @@ Py_aubio_ishift(PyObject *self, PyObject *args)
 }
 
 PyObject*
-Py_aubio_hztomel(PyObject *self, PyObject *args, PyObject *kwds)
+Py_aubio_hztomel(PyObject *Py_UNUSED(self), PyObject *args, PyObject *kwds)
 {
   smpl_t v;
   PyObject *htk = NULL;
@@ -208,7 +208,7 @@ Py_aubio_hztomel(PyObject *self, PyObject *args, PyObject *kwds)
 }
 
 PyObject*
-Py_aubio_meltohz(PyObject *self, PyObject *args, PyObject *kwds)
+Py_aubio_meltohz(PyObject *Py_UNUSED(self), PyObject *args, PyObject *kwds)
 {
   smpl_t v;
   PyObject *htk = NULL;
@@ -225,7 +225,7 @@ Py_aubio_meltohz(PyObject *self, PyObject *args, PyObject *kwds)
 }
 
 PyObject*
-Py_aubio_hztomel_htk(PyObject *self, PyObject *args)
+Py_aubio_hztomel_htk(PyObject *Py_UNUSED(self), PyObject *args)
 {
   smpl_t v;
   if (!PyArg_ParseTuple(args, AUBIO_NPY_SMPL_CHR, &v)) {
@@ -235,7 +235,7 @@ Py_aubio_hztomel_htk(PyObject *self, PyObject *args)
 }
 
 PyObject*
-Py_aubio_meltohz_htk(PyObject *self, PyObject *args)
+Py_aubio_meltohz_htk(PyObject *Py_UNUSED(self), PyObject *args)
 {
   smpl_t v;
   if (!PyArg_ParseTuple(args, AUBIO_NPY_SMPL_CHR, &v)) {

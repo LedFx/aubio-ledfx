@@ -83,7 +83,7 @@ int test_wrong_params()
   uint_t win_s = 512; // fft size
   uint_t n_filters = 40; // number of filters
   uint_t n_coeffs = 13; // number of coefficients
-  smpl_t samplerate = 16000.; // samplerate
+  uint_t samplerate = 16000; // samplerate
 
   EXPECT_LOGGED(if (new_aubio_mfcc(    0, n_filters, n_coeffs, samplerate)) return 1);
   EXPECT_LOGGED(if (new_aubio_mfcc(win_s,         0, n_coeffs, samplerate)) return 1);

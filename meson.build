@@ -70,7 +70,9 @@ host_system = host_machine.system()
 
 # Ensure POSIX feature macros expose prototypes like strerror_r on glibc
 if host_system != 'windows'
-  add_project_arguments('-D_POSIX_C_SOURCE=200112L', language: 'c')
+  # 200809L, as Python.h defines it: a different value is a redefinition
+  # warning in every file of the extension
+  add_project_arguments('-D_POSIX_C_SOURCE=200809L', language: 'c')
 endif
 
 # Security hardening compiler flags
@@ -390,6 +392,18 @@ if not get_option('intelipp').disabled()
   endif
 endif
 
+# MSVC deprecates the standard C and POSIX functions (strncpy, fopen, strdup)
+# in favour of its own non-portable variants (strncpy_s, _strdup, ...).
+if cc.get_id() == 'msvc'
+  add_project_arguments('-D_CRT_SECURE_NO_WARNINGS',
+    '-D_CRT_NONSTDC_NO_DEPRECATE', language: 'c')
+endif
+
+# smpl_t math stays in smpl_t, and setup math done in double is narrowed
+# once, explicitly: an implicit double -> float or float -> integer
+# conversion is a mistake to report, as MSVC does by default (C4244, C4305).
+add_project_arguments(cc.get_supported_arguments('-Wfloat-conversion'), language: 'c')
+
 # Calling an Apple API newer than the deployment target, without checking
 # it's there, makes the library fail to load on older macOS: an error, not a
 # warning.
@@ -446,6 +460,9 @@ single_feature_specs = [
     # only the example programs talk to JACK (examples/jackio.c, which link
     # it themselves): libaubio must not depend on libjack
     'link_library': false,
+    # JACK ships a .pc file; a CMake lookup only warns about other packages'
+    # CMake configs
+    'method': 'pkg-config',
     'auto_message': 'JACK not found, disabling support automatically',
     'error_message': 'JACK support was requested but the dependency could not be found',
   },
@@ -466,14 +483,16 @@ if host_system == 'linux'
   linux_transitive_specs = [
     {'pkg': 'opus', 'fallback_libs': ['opus']},
     {'pkg': 'mp3lame', 'fallback_libs': ['mp3lame']},
-    {'pkg': 'mpg123', 'fallback_libs': ['mpg123']},
+    {'pkg': 'libmpg123', 'fallback_libs': ['mpg123']},
     {'pkg': 'vorbis', 'fallback_libs': ['vorbis']},
     {'pkg': 'vorbisenc', 'fallback_libs': ['vorbisenc']},
     {'pkg': 'ogg', 'fallback_libs': ['ogg']},
   ]
 
+  # pkg-config only: these are vcpkg's .pc files or nothing, and meson's CMake
+  # fallback only adds warnings about vcpkg's CMake configs
   foreach spec : linux_transitive_specs
-    dep = dependency(spec['pkg'], required: false, disabler: true)
+    dep = dependency(spec['pkg'], method: 'pkg-config', required: false, disabler: true)
     if not dep.found() and vcpkg_found and spec.has_key('fallback_libs')
       foreach lib_name : spec['fallback_libs']
         dep = cc.find_library(lib_name, dirs: vcpkg_library_dirs, required: false)
@@ -498,11 +517,11 @@ foreach spec : single_feature_specs
     continue
   endif
 
-  has_version = spec.has_key('version')
-  if has_version
-    dep = dependency(spec['pkg'], version: spec['version'], required: false, disabler: true)
+  method = spec.get('method', 'auto')
+  if spec.has_key('version')
+    dep = dependency(spec['pkg'], version: spec['version'], method: method, required: false, disabler: true)
   else
-    dep = dependency(spec['pkg'], required: false, disabler: true)
+    dep = dependency(spec['pkg'], method: method, required: false, disabler: true)
   endif
 
   if not dep.found() and vcpkg_found and spec.has_key('fallback_libs')

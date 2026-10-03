@@ -40,12 +40,13 @@ gen_wrapper_sources = custom_target('generate_python_wrappers',
     'gen-tss.c',
     'gen-wavetable.c',
   ],
+  # smpl_t arguments are parsed as float or double to match the library
   command: [
     py,
     gen_external_script,
     meson.project_source_root() / 'src' / 'aubio.h',
     '@OUTDIR@',
-  ],
+  ] + (enable_double ? ['--double'] : []),
   depend_files: [gen_external_script, gen_code_script],
   # Set CC environment variable so gen_external.py can find the compiler
   env: {'CC': ' '.join(cc.cmd_array())},
@@ -80,6 +81,8 @@ pyaubio_c_args = [
   '-DUSE_LOCAL_AUBIO',
   '-DAUBIO_VERSION=' + aubio_version,
 ]
+# the public headers pick smpl_t: the bindings must agree with the library
+pyaubio_c_args += aubio_public_c_args
 
 # MSVC reads sources and writes string literals in the system code page
 # unless told otherwise, which mangles the non-ASCII note names (♯, ♭) and

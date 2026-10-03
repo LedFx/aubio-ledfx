@@ -61,11 +61,11 @@ beach:
 uint_t aubio_sampler_load( aubio_sampler_t * o, const char_t * uri )
 {
   if (o->source) del_aubio_source(o->source);
+  o->source = NULL;
 
   if (o->uri) AUBIO_FREE(o->uri);
-  o->uri = AUBIO_ARRAY(char_t, strnlen(uri, PATH_MAX) + 1);
-  strncpy(o->uri, uri, strnlen(uri, PATH_MAX));
-  o->uri[strnlen(uri, PATH_MAX)] = '\0';
+  o->uri = aubio_str_copy_path(uri);
+  if (!o->uri) return 1;
 
   o->source = new_aubio_source(uri, o->samplerate, o->blocksize);
   if (o->source) return 0;

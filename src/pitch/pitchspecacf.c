@@ -85,7 +85,7 @@ aubio_pitchspecacf_do (aubio_pitchspecacf_t * p, const fvec_t * input, fvec_t * 
   // get the minimum
   tau = fvec_min_elem (p->acf);
   // get the interpolated minimum
-  output->data[0] = fvec_quadratic_peak_pos (p->acf, tau) * 2.;
+  output->data[0] = fvec_quadratic_peak_pos (p->acf, tau) * 2;
 }
 
 void

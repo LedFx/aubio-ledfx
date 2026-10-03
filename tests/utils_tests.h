@@ -104,7 +104,7 @@ aubio_tests_capture_log (void)
 // assuming libbc is recent enough to supports these functions.
 extern void srandom(unsigned);
 extern int random(void);
-extern char mkstemp(const char *pat);
+// mkstemp (int mkstemp(char *)) is POSIX.1-2008, which meson.build selects
 
 #endif
 
@@ -114,9 +114,9 @@ void utils_init_random (void) {
   time_t now = time(0);
   struct tm *tm_struct = localtime(&now);
   size_t **tm_address = (void*)&tm_struct;
-  int seed = tm_struct->tm_sec + (size_t)tm_address;
+  unsigned int seed = (unsigned int)(tm_struct->tm_sec + (size_t)tm_address);
   //PRINT_WRN("current seed: %d\n", seed);
-  srandom ((unsigned int)seed);
+  srandom (seed);
 }
 
 // create_temp_sink / close_temp_sink

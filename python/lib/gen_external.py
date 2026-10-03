@@ -80,9 +80,12 @@ def get_preprocessor():
         if cpp_cmd is None:
             raise RuntimeError("No C compiler found. Please install gcc, clang, or MSVC and ensure it's in PATH.")
 
-    # Add preprocessor flag
-    if 'cl.exe' in cpp_cmd[0] or 'cl' == cpp_cmd[0]:
-        cpp_cmd += ['/E']  # MSVC preprocessor flag
+    # Add preprocessor flag. The compiler may come after a wrapper such as
+    # ccache ("ccache cl"); /nologo keeps cl's banner off stderr, which is
+    # otherwise reported as preprocessor warnings.
+    names = [os.path.basename(c).lower() for c in cpp_cmd]
+    if 'cl' in names or 'cl.exe' in names:
+        cpp_cmd += ['/nologo', '/E']  # MSVC preprocessor flags
     else:
         cpp_cmd += ['-E']  # GCC/Clang preprocessor flag
 
@@ -345,8 +348,11 @@ void add_generated_objects( PyObject *m );
     return sorted(sources_list)
 
 if __name__ == '__main__':
-    if len(sys.argv) > 1:
-        header = sys.argv[1]
-    if len(sys.argv) > 2:
-        output_path = sys.argv[2]
-    generate_external(header, output_path)
+    # gen_external.py [header [output_path]] [--double]
+    args = [a for a in sys.argv[1:] if a != '--double']
+    if len(args) > 0:
+        header = args[0]
+    if len(args) > 1:
+        output_path = args[1]
+    generate_external(header, output_path,
+            usedouble='--double' in sys.argv[1:])

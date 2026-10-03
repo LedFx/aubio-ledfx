@@ -33,7 +33,7 @@ int test_miditofreq (void)
 {
   smpl_t a, b;
   fprintf(stdout, "b = aubio_miditofreq(a): [");
-  for ( a = -123.; a < 400.; a += 20. ) {
+  for ( a = -123; a < 400; a += 20 ) {
     b = aubio_miditofreq(a);
     fprintf(stdout, "(%.2f,  %.2f), ", a, b);
   }
@@ -51,10 +51,10 @@ int test_miditofreq (void)
   a = 0;
   b = aubio_miditofreq(a);
   fprintf(stdout, "(%.2f,  %.2f), ", a, b);
-  a = 8.2e10;
+  a = (smpl_t)8.2e10;
   b = aubio_miditofreq(a);
   fprintf(stdout, "(%.2f,  %.2f), ", a, b);
-  a = -5.e10;
+  a = (smpl_t)-5.e10;
   fprintf(stdout, "(%.2f,  %.2f)", a, b);
   fprintf(stdout, "]\n");
   return 0;
@@ -64,7 +64,7 @@ int test_freqtomidi (void)
 {
   smpl_t midi, freq;
   fprintf(stdout, "b = aubio_freqtomidi(a): [");
-  for ( freq = 0.; freq < 30000.; freq += 440. ) {
+  for ( freq = 0; freq < 30000; freq += 440 ) {
     midi = aubio_freqtomidi(freq);
     fprintf(stdout, "(%.2f,  %.2f), ", freq, midi);
   }
@@ -83,7 +83,7 @@ int test_freqtomidi (void)
   freq = 0;
   midi = aubio_freqtomidi(freq);
   fprintf(stdout, "(%.2f,  %.2f), ", freq, midi);
-  freq = 8.2e10;
+  freq = (smpl_t)8.2e10;
   midi = aubio_freqtomidi(freq);
   fprintf(stdout, "(%.2f,  %.2f), ", freq, midi);
   freq = -5.;
@@ -103,7 +103,7 @@ int test_aubio_window (void)
   fvec_print(window);
   del_fvec(window);
 
-  window_size /= 2.;
+  window_size /= 2;
   window = new_aubio_window("parzen", window_size);
   fvec_print(window);
   del_fvec(window);
@@ -122,7 +122,7 @@ int test_quadratic_peak_mag_boundary (void)
 
   // Fill with test data - simple linear ramp
   for (i = 0; i < x->length; i++) {
-    x->data[i] = (smpl_t)i + 1.0;  // Values 1.0 to 10.0
+    x->data[i] = (smpl_t)i + 1;  // Values 1.0 to 10.0
   }
 
   // Test at first position (boundary)
@@ -139,13 +139,13 @@ int test_quadratic_peak_mag_boundary (void)
   // Test at last position (boundary)
   // When pos=9, index=(uint_t)(9-0.5)+1 = 8+1 = 9
   // This would try to access x[8], x[9], x[10] - x[10] is OOB!
-  mag = fvec_quadratic_peak_mag(x, x->length - 1);
+  mag = fvec_quadratic_peak_mag(x, (smpl_t)(x->length - 1));
   fprintf(stdout, "quadratic_peak_mag at pos %d = %f (should not crash)\n", x->length - 1, mag);
   // Should return x->data[9] safely without accessing x[10]
   assert(mag == x->data[x->length - 1]);
 
   // Test near last position (fractional, should trigger bounds check)
-  mag = fvec_quadratic_peak_mag(x, x->length - 1.5);
+  mag = fvec_quadratic_peak_mag(x, (smpl_t)x->length - (smpl_t)1.5);
   fprintf(stdout, "quadratic_peak_mag at pos %f = %f (should not crash)\n", x->length - 1.5, mag);
   // Should return safely without crash
 
@@ -164,7 +164,7 @@ int test_quadratic_peak_mag_boundary (void)
   assert(mag == 0.0);
 
   // Test out of bounds (beyond length)
-  mag = fvec_quadratic_peak_mag(x, x->length + 1.0);
+  mag = fvec_quadratic_peak_mag(x, (smpl_t)(x->length + 1));
   fprintf(stdout, "quadratic_peak_mag at pos %d = %f (expected 0.0)\n", x->length + 1, mag);
   assert(mag == 0.0);
 

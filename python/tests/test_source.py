@@ -156,6 +156,11 @@ class Test_aubio_source_wrong_params(object):
         with assert_raises(RuntimeError):
             source('path_to/unexisting file.mp3')
 
+    def test_path_too_long(self):
+        # rejected, rather than copied without its terminating NUL
+        with assert_raises(RuntimeError):
+            source('a' * 70000 + '.wav')
+
 @unittest.skipIf(default_test_sound is None, no_sounds_msg)
 class Test_aubio_source_wrong_params_with_file(TestCase):
 

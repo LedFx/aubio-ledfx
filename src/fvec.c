@@ -109,7 +109,7 @@ void fvec_ones(fvec_t *s) {
 void fvec_rev(fvec_t *s) {
   uint_t j;
   AUBIO_ASSERT_NOT_NULL(s);
-  for (j=0; j< FLOOR((smpl_t)s->length/2); j++) {
+  for (j=0; j< s->length/2; j++) {
     ELEM_SWAP(s->data[j], s->data[s->length-1-j]);
   }
 }

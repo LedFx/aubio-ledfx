@@ -68,7 +68,7 @@ new_aubio_pitchyinfast (uint_t bufsize)
     del_aubio_pitchyinfast(o);
     return NULL;
   }
-  o->tol = 0.15;
+  o->tol = (smpl_t)0.15;
   o->peak_pos = 0;
   return o;
 }
@@ -159,7 +159,7 @@ aubio_pitchyinfast_do (aubio_pitchyinfast_t * o, const fvec_t * input, fvec_t * 
     aubio_fft_rdo_complex(o->fft, compmul, rt_of_tau);
     // compute square difference r_t(tau) = sqdiff - 2 * r_t_tau[W-1:-1]
     for (tau = 0; tau < W; tau++) {
-      yin->data[tau] = o->sqdiff->data[tau] - 2. * rt_of_tau->data[tau+W];
+      yin->data[tau] = o->sqdiff->data[tau] - 2 * rt_of_tau->data[tau+W];
     }
   }
 
@@ -169,7 +169,7 @@ aubio_pitchyinfast_do (aubio_pitchyinfast_t * o, const fvec_t * input, fvec_t * 
   for (tau = 1; tau < length; tau++) {
     tmp2 += yin->data[tau];
     if (tmp2 != 0) {
-      yin->data[tau] *= tau / tmp2;
+      yin->data[tau] *= (smpl_t)tau / tmp2;
     } else {
       yin->data[tau] = 1.;
     }
@@ -188,7 +188,7 @@ aubio_pitchyinfast_do (aubio_pitchyinfast_t * o, const fvec_t * input, fvec_t * 
 
 smpl_t
 aubio_pitchyinfast_get_confidence (aubio_pitchyinfast_t * o) {
-  return 1. - o->yin->data[o->peak_pos];
+  return 1 - o->yin->data[o->peak_pos];
 }
 
 uint_t

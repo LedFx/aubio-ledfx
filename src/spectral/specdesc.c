@@ -103,7 +103,7 @@ void aubio_specdesc_hfc(aubio_specdesc_t *o UNUSED,
   uint_t j;
   onset->data[0] = 0.;
   for (j=0;j<fftgrain->length;j++) {
-    onset->data[0] += (j+1)*fftgrain->norm[j];
+    onset->data[0] += (smpl_t)(j+1)*fftgrain->norm[j];
   }
 }
 
@@ -115,7 +115,7 @@ void aubio_specdesc_complex (aubio_specdesc_t *o, const cvec_t * fftgrain, fvec_
   onset->data[0] = 0.;
   for (j=0;j<nbins; j++)  {
     // compute the predicted phase
-    o->dev1->data[j] = 2. * o->theta1->data[j] - o->theta2->data[j];
+    o->dev1->data[j] = 2 * o->theta1->data[j] - o->theta2->data[j];
     // compute the euclidean distance in the complex domain
     // sqrt ( r_1^2 + r_2^2 - 2 * r_1 * r_2 * \cos ( \phi_1 - \phi_2 ) )
     onset->data[0] +=
@@ -142,7 +142,7 @@ void aubio_specdesc_phase(aubio_specdesc_t *o,
     o->dev1->data[j] =
       aubio_unwrap2pi(
           fftgrain->phas[j]
-          -2.0*o->theta1->data[j]
+          -2*o->theta1->data[j]
           +o->theta2->data[j]);
     if ( o->threshold < fftgrain->norm[j] )
       o->dev1->data[j] = ABS(o->dev1->data[j]);
@@ -212,7 +212,7 @@ void aubio_specdesc_kl(aubio_specdesc_t *o, const cvec_t * fftgrain, fvec_t * on
     onset->data[0] = 0.;
     for (j=0;j<fftgrain->length;j++) {
       onset->data[0] += fftgrain->norm[j]
-        *LOG(1.+fftgrain->norm[j]/(o->oldmag->data[j]+1.e-1));
+        *LOG(1+fftgrain->norm[j]/(o->oldmag->data[j]+(smpl_t)0.1));
       o->oldmag->data[j] = fftgrain->norm[j];
     }
     if (isnan(onset->data[0])) onset->data[0] = 0.;
@@ -225,7 +225,7 @@ void aubio_specdesc_mkl(aubio_specdesc_t *o, const cvec_t * fftgrain, fvec_t * o
   uint_t j;
     onset->data[0] = 0.;
     for (j=0;j<fftgrain->length;j++) {
-      onset->data[0] += LOG(1.+fftgrain->norm[j]/(o->oldmag->data[j]+1.e-1));
+      onset->data[0] += LOG(1+fftgrain->norm[j]/(o->oldmag->data[j]+(smpl_t)0.1));
       o->oldmag->data[j] = fftgrain->norm[j];
     }
     if (isnan(onset->data[0])) onset->data[0] = 0.;
@@ -339,18 +339,18 @@ new_aubio_specdesc (const char_t * onset_mode, uint_t size){
       if (!o->theta1) goto beach;
       o->theta2 = new_fvec(rsize);
       if (!o->theta2) goto beach;
-      o->histog = new_aubio_hist(0.0, PI, 10);
+      o->histog = new_aubio_hist(0, SMPL_PI, 10);
       if (!o->histog) goto beach;
-      o->threshold = 0.1;
+      o->threshold = (smpl_t)0.1;
       break;
     case aubio_onset_specdiff:
       o->oldmag = new_fvec(rsize);
       if (!o->oldmag) goto beach;
       o->dev1   = new_fvec(rsize);
       if (!o->dev1) goto beach;
-      o->histog = new_aubio_hist(0.0, PI, 10);
+      o->histog = new_aubio_hist(0, SMPL_PI, 10);
       if (!o->histog) goto beach;
-      o->threshold = 0.1;
+      o->threshold = (smpl_t)0.1;
       break;
     case aubio_onset_kl:
     case aubio_onset_mkl:
