@@ -110,23 +110,10 @@ endif
 
 # Build and register each test
 foreach test_src : test_sources
-  # Extract test name from source file object
-  # Get just the file name without path
-  test_src_str = '@0@'.format(test_src)
-  if test_src_str.contains('/')
-    # Handle forward slash path separator
-    parts = test_src_str.split('/')
-    test_filename = parts[-1]
-  elif test_src_str.contains('\\')
-    # Handle backslash path separator
-    parts = test_src_str.split('\\')
-    test_filename = parts[-1]
-  else
-    test_filename = test_src_str
-  endif
-
-  test_name = test_filename.replace('.c', '').replace('test-', '')
-  test_exe_name = test_filename.replace('.c', '')
+  # test-foo.c builds test-foo and registers the test as foo. fs.stem takes
+  # the files() object directly; formatting it into a string is deprecated.
+  test_exe_name = fs.stem(test_src)
+  test_name = test_exe_name.replace('test-', '')
 
   test_exe = executable(test_exe_name,
     test_src,
