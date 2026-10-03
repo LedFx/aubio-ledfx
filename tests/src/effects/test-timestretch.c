@@ -30,8 +30,8 @@ int main (int argc, char **argv)
   char_t *sink_path = argv[2];
   char_t *mode = "default";
 
-  if ( argc >= 4 ) stretch = atof(argv[3]);
-  if ( argc >= 5 ) transpose = atof(argv[4]);
+  if ( argc >= 4 ) stretch = (smpl_t)atof(argv[3]);
+  if ( argc >= 5 ) transpose = (smpl_t)atof(argv[4]);
   if ( argc >= 6 ) mode = argv[5];
   if ( argc >= 7 ) hop_size = atoi(argv[6]);
   if ( argc >= 8 ) samplerate = atoi(argv[7]);

@@ -172,7 +172,7 @@ new_aubio_pitch (const char_t * pitch_mode,
       if (!p->buf || !p->p_object) goto beach;
       p->detect_cb = aubio_pitch_do_yin;
       p->conf_cb = (aubio_pitch_get_conf_t)aubio_pitchyin_get_confidence;
-      aubio_pitchyin_set_tolerance (p->p_object, 0.15);
+      aubio_pitchyin_set_tolerance (p->p_object, (smpl_t)0.15);
       break;
     case aubio_pitcht_mcomb:
       p->filtered = new_fvec (hopsize);
@@ -202,7 +202,7 @@ new_aubio_pitch (const char_t * pitch_mode,
       if (!p->buf || !p->p_object) goto beach;
       p->detect_cb = aubio_pitch_do_yinfft;
       p->conf_cb = (aubio_pitch_get_conf_t)aubio_pitchyinfft_get_confidence;
-      aubio_pitchyinfft_set_tolerance (p->p_object, 0.85);
+      aubio_pitchyinfft_set_tolerance (p->p_object, (smpl_t)0.85);
       break;
     case aubio_pitcht_yinfast:
       p->buf = new_fvec (bufsize);
@@ -210,7 +210,7 @@ new_aubio_pitch (const char_t * pitch_mode,
       if (!p->buf || !p->p_object) goto beach;
       p->detect_cb = aubio_pitch_do_yinfast;
       p->conf_cb = (aubio_pitch_get_conf_t)aubio_pitchyinfast_get_confidence;
-      aubio_pitchyinfast_set_tolerance (p->p_object, 0.15);
+      aubio_pitchyinfast_set_tolerance (p->p_object, (smpl_t)0.15);
       break;
     case aubio_pitcht_specacf:
       p->buf = new_fvec (bufsize);
@@ -218,7 +218,7 @@ new_aubio_pitch (const char_t * pitch_mode,
       if (!p->buf || !p->p_object) goto beach;
       p->detect_cb = aubio_pitch_do_specacf;
       p->conf_cb = (aubio_pitch_get_conf_t)aubio_pitchspecacf_get_tolerance;
-      aubio_pitchspecacf_set_tolerance (p->p_object, 0.85);
+      aubio_pitchspecacf_set_tolerance (p->p_object, (smpl_t)0.85);
       break;
     default:
       break;
@@ -416,7 +416,7 @@ aubio_pitch_do_mcomb (aubio_pitch_t * p, const fvec_t * ibuf, fvec_t * obuf)
   aubio_filter_do_outplace (p->filter, ibuf, p->filtered);
   aubio_pvoc_do (p->pv, ibuf, p->fftgrain);
   aubio_pitchmcomb_do (p->p_object, p->fftgrain, obuf);
-  obuf->data[0] = aubio_bintofreq (obuf->data[0], p->samplerate, p->bufsize);
+  obuf->data[0] = aubio_bintofreq (obuf->data[0], (smpl_t)p->samplerate, (smpl_t)p->bufsize);
 }
 
 void
@@ -427,7 +427,7 @@ aubio_pitch_do_yin (aubio_pitch_t * p, const fvec_t * ibuf, fvec_t * obuf)
   aubio_pitchyin_do (p->p_object, p->buf, obuf);
   pitch = obuf->data[0];
   if (pitch > 0) {
-    pitch = p->samplerate / (pitch + 0.);
+    pitch = (smpl_t)p->samplerate / pitch;
   } else {
     pitch = 0.;
   }
@@ -443,7 +443,7 @@ aubio_pitch_do_yinfft (aubio_pitch_t * p, const fvec_t * ibuf, fvec_t * obuf)
   aubio_pitchyinfft_do (p->p_object, p->buf, obuf);
   pitch = obuf->data[0];
   if (pitch > 0) {
-    pitch = p->samplerate / (pitch + 0.);
+    pitch = (smpl_t)p->samplerate / pitch;
   } else {
     pitch = 0.;
   }
@@ -458,7 +458,7 @@ aubio_pitch_do_yinfast (aubio_pitch_t * p, const fvec_t * ibuf, fvec_t * obuf)
   aubio_pitchyinfast_do (p->p_object, p->buf, obuf);
   pitch = obuf->data[0];
   if (pitch > 0) {
-    pitch = p->samplerate / (pitch + 0.);
+    pitch = (smpl_t)p->samplerate / pitch;
   } else {
     pitch = 0.;
   }
@@ -474,7 +474,7 @@ aubio_pitch_do_specacf (aubio_pitch_t * p, const fvec_t * ibuf, fvec_t * out)
   //out->data[0] = aubio_bintofreq (out->data[0], p->samplerate, p->bufsize);
   period = out->data[0];
   if (period > 0) {
-    pitch = p->samplerate / period;
+    pitch = (smpl_t)p->samplerate / period;
   } else {
     pitch = 0.;
   }
@@ -486,7 +486,7 @@ aubio_pitch_do_fcomb (aubio_pitch_t * p, const fvec_t * ibuf, fvec_t * out)
 {
   aubio_pitch_slideblock (p, ibuf);
   aubio_pitchfcomb_do (p->p_object, p->buf, out);
-  out->data[0] = aubio_bintofreq (out->data[0], p->samplerate, p->bufsize);
+  out->data[0] = aubio_bintofreq (out->data[0], (smpl_t)p->samplerate, (smpl_t)p->bufsize);
 }
 
 void
@@ -497,7 +497,7 @@ aubio_pitch_do_schmitt (aubio_pitch_t * p, const fvec_t * ibuf, fvec_t * out)
   aubio_pitchschmitt_do (p->p_object, p->buf, out);
   period = out->data[0];
   if (period > 0) {
-    pitch = p->samplerate / period;
+    pitch = (smpl_t)p->samplerate / period;
   } else {
     pitch = 0.;
   }
@@ -508,7 +508,7 @@ aubio_pitch_do_schmitt (aubio_pitch_t * p, const fvec_t * ibuf, fvec_t * out)
 smpl_t
 freqconvbin(smpl_t f, uint_t samplerate, uint_t bufsize)
 {
-  return aubio_freqtobin(f, samplerate, bufsize);
+  return aubio_freqtobin(f, (smpl_t)samplerate, (smpl_t)bufsize);
 }
 
 smpl_t

@@ -73,7 +73,7 @@ static unsigned char *write_little_endian (unsigned int s, unsigned char *str,
 {
   uint_t i;
   for (i = 0; i < length; i++) {
-    str[i] = s >> (i * 8);
+    str[i] = (unsigned char)((s >> (i * 8)) & 0xff);
   }
   return str;
 }
@@ -243,7 +243,8 @@ void aubio_sink_wavwrite_write_frames(aubio_sink_wavwrite_t *s, uint_t write)
 {
   uint_t written_frames = 0;
 
-  written_frames = fwrite(s->scratch_data, 2 * s->channels, write, s->fid);
+  // fwrite returns at most write
+  written_frames = (uint_t)fwrite(s->scratch_data, 2 * s->channels, write, s->fid);
 
   if (written_frames != write) {
     AUBIO_STRERR("sink_wavwrite: trying to write %d frames to %s, but only %d"

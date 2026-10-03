@@ -56,7 +56,9 @@ aubio_pitchschmitt_do (aubio_pitchschmitt_t * p, const fvec_t * input,
 {
   uint_t j;
   for (j = 0; j < input->length; j++) {
-    p->buf[j] = input->data[j] * 32768.;
+    // to 16 bits, clipping: a full-scale 1. would overflow a short
+    smpl_t v = input->data[j] * 32768;
+    p->buf[j] = (signed short int)(v > 32767 ? 32767 : (v < -32768 ? -32768 : v));
   }
   output->data[0] = aubio_schmittS16LE (p, input->length, p->buf);
 }
@@ -70,7 +72,8 @@ aubio_schmittS16LE (aubio_pitchschmitt_t * p, uint_t nframes,
   signed short int *schmittBuffer = p->schmittBuffer;
   signed short int *schmittPointer = p->schmittPointer;
 
-  smpl_t period = 0., trigfact = 0.6;
+  smpl_t period = 0;
+  const double trigfact = 0.6;
 
   for (i = 0; i < nframes; i++) {
     *schmittPointer++ = indata[i];
@@ -104,7 +107,7 @@ aubio_schmittS16LE (aubio_pitchschmitt_t * p, uint_t nframes,
         }
       }
       if ((endpoint > startpoint) && (tc > 0)) {
-        period = (smpl_t) (endpoint - startpoint) / tc;
+        period = (smpl_t) (endpoint - startpoint) / (smpl_t) tc;
       }
     }
   }

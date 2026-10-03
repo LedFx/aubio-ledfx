@@ -34,7 +34,7 @@ int main (void)
       // all elements are already initialized to 0.
       assert(mat->data[i][j] == 0);
       // setting element of row i, column j
-      mat->data[i][j] = i * 10. + j;
+      mat->data[i][j] = (smpl_t)(i * 10 + j);
     }
   }
 

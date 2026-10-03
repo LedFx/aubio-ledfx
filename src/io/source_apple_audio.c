@@ -180,7 +180,7 @@ uint_t aubio_source_apple_audio_open (aubio_source_apple_audio_t *s, const char_
       goto beach;
   }
 
-  smpl_t ratio = s->source_samplerate * 1. / s->samplerate;
+  double ratio = (double)s->source_samplerate / s->samplerate;
   if (ratio < 1.) {
     AUBIO_WRN("source_apple_audio: up-sampling %s from %0dHz to %0dHz\n",
         s->path, s->source_samplerate, s->samplerate);
@@ -291,8 +291,8 @@ uint_t aubio_source_apple_audio_seek (aubio_source_apple_audio_t * s, uint_t pos
   // check if we are not seeking out of the file
   uint_t fileLengthFrames = aubio_source_apple_audio_get_duration(s);
   // compute position in the source file, before resampling
-  smpl_t ratio = s->source_samplerate * 1. / s->samplerate;
-  SInt64 resampled_pos = (SInt64)ROUND( pos * ratio );
+  double ratio = (double)s->source_samplerate / s->samplerate;
+  SInt64 resampled_pos = (SInt64)floor( pos * ratio + .5 );
   if (resampled_pos > fileLengthFrames) {
     AUBIO_ERR("source_apple_audio: trying to seek in %s at pos %d, "
         "but file has only %d frames\n",

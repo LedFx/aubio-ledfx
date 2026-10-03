@@ -28,7 +28,7 @@
 #define AUBIO_DEFAULT_NOTES_RELEASE_DROP 10.
 // increase to 10. for .1  cent precision
 //      or to 100. for .01 cent precision
-#define AUBIO_DEFAULT_CENT_PRECISION 1.
+#define AUBIO_DEFAULT_CENT_PRECISION ((smpl_t)1)
 #define AUBIO_DEFAULT_NOTES_MINIOI_MS 30.
 
 struct _aubio_notes_t {
@@ -202,7 +202,7 @@ aubio_notes_get_latest_note (aubio_notes_t *o)
 static void
 aubio_notes_set_note_on (fvec_t * notes, smpl_t pitch, smpl_t level)
 {
-  smpl_t velocity = 127 + (int) FLOOR (level);
+  smpl_t velocity = (smpl_t)(127 + (int) FLOOR (level));
   notes->data[0] = MAX (0, MIN (127, pitch));
   notes->data[1] = MAX (1, MIN (127, velocity));
 }

@@ -63,7 +63,7 @@ aubio_filter_do (aubio_filter_t * f, fvec_t * in)
       y[0] -= a[l] * y[l];
     }
     /* new output */
-    in->data[j] = y[0];
+    in->data[j] = (smpl_t)y[0];
     /* store for next sample */
     for (l = order - 1; l > 0; l--) {
       x[l] = x[l - 1];

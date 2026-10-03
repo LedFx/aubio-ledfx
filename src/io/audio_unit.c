@@ -508,8 +508,8 @@ sint_t aubio_audio_unit_get_info (aubio_audio_unit_t *o)
 
   AUBIO_MSG("audio_unit: I/O latency: %.2fms, %d frames, (%.2fms, %d frames in, %.2fms %d frames out)\n",
       latency*1000., (sint_t)round(latency*samplerate),
-      input_latency*1000., (sint_t)ROUND(input_latency*samplerate),
-      output_latency*1000., (sint_t)ROUND(output_latency*samplerate));
+      input_latency*1000., (sint_t)round(input_latency*samplerate),
+      output_latency*1000., (sint_t)round(output_latency*samplerate));
 
 fail:
   return err;

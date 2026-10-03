@@ -43,7 +43,7 @@ struct _aubio_beattracking_t
   fvec_t *phout;
   uint_t timesig;        /** time signature of input, set to zero until context dependent model activated */
   uint_t step;
-  uint_t rayparam;       /** Rayleigh parameter */
+  smpl_t rayparam;       /** Rayleigh parameter */
   smpl_t lastbeat;
   sint_t counter;
   uint_t flagstep;
@@ -67,8 +67,8 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
 
   uint_t i = 0;
   /* default value for rayleigh weighting - sets preferred tempo to 120bpm */
-  smpl_t rayparam = 60. * samplerate / 120. / hop_size;
-  smpl_t dfwvnorm = EXP ((LOG (2.0) / rayparam) * (winlen + 2));
+  const double rayparam = 60. * samplerate / 120. / hop_size;
+  const double dfwvnorm = exp ((log (2.0) / rayparam) * (winlen + 2));
   /* length over which beat period is found [128] */
   uint_t laglen = winlen / 4;
   /* step increment - both in detection function samples -i.e. 11.6ms or
@@ -80,11 +80,11 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
   p->lastbeat = 0;
   p->counter = 0;
   p->flagstep = 0;
-  p->g_var = 3.901;             // constthresh empirically derived!
+  p->g_var = (smpl_t)3.901;     // constthresh empirically derived!
   p->rp = 1;
   p->gp = 0;
 
-  p->rayparam = rayparam;
+  p->rayparam = (smpl_t)rayparam;
   p->step = step;
   p->rwv = new_fvec (laglen);
   p->gwv = new_fvec (laglen);
@@ -99,13 +99,13 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
 
   /* exponential weighting, dfwv = 0.5 when i =  43 */
   for (i = 0; i < winlen; i++) {
-    p->dfwv->data[i] = (EXP ((LOG (2.0) / rayparam) * (i + 1)))
-        / dfwvnorm;
+    p->dfwv->data[i] = (smpl_t)(exp ((log (2.0) / rayparam) * (i + 1))
+        / dfwvnorm);
   }
 
   for (i = 0; i < (laglen); i++) {
-    p->rwv->data[i] = ((smpl_t) (i + 1.) / SQR ((smpl_t) rayparam)) *
-        EXP ((-SQR ((smpl_t) (i + 1.)) / (2. * SQR ((smpl_t) rayparam))));
+    p->rwv->data[i] = (smpl_t)(((i + 1.) / SQR (rayparam)) *
+        exp ((-SQR (i + 1.) / (2. * SQR (rayparam)))));
   }
 
   return p;
@@ -169,7 +169,7 @@ aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
     for (a = 1; a <= numelem; a++) {
       for (b = 1; b < 2 * a; b++) {
         bt->acfout->data[i] += bt->acf->data[i * a + b - 1]
-            * 1. / (2. * a - 1.);
+            / (smpl_t)(2 * a - 1);
       }
     }
   }
@@ -198,13 +198,13 @@ aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
   }
 
   /* deliberate integer operation, could be set to 3 max eventually */
-  kmax = FLOOR (winlen / bp);
+  kmax = (uint_t)FLOOR ((smpl_t)winlen / bp);
 
   /* initialize output */
   fvec_zeros (bt->phout);
-  for (i = 0; i < bp; i++) {
+  for (i = 0; (smpl_t)i < bp; i++) {
     for (k = 0; k < kmax; k++) {
-      uint_t idx = i + (uint_t) ROUND (bp * k);
+      uint_t idx = i + (uint_t) ROUND (bp * (smpl_t)k);
       if (idx < bt->dfrev->length)
         bt->phout->data[i] += bt->dfrev->data[idx];
 #if AUBIO_BEAT_WARNINGS
@@ -221,12 +221,12 @@ aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
 #if AUBIO_BEAT_WARNINGS
     AUBIO_WRN ("no idea what this groove's phase is\n");
 #endif /* AUBIO_BEAT_WARNINGS */
-    phase = step - bt->lastbeat;
+    phase = (smpl_t)step - bt->lastbeat;
   } else {
     phase = fvec_quadratic_peak_pos (bt->phout, maxindex);
   }
   /* take back one frame delay */
-  phase += 1.;
+  phase += 1;
 #if 0                           // debug metronome mode
   phase = step - bt->lastbeat;
 #endif
@@ -242,7 +242,7 @@ aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
 
   /* the next beat will be earlier than 60% of the tempo period
     skip this one */
-  if ( ( step - bt->lastbeat - phase ) < -0.40 * bp ) {
+  if ( ( (smpl_t)step - bt->lastbeat - phase ) < -(smpl_t)0.40 * bp ) {
 #if AUBIO_BEAT_WARNINGS
     AUBIO_WRN ("back off-beat error, skipping this beat\n");
 #endif /* AUBIO_BEAT_WARNINGS */
@@ -260,7 +260,7 @@ aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
     i++;
   }
 
-  while (beat + bp <= step) {
+  while (beat + bp <= (smpl_t)step) {
     beat += bp;
     //AUBIO_DBG ("beat: %d, %f, %f\n", i, bp, beat);
     output->data[i] = beat;
@@ -269,7 +269,7 @@ aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
 
   bt->lastbeat = beat;
   /* store the number of beats in this frame as the first element */
-  output->data[0] = i;
+  output->data[0] = (smpl_t)i;
 }
 
 uint_t
@@ -309,7 +309,7 @@ aubio_beattracking_checkstate (aubio_beattracking_t * bt)
   fvec_t *acf = bt->acf;
   fvec_t *acfout = bt->acfout;
 
-  if (gp) {
+  if (gp != 0) {
     // compute shift invariant comb filterbank
     fvec_zeros (acfout);
     for (i = 1; i < laglen - 1; i++) {
@@ -330,7 +330,7 @@ aubio_beattracking_checkstate (aubio_beattracking_t * bt)
   //now look for step change - i.e. a difference between gp and rp that
   // is greater than 2*constthresh - always true in first case, since gp = 0
   if (counter == 0) {
-    if (ABS (gp - rp) > 2. * bt->g_var) {
+    if (ABS (gp - rp) > 2 * bt->g_var) {
       flagstep = 1;             // have observed  step change.
       counter = 3;              // setup 3 frame counter
     } else {
@@ -360,10 +360,10 @@ aubio_beattracking_checkstate (aubio_beattracking_t * bt)
   if (flagconst) {
     /* first run of new hypothesis */
     gp = rp;
-    bt->timesig = fvec_gettimesig (acf, acflen, gp);
+    bt->timesig = fvec_gettimesig (acf, acflen, (uint_t)gp);
     for (j = 0; j < laglen; j++)
       bt->gwv->data[j] =
-          EXP (-.5 * SQR ((smpl_t) (j + 1. - gp)) / SQR (bt->g_var));
+          EXP (-SQR ((smpl_t)(j + 1) - gp) / (2 * SQR (bt->g_var)));
     flagconst = 0;
     bp = gp;
     /* flat phase weighting */
@@ -372,11 +372,11 @@ aubio_beattracking_checkstate (aubio_beattracking_t * bt)
     /* context dependant model */
     bp = gp;
     /* gaussian phase weighting */
-    if (step > bt->lastbeat) {
+    if ((smpl_t)step > bt->lastbeat) {
       for (j = 0; j < 2 * laglen; j++) {
         bt->phwv->data[j] =
-            EXP (-.5 * SQR ((smpl_t) (1. + j - step +
-                    bt->lastbeat)) / (bp / 8.));
+            EXP (-SQR ((smpl_t)(1 + j) - (smpl_t)step + bt->lastbeat)
+                / (2 * (bp / 8)));
       }
     } else {
       //AUBIO_DBG("NOT using phase weighting as step is %d and lastbeat %d \n",
@@ -396,7 +396,7 @@ aubio_beattracking_checkstate (aubio_beattracking_t * bt)
    * which is 206 bpm only at 44100Hz with a hop of 512: scale it so the
    * limit stays in time, not frames (aubio#284). At 30000/500 it was 144
    * bpm, at 22050/512 103 bpm. */
-  while (0 < bp && bp < 25. * 512. / 44100. * bt->samplerate / bt->hop_size) {
+  while (0 < bp && bp < (smpl_t)(25. * 512. / 44100. * bt->samplerate / bt->hop_size)) {
 #if AUBIO_BEAT_WARNINGS
     AUBIO_WRN ("doubling from %f (%f bpm) to %f (%f bpm)\n",
         bp, 60.*44100./512./bp, bp/2., 60.*44100./512./bp/2. );
@@ -423,7 +423,7 @@ aubio_beattracking_checkstate (aubio_beattracking_t * bt)
 smpl_t
 aubio_beattracking_get_period (const aubio_beattracking_t * bt)
 {
-  return bt->hop_size * bt->bp;
+  return (smpl_t)bt->hop_size * bt->bp;
 }
 
 smpl_t
@@ -436,7 +436,7 @@ smpl_t
 aubio_beattracking_get_bpm (const aubio_beattracking_t * bt)
 {
   if (bt->bp != 0) {
-    return 60. / aubio_beattracking_get_period_s(bt);
+    return 60 / aubio_beattracking_get_period_s(bt);
   } else {
     return 0.;
   }
@@ -445,7 +445,7 @@ aubio_beattracking_get_bpm (const aubio_beattracking_t * bt)
 smpl_t
 aubio_beattracking_get_confidence (const aubio_beattracking_t * bt)
 {
-  if (bt->gp) {
+  if (bt->gp != 0) {
     smpl_t acf_sum = fvec_sum(bt->acfout);
     if (acf_sum != 0.) {
       return fvec_quadratic_peak_mag (bt->acfout, bt->gp) / acf_sum;

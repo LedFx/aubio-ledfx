@@ -433,7 +433,7 @@ void aubio_fft_do_complex(aubio_fft_t * s, const fvec_t * input, fvec_t * compsp
 void aubio_fft_rdo_complex(aubio_fft_t * s, const fvec_t * compspec, fvec_t * output) {
   uint_t i;
 #ifdef HAVE_FFTW3
-  const smpl_t renorm = 1./(smpl_t)s->winsize;
+  const smpl_t renorm = 1 / (smpl_t)s->winsize;
 #ifdef HAVE_COMPLEX_H
   s->specdata[0] = compspec->data[0];
   for (i=1; i < s->fft_size - 1; i++) {
@@ -468,7 +468,7 @@ void aubio_fft_rdo_complex(aubio_fft_t * s, const fvec_t * compspec, fvec_t * ou
   // convert result to real output
   aubio_vDSP_ztoc(&s->spec, 1, (aubio_DSPComplex*)output->data, 2, s->fft_size/2);
   // apply scaling
-  smpl_t scale = 1.0 / s->winsize;
+  smpl_t scale = 1 / (smpl_t)s->winsize;
   aubio_vDSP_vsmul(output->data, 1, &scale, output->data, 1, s->fft_size);
 
 #elif defined HAVE_INTEL_IPP  // using Intel IPP
@@ -485,10 +485,10 @@ void aubio_fft_rdo_complex(aubio_fft_t * s, const fvec_t * compspec, fvec_t * ou
   // apply fft
   aubio_ippsFFTInv_CCSToR((const aubio_IppFloat *)s->complexOut, output->data, s->fftSpec, s->memBuffer);
   // apply scaling
-  aubio_ippsMulC(output->data, 1.0 / s->winsize, output->data, s->fft_size);
+  aubio_ippsMulC(output->data, 1 / (smpl_t)s->winsize, output->data, s->fft_size);
 
 #else                         // using OOURA
-  smpl_t scale = 2.0 / s->winsize;
+  smpl_t scale = 2 / (smpl_t)s->winsize;
   s->out[0] = compspec->data[0];
   s->out[1] = compspec->data[s->winsize / 2];
   for (i = 1; i < s->fft_size - 1; i++) {
@@ -515,7 +515,7 @@ void aubio_fft_get_realimag(const cvec_t * spectrum, fvec_t * compspec) {
 void aubio_fft_get_phas(const fvec_t * compspec, cvec_t * spectrum) {
   uint_t i;
   if (compspec->data[0] < 0) {
-    spectrum->phas[0] = PI;
+    spectrum->phas[0] = SMPL_PI;
   } else {
     spectrum->phas[0] = 0.;
   }
@@ -544,7 +544,7 @@ void aubio_fft_get_phas(const fvec_t * compspec, cvec_t * spectrum) {
   if (2 * (compspec->length / 2) == compspec->length) {
 #endif
     if (compspec->data[compspec->length/2] < 0) {
-      spectrum->phas[spectrum->length - 1] = PI;
+      spectrum->phas[spectrum->length - 1] = SMPL_PI;
     } else {
       spectrum->phas[spectrum->length - 1] = 0.;
     }

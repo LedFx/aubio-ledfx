@@ -87,7 +87,7 @@ cvec_moment (const cvec_t * spec, uint_t order)
   } else {
     centroid = cvec_centroid (spec);
     for (j = 0; j < spec->length; j++) {
-      sc += (smpl_t) POW(j - centroid, order) * spec->norm[j];
+      sc += POW((smpl_t)j - centroid, (smpl_t)order) * spec->norm[j];
     }
     return sc / sum;
   }
@@ -140,24 +140,22 @@ aubio_specdesc_slope (aubio_specdesc_t * o UNUSED, const cvec_t * spec,
     fvec_t * desc)
 {
   uint_t j;
-  smpl_t norm = 0, sum = 0.;
-  // compute N * sum(j**2) - sum(j)**2
-  for (j = 0; j < spec->length; j++) {
-    norm += j*j;
-  }
-  norm *= spec->length;
-  // sum_0^N(j) = length * (length + 1) / 2
-  norm -= SQR( (spec->length) * (spec->length - 1.) / 2. );
+  const double n = spec->length;
+  // N * sum(j**2) - sum(j)**2, for j in [0, N-1], in closed form:
+  // sum(j**2) = (N-1) N (2N-1) / 6 and sum(j) = N (N-1) / 2
+  const smpl_t norm = (smpl_t)(n * (n - 1.) * n * (2. * n - 1.) / 6.
+      - SQR(n * (n - 1.) / 2.));
+  smpl_t sum = 0;
   sum = cvec_sum (spec);
   desc->data[0] = 0.;
   if (sum == 0.) {
     return;
   } else {
     for (j = 0; j < spec->length; j++) {
-      desc->data[0] += j * spec->norm[j];
+      desc->data[0] += (smpl_t)j * spec->norm[j];
     }
-    desc->data[0] *= spec->length;
-    desc->data[0] -= sum * spec->length * (spec->length - 1) / 2.;
+    desc->data[0] *= (smpl_t)spec->length;
+    desc->data[0] -= sum * (smpl_t)(n * (n - 1.) / 2.);
     desc->data[0] /= norm;
     desc->data[0] /= sum;
   }
@@ -175,7 +173,7 @@ aubio_specdesc_decrease (aubio_specdesc_t *o UNUSED, const cvec_t * spec,
   } else {
     sum -= spec->norm[0];
     for (j = 1; j < spec->length; j++) {
-      desc->data[0] += (spec->norm[j] - spec->norm[0]) / j;
+      desc->data[0] += (spec->norm[j] - spec->norm[0]) / (smpl_t)j;
     }
     desc->data[0] /= sum;
   }
@@ -193,7 +191,7 @@ aubio_specdesc_rolloff (aubio_specdesc_t *o UNUSED, const cvec_t * spec,
   if (cumsum == 0) {
     desc->data[0] = 0.;
   } else {
-    cumsum *= 0.95;
+    cumsum *= (smpl_t)0.95;
     // j counts the bins summed so far; the result is the index of the bin
     // that reaches 95% of the energy, in [0, length - 1] (upstream gh-318).
     // The bound keeps rounding from walking off the end of norm.
@@ -202,6 +200,6 @@ aubio_specdesc_rolloff (aubio_specdesc_t *o UNUSED, const cvec_t * spec,
       rollsum += SQR (spec->norm[j]);
       j++;
     }
-    desc->data[0] = MAX (1, j) - 1.0f;
+    desc->data[0] = (smpl_t)(MAX (1, j) - 1);
   }
 }

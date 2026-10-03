@@ -80,10 +80,10 @@ new_aubio_mfcc (uint_t win_s, uint_t n_filters, uint_t n_coefs,
     goto failure;
 
   if (n_filters == 40)
-    aubio_filterbank_set_mel_coeffs_slaney (mfcc->fb, samplerate);
+    aubio_filterbank_set_mel_coeffs_slaney (mfcc->fb, (smpl_t)samplerate);
   else
-    aubio_filterbank_set_mel_coeffs(mfcc->fb, samplerate,
-        0, samplerate/2.);
+    aubio_filterbank_set_mel_coeffs(mfcc->fb, (smpl_t)samplerate,
+        0, (smpl_t)samplerate / 2);
 
   /* allocating buffers */
   mfcc->in_dct = new_fvec (n_filters);
@@ -166,18 +166,18 @@ smpl_t aubio_mfcc_get_scale (aubio_mfcc_t *mf)
 uint_t aubio_mfcc_set_mel_coeffs (aubio_mfcc_t *mf, smpl_t freq_min,
     smpl_t freq_max)
 {
-  return aubio_filterbank_set_mel_coeffs(mf->fb, mf->samplerate,
+  return aubio_filterbank_set_mel_coeffs(mf->fb, (smpl_t)mf->samplerate,
       freq_min, freq_max);
 }
 
 uint_t aubio_mfcc_set_mel_coeffs_htk (aubio_mfcc_t *mf, smpl_t freq_min,
     smpl_t freq_max)
 {
-  return aubio_filterbank_set_mel_coeffs_htk(mf->fb, mf->samplerate,
+  return aubio_filterbank_set_mel_coeffs_htk(mf->fb, (smpl_t)mf->samplerate,
       freq_min, freq_max);
 }
 
 uint_t aubio_mfcc_set_mel_coeffs_slaney (aubio_mfcc_t *mf)
 {
-  return aubio_filterbank_set_mel_coeffs_slaney (mf->fb, mf->samplerate);
+  return aubio_filterbank_set_mel_coeffs_slaney (mf->fb, (smpl_t)mf->samplerate);
 }

@@ -38,8 +38,8 @@ int main (void)
 
   // each element can be accessed directly
   for ( i = 0; i < vec->length; i++ ) {
-    vec->data[i] = i;
-    assert(vec->data[i] == i);
+    vec->data[i] = (smpl_t)i;
+    assert(vec->data[i] == (smpl_t)i);
   }
   fvec_print(vec);
 

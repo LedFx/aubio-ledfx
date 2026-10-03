@@ -132,9 +132,9 @@ aubio_pvoc_t * new_aubio_pvoc (uint_t win_s, uint_t hop_s) {
 
   // for reconstruction with 75% overlap
   if (win_s == hop_s * 4) {
-    pv->scale = 2./3.;
+    pv->scale = (smpl_t)(2./3.);
   } else if (win_s == hop_s * 8) {
-    pv->scale = 1./3.;
+    pv->scale = (smpl_t)(1./3.);
   } else if (win_s == hop_s * 2) {
     pv->scale = 1.;
   } else {

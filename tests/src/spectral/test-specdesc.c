@@ -50,7 +50,7 @@ int main (void)
   cvec_zeros(in);
   in->norm[in->length - 1] = 1.0; // all energy in the last bin
   aubio_specdesc_do (o, in, out);
-  if (out->data[0] != in->length - 1) {
+  if (out->data[0] != (smpl_t)(in->length - 1)) {
     fprintf(stderr, "rolloff, energy in last bin: %f != %d\n", out->data[0], in->length - 1);
     return 1;
   }

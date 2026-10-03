@@ -66,7 +66,7 @@ uint_t aubio_parameter_set_target_value ( aubio_parameter_t * param, smpl_t valu
   } else {
     param->target_value = value;
   }
-  param->increment = ( param->target_value - param->current_value ) / param->steps;
+  param->increment = ( param->target_value - param->current_value ) / (smpl_t)param->steps;
   return err;
 }
 
@@ -108,7 +108,7 @@ uint_t aubio_parameter_set_steps ( aubio_parameter_t * param, uint_t steps )
     return AUBIO_FAIL;
   }
   param->steps = steps;
-  param->increment = ( param->target_value - param->current_value ) / param->steps;
+  param->increment = ( param->target_value - param->current_value ) / (smpl_t)param->steps;
   return AUBIO_OK;
 }
 

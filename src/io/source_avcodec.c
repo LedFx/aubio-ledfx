@@ -537,7 +537,7 @@ void aubio_source_avcodec_do(aubio_source_avcodec_t * s, fvec_t * read_data,
         read_data->data[i + total_wrote] +=
           s->output[(i + s->read_index) * s->input_channels + j];
       }
-      read_data->data[i + total_wrote] *= 1./s->input_channels;
+      read_data->data[i + total_wrote] /= (smpl_t)s->input_channels;
     }
     total_wrote += end;
     if (total_wrote < length) {
@@ -610,7 +610,7 @@ uint_t aubio_source_avcodec_get_channels(const aubio_source_avcodec_t * s) {
 
 uint_t aubio_source_avcodec_seek (aubio_source_avcodec_t * s, uint_t pos) {
   int64_t resampled_pos =
-    (uint_t)ROUND(pos * (s->input_samplerate * 1. / s->samplerate));
+    (int64_t)floor(pos * ((double)s->input_samplerate / s->samplerate) + .5);
   int64_t min_ts = MAX(resampled_pos - 2000, 0);
   int64_t max_ts = MIN(resampled_pos + 2000, INT64_MAX);
   int seek_flags = AVSEEK_FLAG_FRAME | AVSEEK_FLAG_ANY;

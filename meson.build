@@ -399,6 +399,11 @@ if cc.get_id() == 'msvc'
     '-D_CRT_NONSTDC_NO_DEPRECATE', language: 'c')
 endif
 
+# smpl_t math stays in smpl_t, and setup math done in double is narrowed
+# once, explicitly: an implicit double -> float or float -> integer
+# conversion is a mistake to report, as MSVC does by default (C4244, C4305).
+add_project_arguments(cc.get_supported_arguments('-Wfloat-conversion'), language: 'c')
+
 # Calling an Apple API newer than the deployment target, without checking
 # it's there, makes the library fail to load on older macOS: an error, not a
 # warning.
