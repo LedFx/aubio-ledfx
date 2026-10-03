@@ -98,7 +98,11 @@ uint_t aubio_source_apple_audio_open (aubio_source_apple_audio_t *s, const char_
   UInt32 propSize;
 
   s->path = aubio_str_copy_path(path);
-  if (!s->path) goto beach;
+  if (!s->path) {
+    // error logged by aubio_str_copy_path
+    err = -1;
+    goto beach;
+  }
 
   // open the resource url
   CFURLRef fileURL = createURLFromPath(s->path);
@@ -190,6 +194,7 @@ uint_t aubio_source_apple_audio_open (aubio_source_apple_audio_t *s, const char_
   freeAudioBufferList(&s->bufferList);
   if (createAudioBufferList(&s->bufferList, s->channels, s->block_size * s->channels)) {
     AUBIO_ERR("source_apple_audio: failed creating bufferList\n");
+    err = -1;
     goto beach;
   }
 
