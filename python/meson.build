@@ -81,6 +81,13 @@ pyaubio_c_args = [
   '-DAUBIO_VERSION=' + aubio_version,
 ]
 
+# MSVC reads sources and writes string literals in the system code page
+# unless told otherwise, which mangles the non-ASCII note names (♯, ♭) and
+# paths the bindings pass around (upstream 6595ed6a, gh-293/316/371/385).
+if cc.get_id() == 'msvc'
+  pyaubio_c_args += ['/utf-8']
+endif
+
 # Platform-specific args and dependencies
 if host_system == 'darwin'
   pyaubio_link_args = [
