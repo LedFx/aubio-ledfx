@@ -97,7 +97,9 @@ new_aubio_beattracking (uint_t winlen, uint_t hop_size, uint_t samplerate)
 
   p->timesig = 0;
 
-  /* exponential weighting, dfwv = 0.5 when i =  43 */
+  /* exponential weighting, dfwv = 0.5 when i =  43. It weighs the teeth
+   * of the phase comb by how many beat periods back they are, see
+   * aubio_beattracking_do */
   for (i = 0; i < winlen; i++) {
     p->dfwv->data[i] = (smpl_t)(exp ((log (2.0) / rayparam) * (i + 1))
         / dfwvnorm);
@@ -146,9 +148,8 @@ aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
   uint_t a, b;                  // used to build shift invariant comb filterbank
   uint_t kmax;                  // number of elements used to find beat phase
 
-  /* copy dfframe, apply detection function weighting, and revert */
+  /* copy dfframe and revert, the most recent value first */
   fvec_copy (dfframe, bt->dfrev);
-  fvec_weight (bt->dfrev, bt->dfwv);
   fvec_rev (bt->dfrev);
 
   /* compute autocorrelation function */
@@ -164,12 +165,21 @@ aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
   /* first and last output values are left intentionally as zero */
   fvec_zeros (bt->acfout);
 
-  /* compute shift invariant comb filterbank */
+  /* compute shift invariant comb filterbank: element i sums the
+   * autocorrelation around lags i, 2i, .. numelem * i. The a-th tooth was
+   * acf[a * i .. a * i + 2a - 2], centred on lag a * i + a - 1, not a * i:
+   * the periods found were 0.5 to 0.75 frames short, a tempo 2% too fast
+   * at 44100/512 and 3% at 30000/500, and the beats extrapolated from
+   * them drifted onto the off-beats within each step. Each tooth now
+   * spans a * i - a .. a * i + a: one frame wider on each side, so that
+   * a period that is not a whole number of frames, whose onsets fall
+   * alternately in two neighbouring lags, is not found weaker than its
+   * double (160 bpm at 30000/500 is 22.5 frames). */
   for (i = 1; i < laglen - 1; i++) {
     for (a = 1; a <= numelem; a++) {
-      for (b = 1; b < 2 * a; b++) {
-        bt->acfout->data[i] += bt->acf->data[i * a + b - 1]
-            / (smpl_t)(2 * a - 1);
+      for (b = 0; b <= 2 * a; b++) {
+        bt->acfout->data[i] += bt->acf->data[i * a + b - a]
+            / (smpl_t)(2 * a + 1);
       }
     }
   }
@@ -204,9 +214,16 @@ aubio_beattracking_do (aubio_beattracking_t * bt, const fvec_t * dfframe,
   fvec_zeros (bt->phout);
   for (i = 0; (smpl_t)i < bp; i++) {
     for (k = 0; k < kmax; k++) {
-      uint_t idx = i + (uint_t) ROUND (bp * (smpl_t)k);
+      uint_t lag = (uint_t) ROUND (bp * (smpl_t)k);
+      uint_t idx = i + lag;
+      /* weigh each tooth by how many beat periods back it is, the same
+       * for every phase i. Weighing each frame by its own age, as before,
+       * favoured the more recent of two phases half a beat apart by up to
+       * 2^(bp / 2 / rayparam), 1.45 at 110 bpm: enough for the off-beat
+       * hi-hats to win over the beats. */
       if (idx < bt->dfrev->length)
-        bt->phout->data[i] += bt->dfrev->data[idx];
+        bt->phout->data[i] += bt->dfrev->data[idx]
+            * bt->dfwv->data[winlen - 1 - lag];
 #if AUBIO_BEAT_WARNINGS
       else
         AUBIO_WRN ("[tempo] out of bounds index %d", idx);
@@ -314,8 +331,8 @@ aubio_beattracking_checkstate (aubio_beattracking_t * bt)
     fvec_zeros (acfout);
     for (i = 1; i < laglen - 1; i++) {
       for (a = 1; a <= bt->timesig; a++) {
-        for (b = 1; b < 2 * a; b++) {
-          acfout->data[i] += acf->data[i * a + b - 1];
+        for (b = 0; b <= 2 * a; b++) {
+          acfout->data[i] += acf->data[i * a + b - a];
         }
       }
     }
@@ -361,9 +378,11 @@ aubio_beattracking_checkstate (aubio_beattracking_t * bt)
     /* first run of new hypothesis */
     gp = rp;
     bt->timesig = fvec_gettimesig (acf, acflen, (uint_t)gp);
+    /* element j of the filterbank is lag j: centre the weighting on gp,
+     * not on gp - 1 */
     for (j = 0; j < laglen; j++)
       bt->gwv->data[j] =
-          EXP (-SQR ((smpl_t)(j + 1) - gp) / (2 * SQR (bt->g_var)));
+          EXP (-SQR ((smpl_t)j - gp) / (2 * SQR (bt->g_var)));
     flagconst = 0;
     bp = gp;
     /* flat phase weighting */

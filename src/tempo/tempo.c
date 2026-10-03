@@ -189,8 +189,14 @@ aubio_tempo_t * new_aubio_tempo (const char_t * tempo_mode,
     goto beach;
   }
 
-  /* length of observations, worth about 6 seconds */
-  o->winlen = aubio_next_power_of_two((uint_t)(5.8 * samplerate / hop_size));
+  /* length of observations, worth about 6 seconds: 512 frames at 44100Hz
+   * with a hop of 512, the setting the beat tracker was tuned at, and the
+   * same time at any other. It was the next power of two of 5.8 s, which
+   * is anything from 5.8 to 11.6 s: 8.5 s at 30000/500, and as the beat
+   * tracker runs every quarter of it, a tempo change was followed every
+   * 2.1 s instead of 1.5 s. A multiple of 4, for step and laglen. */
+  o->winlen = 4 * (uint_t)floor(512. / 4. * 512. / 44100.
+      * samplerate / hop_size + .5);
   if (o->winlen < 4) o->winlen = 4;
   o->step = o->winlen/4;
   o->blockpos = 0;
