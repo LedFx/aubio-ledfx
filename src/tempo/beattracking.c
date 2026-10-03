@@ -392,8 +392,11 @@ aubio_beattracking_checkstate (aubio_beattracking_t * bt)
 
   /* do some further checks on the final bp value */
 
-  /* if tempo is > 206 bpm, half it */
-  while (0 < bp && bp < 25) {
+  /* if tempo is > 206 bpm, half it. The limit was 25 detection frames,
+   * which is 206 bpm only at 44100Hz with a hop of 512: scale it so the
+   * limit stays in time, not frames (aubio#284). At 30000/500 it was 144
+   * bpm, at 22050/512 103 bpm. */
+  while (0 < bp && bp < 25. * 512. / 44100. * bt->samplerate / bt->hop_size) {
 #if AUBIO_BEAT_WARNINGS
     AUBIO_WRN ("doubling from %f (%f bpm) to %f (%f bpm)\n",
         bp, 60.*44100./512./bp, bp/2., 60.*44100./512./bp/2. );

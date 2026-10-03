@@ -3,6 +3,8 @@
 from unittest import main
 from numpy.testing import TestCase, assert_equal, assert_almost_equal
 import aubio
+import numpy as np
+from aubio import float_type, tempo
 
 class aubio_tempo_default(TestCase):
 
@@ -91,6 +93,45 @@ class aubio_tempo_params(TestCase):
             self.o.set_tatum_signature(101)
         with self.assertRaises(ValueError):
             self.o.set_tatum_signature(0)
+
+def click_train(bpm, samplerate, seconds=20):
+    """ short noise bursts every beat """
+    n = int(seconds * samplerate)
+    signal = np.zeros(n, dtype=float_type)
+    rng = np.random.default_rng(0)
+    burst_len = int(0.02 * samplerate)
+    envelope = np.exp(-np.arange(burst_len) / (0.004 * samplerate))
+    for start in np.arange(0, n - burst_len, 60. * samplerate / bpm):
+        start = int(round(start))
+        signal[start:start + burst_len] += rng.standard_normal(burst_len) * envelope
+    return signal
+
+
+class aubio_tempo_samplerates(TestCase):
+    """ the 206 bpm ceiling holds whatever the detection frame rate:
+    it was a fixed 25 frames, 144 bpm at 30000/500 (LedFx) and 103 bpm at
+    22050/512, so faster tempos were halved (aubio#284) """
+
+    def found_bpm(self, bpm, samplerate, hop_size, win_s):
+        o = tempo("default", win_s, hop_size, samplerate)
+        signal = click_train(bpm, samplerate)
+        for i in range(0, len(signal) - hop_size, hop_size):
+            o(signal[i:i + hop_size])
+        return o.get_bpm()
+
+    def assert_tracks(self, samplerate, hop_size, win_s):
+        for bpm in (120., 150., 160.):
+            found = self.found_bpm(bpm, samplerate, hop_size, win_s)
+            assert abs(found - bpm) < .05 * bpm, (bpm, found)
+
+    def test_ledfx_rate(self):
+        self.assert_tracks(30000, 500, 4096)
+
+    def test_22050(self):
+        self.assert_tracks(22050, 512, 1024)
+
+    def test_44100_unchanged(self):
+        self.assert_tracks(44100, 512, 1024)
 
 if __name__ == '__main__':
     main()
