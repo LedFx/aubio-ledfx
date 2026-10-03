@@ -92,8 +92,15 @@
 // include accelerate framework after blas
 #define HAVE_ATLAS 1
 #define HAVE_BLAS 1
+// Accelerate's new BLAS interface exports its functions under new names
+// (_cblas_sdot$NEWLAPACK, ...) that exist from macOS 13.3 and iOS 16.4: use
+// it only when building for those, or the library won't load on older ones.
+#if (defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) \
+      && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 130300) \
+  || (defined(__ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__) \
+      && __ENVIRONMENT_IPHONE_OS_VERSION_MIN_REQUIRED__ >= 160400)
 #define ACCELERATE_NEW_LAPACK 1
-#define ACCELERATE_LAPACK_ILP6 1
+#endif
 #include <Accelerate/Accelerate.h>
 
 #ifndef HAVE_AUBIO_DOUBLE
