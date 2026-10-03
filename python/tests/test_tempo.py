@@ -26,6 +26,11 @@ class aubio_tempo_params(TestCase):
         self.o.set_delay(val)
         assert_equal (self.o.get_delay(), val)
 
+    def test_set_negative_delay(self):
+        """ a negative delay comes back negative, not as 2**32 - n (aubio#151) """
+        self.o.set_delay(-100)
+        assert_equal (self.o.get_delay(), -100)
+
     def test_get_delay_s(self):
         self.assertEqual(self.o.get_delay_s(), 0.)
 

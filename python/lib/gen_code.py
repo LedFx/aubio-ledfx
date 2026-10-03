@@ -33,6 +33,7 @@ member_types = {
 pyfromtype_fn = {
         'smpl_t': 'PyFloat_FromDouble',
         'uint_t': 'PyLong_FromLong', # was: 'PyInt_FromLong',
+        'sint_t': 'PyLong_FromLong',
         'fvec_t*': 'PyAubio_CFvecToArray',
         'fmat_t*': 'PyAubio_CFmatToArray',
         }
@@ -66,7 +67,7 @@ param_init = {
 pyargparse_chars = {
         'smpl_t': 'f', # if not usedouble else 'd',
         'uint_t': 'I',
-        'sint_t': 'I',
+        'sint_t': 'i',
         'char_t*': 's',
         'fmat_t*': 'O',
         'fvec_t*': 'O',
