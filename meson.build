@@ -390,6 +390,13 @@ if not get_option('intelipp').disabled()
   endif
 endif
 
+# Calling an Apple API newer than the deployment target, without checking
+# it's there, makes the library fail to load on older macOS: an error, not a
+# warning.
+if host_system == 'darwin'
+  add_project_arguments(cc.get_supported_arguments('-Werror=unguarded-availability-new'), language: 'c')
+endif
+
 # Accelerate framework (macOS)
 accelerate_opt = get_option('accelerate').require(host_system == 'darwin',
   error_message: 'the Accelerate framework is only available on macOS')
