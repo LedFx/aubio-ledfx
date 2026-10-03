@@ -3,7 +3,7 @@
 from numpy.testing import TestCase
 from aubio import fvec, source, sink
 from utils import list_all_sounds, get_tmp_sink_path, del_tmp_sink_path
-from utils import parse_file_samplerate
+from utils import open_source
 from _tools import parametrize, skipTest, assert_raises, assert_warns
 
 list_of_sounds = list_all_sounds('sounds')
@@ -61,17 +61,7 @@ class Test_aubio_sink(object):
 
     @parametrize('hop_size, samplerate, path', all_params)
     def test_read_and_write(self, hop_size, samplerate, path):
-        orig_samplerate = parse_file_samplerate(soundfile)
-        try:
-            if orig_samplerate is not None and orig_samplerate < samplerate:
-                # upsampling should emit a warning
-                with assert_warns(UserWarning):
-                    f = source(soundfile, samplerate, hop_size)
-            else:
-                f = source(soundfile, samplerate, hop_size)
-        except RuntimeError as e:
-            err_msg = '{:s} (hop_s = {:d}, samplerate = {:d})'
-            skipTest(err_msg.format(str(e), hop_size, samplerate))
+        f = open_source(path, samplerate, hop_size)
         if samplerate == 0: samplerate = f.samplerate
         sink_path = get_tmp_sink_path()
         g = sink(sink_path, samplerate)
@@ -85,17 +75,7 @@ class Test_aubio_sink(object):
 
     @parametrize('hop_size, samplerate, path', all_params)
     def test_read_and_write_multi(self, hop_size, samplerate, path):
-        orig_samplerate = parse_file_samplerate(soundfile)
-        try:
-            if orig_samplerate is not None and orig_samplerate < samplerate:
-                # upsampling should emit a warning
-                with assert_warns(UserWarning):
-                    f = source(soundfile, samplerate, hop_size)
-            else:
-                f = source(soundfile, samplerate, hop_size)
-        except RuntimeError as e:
-            err_msg = '{:s} (hop_s = {:d}, samplerate = {:d})'
-            skipTest(err_msg.format(str(e), hop_size, samplerate))
+        f = open_source(path, samplerate, hop_size)
         if samplerate == 0: samplerate = f.samplerate
         sink_path = get_tmp_sink_path()
         g = sink(sink_path, samplerate, channels = f.channels)

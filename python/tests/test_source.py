@@ -3,7 +3,7 @@
 
 from numpy.testing import TestCase, assert_equal
 from aubio import source
-from utils import list_all_sounds, parse_file_samplerate
+from utils import list_all_sounds, open_source
 import unittest
 from _tools import assert_raises, assert_equal, assert_warns
 from _tools import parametrize, skipTest
@@ -76,17 +76,7 @@ class Test_aubio_source_read(object):
 
     @parametrize('hop_size, samplerate, soundfile', all_params)
     def test_samplerate_hopsize(self, hop_size, samplerate, soundfile):
-        orig_samplerate = parse_file_samplerate(soundfile)
-        try:
-            if orig_samplerate is not None and orig_samplerate < samplerate:
-                # upsampling should emit a warning
-                with assert_warns(UserWarning):
-                    f = source(soundfile, samplerate, hop_size)
-            else:
-                f = source(soundfile, samplerate, hop_size)
-        except RuntimeError as e:
-            err_msg = 'failed opening with hop_s={:d}, samplerate={:d} ({:s})'
-            skipTest(err_msg.format(hop_size, samplerate, str(e)))
+        f = open_source(soundfile, samplerate, hop_size)
         assert f.samplerate != 0
         read_frames = self.read_from_source(f)
         if 'f_' in soundfile and samplerate == 0:
