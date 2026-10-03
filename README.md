@@ -213,9 +213,26 @@ Contributing
 Patches are welcome: please fork the latest git repository and create a feature
 branch. Submitted requests should pass all continuous integration tests.
 
+- **Pull request titles** follow [Conventional Commits](https://www.conventionalcommits.org/)
+  (`fix(tempo): ...`, `feat: ...`, `ci: ...`). PRs are squash-merged with the
+  title as the commit message, and a check comments with a suggestion when a
+  title does not parse.
+- **Lint** with [prek](https://github.com/j178/prek): `uvx prek run --all-files`
+  (or `uvx prek install` for a git hook). CI runs the same hooks, and
+  autofix.ci pushes whatever they can fix to the PR.
+- **Tests**: `meson setup builddir -Dtests=true && meson test -C builddir` for
+  the C library; `pytest python/tests` against an installed build for Python.
+  Wheel builds run the Python suite on every platform and fail on any failure.
+- **Releases** are made by [release-please](https://github.com/googleapis/release-please):
+  it keeps a release PR open with the next version and changelog, built from
+  the `fix:`/`feat:` titles on `main`. Merging it tags the release, and CI
+  publishes the wheels to PyPI and the GitHub release.
+- **Dependencies** (GitHub Actions, prek hooks) are kept current by Renovate
+  with the shared [LedFx policy](https://github.com/LedFx/renovate-config).
+
 ### GitHub Copilot Support
 
-This repository includes automated environment setup for GitHub Copilot Coding Agent. The `.github/copilot-setup-steps.yml` file ensures that Copilot has all necessary build tools, dependencies, and testing infrastructure pre-installed. For details, see [`.github/COPILOT_SETUP_README.md`](.github/COPILOT_SETUP_README.md).
+This repository includes automated environment setup for GitHub Copilot Coding Agent. The `.github/workflows/copilot-setup-steps.yml` file ensures that Copilot has all necessary build tools, dependencies, and testing infrastructure pre-installed. For details, see [`.github/COPILOT_SETUP_README.md`](.github/COPILOT_SETUP_README.md).
 
 For optimization and modernization priorities, see:
 - [**OPTIMIZATION_SUMMARY.md**](OPTIMIZATION_SUMMARY.md) - Quick reference guide
