@@ -1,5 +1,5 @@
 project('aubio', 'c',
-  version: '0.4.11', # x-release-please-version
+  version: '0.4.12', # x-release-please-version
   license: 'GPL-3.0-or-later',
   default_options: [
     'warning_level=2',
