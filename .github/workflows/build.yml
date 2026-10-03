@@ -209,7 +209,7 @@ jobs:
 
       # Everything else is in pyproject.toml [tool.cibuildwheel].
       - name: Build and test wheels
-        uses: pypa/cibuildwheel@d16cc544083d96996f923fc4b318fee3cb14b34e # v3.4.1
+        uses: pypa/cibuildwheel@cfbec0988a9c12de5a84206e42aa17442af10d44 # v4.2.1
         env:
           CIBW_ARCHS: ${{ matrix.arch }}
 
