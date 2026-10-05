@@ -1,15 +1,17 @@
 """Consumer authority remains explicit around the pinned shared transaction."""
 
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SHARED_SHA = "f57f5eced6c74aadb1d432fc349554212d7cf05f"
 
 
 def test_release_workflow_preserves_identity_gates_and_same_run_artifacts() -> None:
     workflow = (ROOT / ".github/workflows/build.yml").read_text()
-    job = workflow.split("\n  publish-release:\n", 1)[1].split("\n  publish-to-test-pypi:\n", 1)[0]
+    job = workflow.split("\n  publish-release:\n", 1)[1].split(
+        "\n  publish-to-test-pypi:\n", 1
+    )[0]
     for required in (
         "needs: [plan, ci-passed]",
         "github.repository == 'LedFx/aubio-ledfx'",
@@ -30,7 +32,13 @@ def test_release_workflow_preserves_identity_gates_and_same_run_artifacts() -> N
     assert "run-id:" not in job
     assert job.count("id-token: write") == 1
     assert "name: cibw-sdist" in job
-    assert job.count("LedFx/release-ci/actions/release@" + SHARED_SHA) == 3
+    pins = re.findall(
+        r"uses: LedFx/release-ci/actions/release@([0-9a-f]{40}) # (v[0-9]+\.[0-9]+\.[0-9]+)\s*$",
+        job,
+        re.MULTILINE,
+    )
+    assert len(pins) == 3 and len(set(pins)) == 1
+    assert job.count("uses: LedFx/release-ci/actions/release@") == 3
     assert job.count("policy: release-tools/.github/release-policy.json") == 3
     assert (
         job.index("phase: prepare")
@@ -64,8 +72,14 @@ def test_manual_testpypi_lane_is_unchanged_and_separate() -> None:
     import hashlib
 
     workflow = (ROOT / ".github/workflows/build.yml").read_text()
-    manual = "\n  publish-to-test-pypi:\n" + workflow.split("\n  publish-to-test-pypi:\n", 1)[1]
-    assert hashlib.sha256(manual.encode()).hexdigest() == "b9e0cdd7af0597829d9732369ea854437ba501b72ee7443468164727246b23b1"
+    manual = (
+        "\n  publish-to-test-pypi:\n"
+        + workflow.split("\n  publish-to-test-pypi:\n", 1)[1]
+    )
+    assert (
+        hashlib.sha256(manual.encode()).hexdigest()
+        == "b9e0cdd7af0597829d9732369ea854437ba501b72ee7443468164727246b23b1"
+    )
     assert "LedFx/release-ci" not in manual
     assert "repository-url: https://test.pypi.org/legacy/" in manual
 
