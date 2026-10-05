@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.13](https://github.com/LedFx/aubio-ledfx/compare/v0.4.12...v0.4.13) (2026-10-05)
+
+
+### Bug Fixes
+
+* isolate PyPI upload sidecars from verified distributions ([#66](https://github.com/LedFx/aubio-ledfx/issues/66)) ([5f29159](https://github.com/LedFx/aubio-ledfx/commit/5f29159851c02413a94e7ff95aff7c81d5c25362))
+
 ## [0.4.12](https://github.com/LedFx/aubio-ledfx/compare/v0.4.11...v0.4.12) (2026-10-03)
 
 
