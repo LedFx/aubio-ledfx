@@ -247,8 +247,8 @@ Production keeps `build.yml` and environment `pypi`, with the SHA-pinned
 generated native wheel plan and existing `pyproject.toml` metadata. One queued job downloads both
 `wheels-*` and `cibw-sdist` from the same tested run. The existing Meson/vcpkg
 version guards, C tests, wheel/native dependency and bundled-library/license
-contracts are unchanged. The separate manual `testpypi` lane remains unchanged;
-it does not call production finalization.
+contracts are unchanged. Publication targets production PyPI only; manual
+workflow runs build and test without publishing.
 
 Production uses a scoped App token plus caller OIDC and GitHub attestations to
 validate archive metadata, source/tag, exact hashes and provenance before

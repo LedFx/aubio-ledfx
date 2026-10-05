@@ -9,9 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_release_workflow_preserves_identity_gates_and_same_run_artifacts() -> None:
     workflow = (ROOT / ".github/workflows/build.yml").read_text()
-    job = workflow.split("\n  publish-release:\n", 1)[1].split(
-        "\n  publish-to-test-pypi:\n", 1
-    )[0]
+    job = workflow.split("\n  publish-release:\n", 1)[1]
     for required in (
         "needs: [plan, ci-passed]",
         "github.repository == 'LedFx/aubio-ledfx'",
@@ -77,24 +75,7 @@ def test_pyproject_keeps_native_portable_matrix() -> None:
     assert not (ROOT / ".github/release-policy.json").exists()
 
 
-def test_manual_testpypi_lane_is_unchanged_and_separate() -> None:
-    import hashlib
-
-    workflow = (ROOT / ".github/workflows/build.yml").read_text()
-    manual = (
-        "\n  publish-to-test-pypi:\n"
-        + workflow.split("\n  publish-to-test-pypi:\n", 1)[1]
-    )
-    assert (
-        hashlib.sha256(manual.encode()).hexdigest()
-        == "b9e0cdd7af0597829d9732369ea854437ba501b72ee7443468164727246b23b1"
-    )
-    assert "LedFx/release-ci" not in manual
-    assert "repository-url: https://test.pypi.org/legacy/" in manual
-
-
 if __name__ == "__main__":
     test_release_workflow_preserves_identity_gates_and_same_run_artifacts()
     test_pyproject_keeps_native_portable_matrix()
-    test_manual_testpypi_lane_is_unchanged_and_separate()
-    print("3 shared publication contracts passed")
+    print("2 shared publication contracts passed")
