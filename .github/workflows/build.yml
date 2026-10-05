@@ -80,7 +80,7 @@ jobs:
         with:
           enable-cache: false
       - id: wheels
-        uses: LedFx/release-ci/actions/plan@c4a56af516e431cbdb18519889fd0ffa7166f217 # v0.3.0
+        uses: LedFx/release-ci/actions/plan@442e00705d4e5edd589021851e756761363f9d84 # v0.3.1
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
@@ -473,7 +473,7 @@ jobs:
         id: prepare
         env:
           GH_TOKEN: ${{ steps.release-token.outputs.token }}
-        uses: LedFx/release-ci/actions/release@c4a56af516e431cbdb18519889fd0ffa7166f217 # v0.3.0
+        uses: LedFx/release-ci/actions/release@442e00705d4e5edd589021851e756761363f9d84 # v0.3.1
         with:
           phase: prepare
           project: release-tools
@@ -492,22 +492,29 @@ jobs:
         id: upload
         env:
           GH_TOKEN: ${{ steps.release-token.outputs.token }}
-        uses: LedFx/release-ci/actions/release@c4a56af516e431cbdb18519889fd0ffa7166f217 # v0.3.0
+        uses: LedFx/release-ci/actions/release@442e00705d4e5edd589021851e756761363f9d84 # v0.3.1
         with:
           phase: check-upload
           project: release-tools
           dist: dist
           snapshot: ${{ runner.temp }}/release-snapshot.json
           wheel-plan: ${{ needs.plan.outputs.wheel-plan }}
+      - name: Stage verified distributions for PyPI
+        if: steps.upload.outputs.pypi_upload == 'true'
+        working-directory: ${{ github.workspace }}
+        run: |
+          mkdir pypi-dist
+          cp -- dist/* pypi-dist/
       - name: Publish matching missing Python distributions
         if: steps.upload.outputs.pypi_upload == 'true'
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
         with:
+          packages-dir: pypi-dist/
           skip-existing: true # Both preflights require matching remote SHA-256.
       - name: Verify provenance and finalize existing GitHub draft
         env:
           GH_TOKEN: ${{ steps.release-token.outputs.token }}
-        uses: LedFx/release-ci/actions/release@c4a56af516e431cbdb18519889fd0ffa7166f217 # v0.3.0
+        uses: LedFx/release-ci/actions/release@442e00705d4e5edd589021851e756761363f9d84 # v0.3.1
         with:
           phase: finalize
           project: release-tools
