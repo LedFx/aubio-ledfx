@@ -243,8 +243,8 @@ For optimization and modernization priorities, see:
 ### Verified production publication
 
 Production keeps `build.yml` and environment `pypi`, with the SHA-pinned
-[shared release transaction](https://github.com/LedFx/release-ci) and exact
-25-wheel/sdist `.github/release-policy.json`. One queued job downloads both
+[shared release transaction](https://github.com/LedFx/release-ci) with the
+generated native wheel plan and existing `pyproject.toml` metadata. One queued job downloads both
 `wheels-*` and `cibw-sdist` from the same tested run. The existing Meson/vcpkg
 version guards, C tests, wheel/native dependency and bundled-library/license
 contracts are unchanged. The separate manual `testpypi` lane remains unchanged;
@@ -259,3 +259,8 @@ Matching partial uploads can retry from the original run after checksum checks.
 Higher stable drafts/releases veto latest; abandoned newer drafts can delay it
 without blocking immutable version publication. Keep snapshots/attestation
 bundles and follow the shared recovery guide rather than rebuilding a version.
+
+Wheel support is maintained in `[tool.cibuildwheel]`; platform rows live in
+`[[tool.release-ci.targets]]` in `pyproject.toml`. Update the single `wheel-build`
+cibuildwheel dependency pin and `uv.lock` together. Planning and builds use that
+locked tool and configuration; publication rejects missing platform coverage.
