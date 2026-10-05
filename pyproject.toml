@@ -162,3 +162,35 @@ extend-exclude = ["python/tests/sounds"]
 
 [tool.ruff.lint]
 select = ["E9", "F63", "F7", "F82"]
+
+[dependency-groups]
+wheel-build = ["cibuildwheel==4.2.1"]
+
+[[tool.release-ci.targets]]
+platform = "linux"
+arch = "x86_64"
+runner = "ubuntu-latest"
+
+[[tool.release-ci.targets]]
+platform = "linux"
+arch = "aarch64"
+runner = "ubuntu-24.04-arm"
+
+[[tool.release-ci.targets]]
+platform = "windows"
+arch = "AMD64"
+runner = "windows-latest"
+
+[[tool.release-ci.targets]]
+platform = "macos"
+arch = "x86_64"
+runner = "macos-15-intel"
+triplet = "x64-osx-release"
+macosx_deployment_target = "10.15"
+
+[[tool.release-ci.targets]]
+platform = "macos"
+arch = "arm64"
+runner = "macos-latest"
+triplet = "arm64-osx-release"
+macosx_deployment_target = "11.0"

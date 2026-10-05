@@ -61,6 +61,8 @@ jobs:
     outputs:
       version: ${{ steps.plan.outputs.version }}
       release: ${{ steps.plan.outputs.release }}
+      matrix: ${{ steps.wheels.outputs.matrix }}
+      wheel-plan: ${{ steps.wheels.outputs.wheel-plan }}
       c-tests: ${{ steps.plan.outputs.c-tests }}
       wheels: ${{ steps.plan.outputs.wheels }}
     steps:
@@ -69,10 +71,16 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             pyproject.toml
+            uv.lock
             meson.build
             VERSION
             vcpkg.json
           sparse-checkout-cone-mode: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: false
+      - id: wheels
+        uses: LedFx/release-ci/actions/plan@c4a56af516e431cbdb18519889fd0ffa7166f217 # v0.3.0
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
@@ -84,6 +92,7 @@ jobs:
           REPO: ${{ github.repository }}
           REF: ${{ github.ref }}
           EVENT: ${{ github.event_name }}
+          WHEEL_MATRIX: ${{ steps.wheels.outputs.matrix }}
         run: |
           version=$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
           # PR-controlled on PR runs; it ends up in outputs and release names.
@@ -191,23 +200,13 @@ jobs:
             map(select(
               (.platform == "linux" and $linux and ($midstack == "0" or .arch == "x86_64"))
               or (.platform == "windows" and $windows)
-              or (.platform == "macos" and $macos)))' <<'JSON'
-          [
-            {"platform": "linux", "os": "ubuntu-latest", "arch": "x86_64"},
-            {"platform": "linux", "os": "ubuntu-24.04-arm", "arch": "aarch64"},
-            {"platform": "windows", "os": "windows-latest", "arch": "AMD64"},
-            {"platform": "macos", "os": "macos-15-intel", "arch": "x86_64",
-             "macosx_deployment_target": "10.15", "triplet": "x64-osx-release"},
-            {"platform": "macos", "os": "macos-latest", "arch": "arm64",
-             "macosx_deployment_target": "11.0", "triplet": "arm64-osx-release"}
-          ]
-          JSON
+              or (.platform == "macos" and $macos)))' <<< "$(jq -c '.include' <<< "$WHEEL_MATRIX")"
           )
           {
             echo "c-tests=$c_tests"
             echo "wheels=$wheels"
           } >> "$GITHUB_OUTPUT"
-          echo "C tests: $c_tests; wheels: $(jq -r 'map(.os + " " + .arch) | join(", ")' <<< "$wheels")" >> "$GITHUB_STEP_SUMMARY"
+          echo "C tests: $c_tests; wheels: $(jq -r 'map(.runner + " " + .arch) | join(", ")' <<< "$wheels")" >> "$GITHUB_STEP_SUMMARY"
 
   # Fast lint gate before any build spend. Same hook set as `uvx prek run
   # --all-files` locally. autofix.ci runs in parallel and pushes fixes; that
@@ -224,6 +223,8 @@ jobs:
         with:
           prek-version: "0.5.3"
           extra-args: --all-files # the action adds --show-diff-on-failure itself
+      - name: Shared publication wiring contracts
+        run: python3 ci/test_shared_release.py
 
   # The C library and its own test programs, against system libraries.
   c-tests:
@@ -288,10 +289,10 @@ jobs:
           path: dist/*.tar.gz
 
   build-wheels:
-    name: Wheels (${{ matrix.os }} ${{ matrix.arch }})
+    name: Wheels (${{ matrix.runner }} ${{ matrix.arch }})
     needs: [plan, lint]
     if: needs.plan.outputs.wheels != '[]'
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 120
     strategy:
       fail-fast: false
@@ -333,9 +334,9 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/vcpkg-cache
-          key: vcpkg-bin-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg-triplets/*.cmake', 'vcpkg-ports/**') }}
+          key: vcpkg-bin-${{ matrix.runner }}-${{ matrix.arch }}-${{ hashFiles('vcpkg.json', 'vcpkg-triplets/*.cmake', 'vcpkg-ports/**') }}
           restore-keys: |
-            vcpkg-bin-${{ matrix.os }}-${{ matrix.arch }}-
+            vcpkg-bin-${{ matrix.runner }}-${{ matrix.arch }}-
           lookup-only: ${{ github.ref_type == 'tag' }} # zizmor: ignore[cache-poisoning] release builds never restore
 
       # Windows: meson finds the vcpkg DLLs through vcpkg's own pkgconf (the
@@ -378,14 +379,22 @@ jobs:
           } >> "$GITHUB_ENV"
 
       # Everything else is in pyproject.toml [tool.cibuildwheel].
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: false
       - name: Build and test wheels
-        uses: pypa/cibuildwheel@cfbec0988a9c12de5a84206e42aa17442af10d44 # v4.2.1
+        shell: bash
         env:
-          CIBW_ARCHS: ${{ matrix.arch }}
+          PLATFORM: ${{ matrix.platform }}
+          ARCH: ${{ matrix.arch }}
+        run: >-
+          uv run --frozen --only-group wheel-build python -m cibuildwheel .
+          --config-file pyproject.toml --platform "$PLATFORM" --archs "$ARCH"
+          --output-dir wheelhouse
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: wheels-${{ matrix.os }}-${{ matrix.arch }}
+          name: wheels-${{ matrix.runner }}-${{ matrix.arch }}
           path: ./wheelhouse/*.whl
           compression-level: 0 # wheels are already zip files
 
@@ -410,76 +419,106 @@ jobs:
             fi
           done
 
-  publish-to-pypi:
-    name: Publish to PyPI
+  publish-release:
+    name: Publish verified package release
     needs: [plan, ci-passed]
-    if: needs.plan.outputs.release == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    if: >-
+      !cancelled() &&
+      github.repository == 'LedFx/aubio-ledfx' &&
+      github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') &&
+      needs.plan.result == 'success' && needs.plan.outputs.release == 'true' &&
+      needs.ci-passed.result == 'success'
     environment:
       name: pypi
       url: https://pypi.org/p/aubio-ledfx/
-    permissions:
-      id-token: write # Trusted Publishing
-    steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: wheels-*
-          path: dist/
-          merge-multiple: true
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: cibw-sdist
-          path: dist/
-      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
-
-  # release-please created the draft release with the changelog; this attaches
-  # what went to PyPI and publishes it.
-  github-release:
-    name: Publish GitHub release
-    needs: [plan, publish-to-pypi]
-    if: needs.plan.outputs.release == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
+    concurrency:
+      group: release-publication
+      cancel-in-progress: false
+      queue: max
     permissions:
-      contents: write # uploads assets to and publishes the draft release
+      contents: read
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: wheels-*
-          path: dist/
           merge-multiple: true
+          path: dist/
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: cibw-sdist
           path: dist/
-      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          name: aubio-ledfx ${{ needs.plan.outputs.version }}
-          files: dist/*
-          fail_on_unmatched_files: true
-
-  publish-to-test-pypi:
-    name: Publish to Test PyPI
-    needs: [ci-passed]
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    environment:
-      name: testpypi
-      url: https://test.pypi.org/p/aubio-ledfx/
-    permissions:
-      id-token: write # Trusted Publishing
-    steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+          persist-credentials: false
+          sparse-checkout: |
+            .github
+            pyproject.toml
+          sparse-checkout-cone-mode: false
+          path: release-tools
+      - name: Mint scoped publication token
+        id: release-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          pattern: wheels-*
-          path: dist/
-          merge-multiple: true
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+          client-id: ${{ secrets.AUTOMATION_APP_CLIENT_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ github.event.repository.name }}
+          permission-contents: write
+          permission-attestations: write
+      - name: Freeze verified distributions and release identity
+        id: prepare
+        env:
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
+        uses: LedFx/release-ci/actions/release@c4a56af516e431cbdb18519889fd0ffa7166f217 # v0.3.0
         with:
-          name: cibw-sdist
-          path: dist/
-      - uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+          phase: prepare
+          project: release-tools
+          dist: dist
+          snapshot: ${{ runner.temp }}/release-snapshot.json
+          wheel-plan: ${{ needs.plan.outputs.wheel-plan }}
+      - name: Attest the tested distributions
+        id: provenance
+        if: steps.prepare.outputs.already_published != 'true'
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          repository-url: https://test.pypi.org/legacy/
+          subject-path: ${{ github.workspace }}/dist/*
+          create-storage-record: false
+          github-token: ${{ steps.release-token.outputs.token }}
+      - name: Recheck immutable inputs before PyPI upload
+        id: upload
+        env:
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
+        uses: LedFx/release-ci/actions/release@c4a56af516e431cbdb18519889fd0ffa7166f217 # v0.3.0
+        with:
+          phase: check-upload
+          project: release-tools
+          dist: dist
+          snapshot: ${{ runner.temp }}/release-snapshot.json
+          wheel-plan: ${{ needs.plan.outputs.wheel-plan }}
+      - name: Publish matching missing Python distributions
+        if: steps.upload.outputs.pypi_upload == 'true'
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        with:
+          skip-existing: true # Both preflights require matching remote SHA-256.
+      - name: Verify provenance and finalize existing GitHub draft
+        env:
+          GH_TOKEN: ${{ steps.release-token.outputs.token }}
+        uses: LedFx/release-ci/actions/release@c4a56af516e431cbdb18519889fd0ffa7166f217 # v0.3.0
+        with:
+          phase: finalize
+          project: release-tools
+          dist: dist
+          snapshot: ${{ runner.temp }}/release-snapshot.json
+          wheel-plan: ${{ needs.plan.outputs.wheel-plan }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always() && steps.prepare.outcome == 'success'
+        with:
+          name: release-provenance-${{ github.ref_name }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/release-snapshot.json
+            ${{ steps.provenance.outputs.bundle-path }}
+          if-no-files-found: error
