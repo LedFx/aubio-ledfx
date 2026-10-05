@@ -239,3 +239,23 @@ This repository includes automated environment setup for GitHub Copilot Coding A
 For optimization and modernization priorities, see:
 - [**OPTIMIZATION_SUMMARY.md**](OPTIMIZATION_SUMMARY.md) - Quick reference guide
 - [**OPTIMIZATION_ROADMAP.md**](OPTIMIZATION_ROADMAP.md) - Detailed implementation roadmap
+
+### Verified production publication
+
+Production keeps `build.yml` and environment `pypi`, with the SHA-pinned
+[shared release transaction](https://github.com/LedFx/release-ci) and exact
+25-wheel/sdist `.github/release-policy.json`. One queued job downloads both
+`wheels-*` and `cibw-sdist` from the same tested run. The existing Meson/vcpkg
+version guards, C tests, wheel/native dependency and bundled-library/license
+contracts are unchanged. The separate manual `testpypi` lane remains unchanged;
+it does not call production finalization.
+
+Production uses a scoped App token plus caller OIDC and GitHub attestations to
+validate archive metadata, source/tag, exact hashes and provenance before
+publishing the existing release-please draft last. Softprops finalization is
+replaced by explicit immutable release-ID finalization, preserving release
+notes. Missing drafts/conflicting files fail without creation or clobber.
+Matching partial uploads can retry from the original run after checksum checks.
+Higher stable drafts/releases veto latest; abandoned newer drafts can delay it
+without blocking immutable version publication. Keep snapshots/attestation
+bundles and follow the shared recovery guide rather than rebuilding a version.
