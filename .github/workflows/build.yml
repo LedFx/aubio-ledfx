@@ -89,7 +89,7 @@ jobs:
       # and manifest; no compiled artifact can differ. Renovate dependency or
       # lock changes leave other lines behind and still build everything.
       - id: version_scope
-        uses: LedFx/release-ci/actions/version-scope@f6b0dd14fcd45d61d71fbe8e5ec2d3f1588f1b68 # v0.4.0
+        uses: LedFx/release-ci/actions/version-scope@b7cd7375d72b5f87c20eb0673a9f0ce6ccb930f4 # v0.4.1
         with:
           package-name: aubio-ledfx
           versioned-manifests: |
