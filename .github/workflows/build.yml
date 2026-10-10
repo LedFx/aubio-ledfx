@@ -89,87 +89,17 @@ jobs:
       # and manifest; no compiled artifact can differ. Renovate dependency or
       # lock changes leave other lines behind and still build everything.
       - id: version_scope
-        env:
-          EVENT: ${{ github.event_name }}
-          REF: ${{ github.ref }}
-        run: |
-          case "$EVENT" in
-            pull_request) base="origin/main...HEAD" ;;
-            push)
-              if [[ "$REF" == refs/tags/* ]]; then exit 0; fi
-              base="HEAD^"
-              ;;
-            *) exit 0 ;; # schedule and manual runs always build
-          esac
-          export SCOPE_BASE="$base"
-          scope=$(python3 - <<'PY'
-          import os, re, subprocess
+        uses: LedFx/release-ci/actions/version-scope@442e00705d4e5edd589021851e756761363f9d84 # v0.3.1
+        with:
+          package-name: aubio-ledfx
+          versioned-manifests: |
+            pyproject.toml
+            uv.lock
+            meson.build
+            vcpkg.json
+          simple-version-files: |
+            VERSION
 
-          def git(*args: str) -> str:
-              result = subprocess.run(
-                  ["git", *args], capture_output=True, text=True, timeout=30
-              )
-              return result.stdout if result.returncode == 0 else ""
-
-          def norm(value: str) -> str:
-              return value.replace(" ", "").replace('"', "").replace("'", "")
-
-          files = set(git("diff", "--name-only", os.environ["SCOPE_BASE"], "HEAD").split())
-          if not files:
-              print("false")  # empty or unreadable diff: build everything
-              raise SystemExit
-          prose = {"CHANGELOG.md", ".release-please-manifest.json"}
-          simple = {"VERSION"}  # whole-file version literal
-          manifests = {"pyproject.toml", "uv.lock", "meson.build", "vcpkg.json"}
-          rest = files - manifests - simple
-          if rest and not rest <= prose:
-              print("false")
-              raise SystemExit
-          # Which normalized prefixes mark a hunk as this package's own
-          # version table, and which keys may change inside it.
-          anchors = {
-              "pyproject.toml": ("name=aubio-ledfx",),
-              "uv.lock": ("name=aubio-ledfx",),
-              "meson.build": ("project(aubio",),
-              "vcpkg.json": (),  # whole file is version metadata
-          }
-          keys = {
-              "pyproject.toml": ("version",),
-              "uv.lock": ("version",),
-              "meson.build": ("version:",),
-              "vcpkg.json": ("version-string:",),
-          }
-          for name in sorted(files & manifests):
-              patch = git("diff", "--unified=0", os.environ["SCOPE_BASE"], "HEAD", "--", name)
-              if not patch:
-                  print("false")
-                  raise SystemExit
-              for hunk in re.split(r"^@@", patch, flags=re.MULTILINE)[1:]:
-                  lines = hunk.splitlines()
-                  parts = lines[0].split(maxsplit=3)
-                  anchor = norm(parts[3]) if len(parts) > 3 else ""
-                  for line in lines[1:]:
-                      body = line[1:].strip()
-                      if line[:1] not in {"+", "-"} and body.startswith(
-                          ("name =", "version:", "project(")
-                      ):
-                          anchor = norm(body)
-                  changed = [
-                      line[1:].strip() for line in lines[1:] if line[:1] in {"+", "-"}
-                  ]
-                  ok = bool(changed) and all(
-                      norm(c).startswith(keys[name]) for c in changed
-                  )
-                  ok = ok and (
-                      not anchors[name] or anchor.startswith(anchors[name])
-                  )
-                  if not ok:
-                      print("false")
-                      raise SystemExit
-          print("true")
-          PY
-          )
-          echo "version_only=$scope" >> "$GITHUB_OUTPUT"
       - id: plan
         env:
           GH_TOKEN: ${{ github.token }}
