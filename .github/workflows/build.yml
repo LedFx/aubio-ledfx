@@ -61,7 +61,7 @@ jobs:
     outputs:
       version: ${{ steps.plan.outputs.version }}
       release: ${{ steps.plan.outputs.release }}
-      version_only: ${{ steps.version_scope.outputs.version-only }}
+      version_only: ${{ steps.version_scope.outputs.version-only == 'true' && steps.abi_scope.outputs.abi-changed == 'false' }}
       matrix: ${{ steps.wheels.outputs.matrix }}
       wheel-plan: ${{ steps.wheels.outputs.wheel-plan }}
       c-tests: ${{ steps.plan.outputs.c-tests }}
@@ -99,6 +99,27 @@ jobs:
             vcpkg.json
           simple-version-files: |
             VERSION
+      # VERSION also holds the libtool ABI numbers meson.build builds with; a
+      # change to those is a build change, never release metadata. Compare
+      # commits, not the sparse working tree, and build when unsure.
+      - id: abi_scope
+        if: steps.version_scope.outputs.version-only == 'true'
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          case "$EVENT" in
+            pull_request) range=(origin/main...HEAD) ;;
+            *) range=("$BEFORE" HEAD) ;;
+          esac
+          changed=true
+          if [[ "$EVENT" == pull_request || ( -n "$BEFORE" && ! "$BEFORE" =~ ^0+$ ) ]] &&
+             diff="$(git diff "${range[@]}" -- VERSION)"; then
+            if ! grep -qE '^[-+]LIBAUBIO_LT_' <<<"$diff"; then
+              changed=false
+            fi
+          fi
+          echo "abi-changed=$changed" >> "$GITHUB_OUTPUT"
 
       - id: plan
         env:
