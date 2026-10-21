@@ -427,20 +427,24 @@ jobs:
     timeout-minutes: 5
     steps:
       # A job the plan skipped is "skipped", which passes; anything that ran
-      # must have succeeded. Version-only release bumps legitimately skip the
-      # build jobs; anything else must actually have run.
+      # must have succeeded. Outside a version-only release bump, a job the
+      # plan selected must actually have run.
       - env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
           VERSION_ONLY: ${{ needs.plan.outputs.version_only }}
+          C_TESTS: ${{ needs.plan.outputs.c-tests }}
+          WHEELS: ${{ needs.plan.outputs.wheels }}
+          C_RESULT: ${{ needs.c-tests.result }}
+          SDIST_RESULT: ${{ needs.build-sdist.result }}
+          WHEELS_RESULT: ${{ needs.build-wheels.result }}
         run: |
           echo "Results: $RESULTS"
           if [[ "$VERSION_ONLY" != "true" ]]; then
-            for r in $RESULTS; do
-              if [[ "$r" == "skipped" ]]; then
-                echo "::error::a build job was skipped outside a version-only change"
-                exit 1
-              fi
-            done
+            if [[ "$C_TESTS" == true && "$C_RESULT" == skipped ]] ||
+               [[ "$WHEELS" != '[]' && ( "$SDIST_RESULT" == skipped || "$WHEELS_RESULT" == skipped ) ]]; then
+              echo "::error::a planned build job was skipped outside a version-only change"
+              exit 1
+            fi
           fi
           for r in $RESULTS; do
             if [[ "$r" != success && "$r" != skipped ]]; then
