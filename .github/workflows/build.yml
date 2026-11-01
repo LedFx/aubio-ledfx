@@ -84,7 +84,7 @@ jobs:
         with:
           enable-cache: false
       - id: wheels
-        uses: LedFx/release-ci/actions/plan@442e00705d4e5edd589021851e756761363f9d84 # v0.3.1
+        uses: LedFx/release-ci/actions/plan@12ea4ced7288cb6b0f3a8aafbac3e825969c17ca # v0.4.2
       # A release-please PR bumps the version in five files plus the changelog
       # and manifest; no compiled artifact can differ. Renovate dependency or
       # lock changes leave other lines behind and still build everything.
@@ -527,7 +527,7 @@ jobs:
         id: prepare
         env:
           GH_TOKEN: ${{ steps.release-token.outputs.token }}
-        uses: LedFx/release-ci/actions/release@442e00705d4e5edd589021851e756761363f9d84 # v0.3.1
+        uses: LedFx/release-ci/actions/release@12ea4ced7288cb6b0f3a8aafbac3e825969c17ca # v0.4.2
         with:
           phase: prepare
           project: release-tools
@@ -546,7 +546,7 @@ jobs:
         id: upload
         env:
           GH_TOKEN: ${{ steps.release-token.outputs.token }}
-        uses: LedFx/release-ci/actions/release@442e00705d4e5edd589021851e756761363f9d84 # v0.3.1
+        uses: LedFx/release-ci/actions/release@12ea4ced7288cb6b0f3a8aafbac3e825969c17ca # v0.4.2
         with:
           phase: check-upload
           project: release-tools
@@ -568,7 +568,7 @@ jobs:
       - name: Verify provenance and finalize existing GitHub draft
         env:
           GH_TOKEN: ${{ steps.release-token.outputs.token }}
-        uses: LedFx/release-ci/actions/release@442e00705d4e5edd589021851e756761363f9d84 # v0.3.1
+        uses: LedFx/release-ci/actions/release@12ea4ced7288cb6b0f3a8aafbac3e825969c17ca # v0.4.2
         with:
           phase: finalize
           project: release-tools
